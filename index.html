@@ -534,8 +534,8 @@
     <nav class="tt-rail" id="stageRail" aria-label="שלבי ההתאמה">
       <div class="tt-step" data-stage="1"><span class="tt-stepnum">1</span><b>קלט</b></div>
       <div class="tt-step" data-stage="2"><span class="tt-stepnum">2</span><b>ניתוח המשרה</b></div>
-      <div class="tt-step" data-stage="3"><span class="tt-stepnum">3</span><b>שאלות</b></div>
-      <div class="tt-step" data-stage="4"><span class="tt-stepnum">4</span><b>כתיבה</b></div>
+      <div class="tt-step" data-stage="3"><span class="tt-stepnum">3</span><b>שאלות התאמה</b></div>
+      <div class="tt-step" data-stage="4"><span class="tt-stepnum">4</span><b>שכתוב מחדש</b></div>
       <div class="tt-step" data-stage="5"><span class="tt-stepnum">5</span><b>אישור</b></div>
       <div class="tt-step" data-stage="6"><span class="tt-stepnum">6</span><b>בדיקות והורדה</b></div>
     </nav>
@@ -695,10 +695,24 @@
     </div>
   </section>
 
+  <!-- STEP 2b: HOW WIDE TO READ THE CANDIDATE.
+       Sits between the comparison and the questions on purpose. The gap it
+       describes is computed from stage 2, so it cannot be asked earlier, and
+       both the questions and the rewriting happen after it, so nothing has to
+       be undone once the answer is in. -->
+  <section id="domainCard" class="tt-hidden mb-4 rounded-xl border-2 border-sky-300 bg-sky-50 p-4">
+    <h2 class="font-semibold mb-2 text-sky-900">רוחב ההתאמה, החלטה שלך</h2>
+    <div id="domainOut" class="text-sm text-sky-900"></div>
+    <div id="domainChoice" class="flex flex-wrap gap-2 mt-3">
+      <button id="btnDomainStrict" class="px-4 py-2 rounded-lg bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800">להישאר בתחום שלי</button>
+      <button id="btnDomainBroad" class="px-4 py-2 rounded-lg border border-sky-400 bg-white text-sm hover:bg-sky-100">להרחיב למינוח חוצה תעשיות</button>
+    </div>
+  </section>
+
   <!-- STEP 3 CHAT -->
   <section id="chatCard" class="tt-hidden tt-card mb-4">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-      <h2 class="tt-card-title"><span class="tt-tag">שלב 3</span>שאלות הבהרה ממוקדות</h2>
+      <h2 class="tt-card-title"><span class="tt-tag">שלב 3</span>שאלות התאמה ממוקדות</h2>
       <div class="flex items-center gap-2 text-sm">
         <span class="text-slate-500">שפת השאלות:</span>
         <div class="tt-seg">
@@ -874,7 +888,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v28.1';
+var TT_VERSION = 'v29.0';
 
 var APP = {
   apiKey: '',
@@ -885,6 +899,15 @@ var APP = {
   coverage: [],         // stage 2 output: one entry per requirement id
   gaps: [],             // stage 2 findings
   queue: [],            // question priority queue built from coverage
+  /* Stage 2b: how wide the candidate wants to be read. '' until the gate has
+     asked, and '' behaves exactly like 'strict' everywhere, so a run where the
+     gate never triggers is byte for byte the run this file always did.
+     'strict' stay inside the resume's own sector vocabulary.
+     'broad'  the same facts, said in cross industry terms.
+     Nothing here licenses a new claim: it changes wording and question order,
+     never what the candidate is said to have done. */
+  domainMode: '',
+  domainGap: null,      // the report the gate was computed from, kept for the render
   skillModel: null,     // parsed skills section: groups + items
   skillPlan: null,      // stage 4b output
   chat: {
@@ -947,7 +970,7 @@ function setStatus(msg, busy) {
   setConsole(msg, busy);
 }
 
-var TT_STAGE_NAMES = ['קלט', 'ניתוח המשרה', 'שאלות הבהרה', 'כתיבה מחדש', 'אישור השינויים', 'בדיקות והורדה'];
+var TT_STAGE_NAMES = ['קלט', 'ניתוח המשרה', 'שאלות התאמה', 'שכתוב מחדש', 'אישור השינויים', 'בדיקות והורדה'];
 var TT_STAGE = 1;
 var TT_CONSOLE_TIMER = null;
 
@@ -2483,6 +2506,35 @@ var HARD_RULES = [
   '18. Never write a word that insults, demeans or swears at anyone, in any language, in any line, for any reason. There is no context in a resume where one belongs.'
 ].join('\n');
 
+/* Prompt parts are joined with nulls dropped, so a block that is absent in one
+   mode leaves no trace at all. An empty string here would still contribute a
+   blank line, and a prompt that differs from the old one by a stray newline is
+   a prompt whose behaviour nobody has actually verified. */
+function ttPromptJoin(parts) {
+  return parts.filter(function (x) { return x !== null && x !== undefined; }).join('\n');
+}
+
+/* Stage 2b, the candidate's answer about how wide to be read, turned into
+   prompt text. Two things are deliberate here.
+   First, 'strict' returns an empty string rather than an instruction to stay
+   put. Strict IS what this file already did, and adding words to that prompt
+   would change a path nobody asked to change.
+   Second, X2 says add, never replace. Deleting "MES" and writing "a core
+   operational system" trades a true term a screener searches for against a
+   vague one nobody searches for, which is the opposite of the point. */
+function domainModeBlock() {
+  if (APP.domainMode !== 'broad') return '';
+  return [
+    'CROSS INDUSTRY WORDING, THE CANDIDATE ASKED FOR THIS EXPLICITLY:',
+    'X1. The candidate\'s sector and the posting\'s sector are different. They have chosen to be read across industries rather than inside their own vocabulary.',
+    'X2. Where a line names a sector specific system, ADD the general description of what that system is, in the posting\'s vocabulary, and KEEP the original name. "MES" becomes "MES, מערכת ליבה תפעולית לניהול תהליכים בזמן אמת". It never becomes "מערכת ליבה תפעולית" on its own.',
+    'X3. Removing the original system name is forbidden. It is a true term the candidate owns and a screener searches for it by name.',
+    'X4. This permits WORDING ONLY. Rules 1 to 8 above are untouched. No new system, no new duty, no new tool, no new environment, and never the name of the thing the posting asks for and the candidate has not done.',
+    'X5. Generalise the LABEL of a system, never the facts around it. Scale, metrics, dates, standards, regulation and the verb stay exactly as they are.',
+    'X6. If a line names no sector specific system, leave it alone. Broad wording is not a licence to rewrite lines that were already fine.'
+  ].join('\n');
+}
+
 /* ---- stage 1: full breakdown of the posting ----
    The old version of this asked for three thin lists and got three thin lists.
    It now asks for one entry per distinct requirement, with ids, because every
@@ -2571,7 +2623,7 @@ function promptCoverage(surgeonText, signals, uiLang) {
    history array carries the actual turns. The queue below is what makes the
    questions specific instead of generic. */
 function chatSystemInstruction(surgeonText, signals, coverage, queue, max) {
-  return [
+  return ttPromptJoin([
     'You are helping a candidate strengthen a resume for one specific job, by asking clarifying questions one at a time.',
     '',
     'Your goal: uncover facts the candidate already has but did not write down, so the resume can prove the things this job screens for.',
@@ -2590,6 +2642,18 @@ function chatSystemInstruction(surgeonText, signals, coverage, queue, max) {
     '  Build on the answers already given. Never repeat a question that was answered or skipped.',
     '  Ask at most ' + max + ' questions in total. Set done to true only when the queue is exhausted or the remaining items cannot be helped by asking.',
     '',
+    /* Broad mode changes what a good question is, not how many there are. An
+       item that came back "equivalent" is one the candidate genuinely did in
+       another sector, and the only thing missing before it can be written in
+       this posting's language is the concrete detail underneath it. In strict
+       mode this block is absent and the instruction is the one it always was. */
+    (APP.domainMode === 'broad'
+      ? ['The candidate has asked to be read across industries, because their sector and this posting\'s sector are different.',
+         'Items marked "equivalent" are therefore worth asking about, not skipping: the candidate really did that work, in another sector\'s words.',
+         'For those, ask what the system or process actually DID in general terms: what it managed, at what scale, for which users, under which standard, integrated with what.',
+         'Never ask the candidate to agree that their experience is like the posting\'s. Ask for the facts and nothing else.',
+         ''].join('\n')
+      : null),
     HARD_RULES,
     '',
     'Return JSON only, every turn: {"question":"","req_id":"the id this question is about","done":false,"targets":["line ids this question is about"]}',
@@ -2606,7 +2670,7 @@ function chatSystemInstruction(surgeonText, signals, coverage, queue, max) {
     '',
     'RESUME (editable sections only):',
     surgeonText
-  ].join('\n');
+  ]);
 }
 
 /* The selector changes the language of the questions that are already on the
@@ -2713,13 +2777,15 @@ var ANSWER_RULES = [
 function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
   var answers = answerBlock(qa, reqTextMap(signals));
 
-  return [
+  return ttPromptJoin([
     'Rewrite the ' + cat + ' section of a resume so it proves what this job screens for.',
     '',
     HARD_RULES,
     '',
     ANSWER_RULES,
     '',
+    domainModeBlock() || null,
+    domainModeBlock() ? '' : null,
     'ADDITIONAL RULES FOR THIS TASK:',
     'A. You may only use three sources: the original line text, the answers the candidate gave below, and the shared_properties already established in the coverage map. Nothing else exists.',
     'B. Return an entry ONLY for lines you actually changed. A line you would return unchanged must be left out of the array entirely. Spending the answer on lines that did not change is what runs this response out of room before the real work is written.',
@@ -2767,7 +2833,7 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     'THE SECTION TO REWRITE:',
     sectionText,
     uiHint || ''
-  ].join('\n');
+  ]);
 }
 
 /* ---- stage 4b: the skills section is planned, not prose rewritten ----
@@ -2778,7 +2844,7 @@ function promptSkillPlan(groups, signals, coverage, qa, uiLang) {
   var lang = uiLang === 'en' ? 'English' : 'Hebrew';
   var answers = answerBlock(qa, reqTextMap(signals));
 
-  return [
+  return ttPromptJoin([
     'You are re-ordering and tightening the skills section of a resume for one specific job.',
     'You are NOT writing prose here. Each skill item is a short label and stays a short label.',
     '',
@@ -2786,6 +2852,8 @@ function promptSkillPlan(groups, signals, coverage, qa, uiLang) {
     '',
     ANSWER_RULES,
     '',
+    domainModeBlock() || null,
+    domainModeBlock() ? '' : null,
     'For every skill item id you were given, return one entry:',
     '  action "keep"   leave the label exactly as it is',
     '  action "rename" the candidate genuinely has this, and the posting calls it something else. Use the posting\'s term. This is a vocabulary change only. Renaming "Excel" to "Power BI" is fabrication and is forbidden. Renaming "בקרת איכות" to the posting\'s "Quality Assurance" is correct.',
@@ -2816,7 +2884,7 @@ function promptSkillPlan(groups, signals, coverage, qa, uiLang) {
     '',
     'THE SKILLS SECTION:',
     JSON.stringify(groups)
-  ].join('\n');
+  ]);
 }
 
 /* ---- one answer, said in the language of the resume ----
@@ -3441,11 +3509,21 @@ var GAP_STYLE = {
    answerable come first. */
 function buildQueue() {
   var items = [];
+  /* Broad mode moves "equivalent" from the bottom of the queue to the top of
+     it. That is the whole mechanical difference between the two modes here.
+     In strict mode an equivalent item is nearly proved and a question spent on
+     it is a question wasted. In broad mode it is the opposite: it is the exact
+     item whose underlying facts have to come out of the candidate's mouth
+     before stage 4 is allowed to describe it in this posting's language.
+     Same reason it is also admitted when the coverage pass said ask_user
+     false: that verdict was reached while reading the resume strictly. */
+  var broad = APP.domainMode === 'broad';
   APP.coverage.forEach(function (c) {
     var r = reqById(c.req_id);
     if (!r || c.status === 'direct') return;
-    if (!c.ask_user && c.status !== 'partial') return;
-    var base = c.status === 'missing' ? 3 : c.status === 'partial' ? 2 : 1;
+    var wantedByBroad = broad && c.status === 'equivalent';
+    if (!c.ask_user && c.status !== 'partial' && !wantedByBroad) return;
+    var base = c.status === 'missing' ? 3 : c.status === 'partial' ? 2 : (wantedByBroad ? 3 : 1);
     /* Significance belongs here too. Six questions is all the patience anyone
        has, and spending one of them on something the posting mentioned once at
        the bottom, while the thing named in the role title goes unasked, is the
@@ -4715,7 +4793,7 @@ function renderKeywords() {
   }
 
   html += '<p class="text-xs text-slate-500 mt-2">מילה שחסרה כאן היא מילה שלא נמצאה לה ראיה אמיתית בקורות החיים. ' +
-          'הדרך להעלות את האחוז היא לענות על עוד שאלות הבהרה, לא לשתול מילים. ' +
+          'הדרך להעלות את האחוז היא לענות על עוד שאלות התאמה, לא לשתול מילים. ' +
           'דרישה שסומנה "ראיה מקבילה" לא תקבל את המילה עצמה לעולם, וזה בכוונה.</p>';
   el.innerHTML = html;
 }
@@ -5027,7 +5105,10 @@ async function runPipeline() {
     var rel = relevanceVerdict();
     if (!rel.related) { renderNoRelation(rel); return; }
 
-    await startQuestions();
+    /* Two gates, in this order. "Nothing to tailor" outranks "how wide should
+       we read you", because there is no point choosing a vocabulary for a
+       resume that has no business being sent to this posting at all. */
+    await continueAfterRelevance();
   } catch (e) {
     /* Same rule as the writing stage: a crash outside the guarded calls used to
        leave the spinner running with nothing to press. */
@@ -5109,6 +5190,112 @@ function renderNoRelation(rel) {
   if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+/* ---------------- stage 2b: how wide should this candidate be read? --------
+   A system owner in manufacturing and a system owner in a bank do the same
+   job with different nouns. Stage 2 already finds that: a requirement comes
+   back "equivalent" exactly when the resume never names the thing but proves
+   the properties that make it matter. A pile of those is not a weak candidate,
+   it is a candidate being read in the wrong industry's vocabulary.
+
+   Only the candidate can say which they want, so the question is asked rather
+   than decided. It is asked HERE, after the comparison, because before the
+   comparison there is nothing concrete to show them, and before the questions,
+   because everything after this point is affected and nothing before it is.
+
+   Computed from what is already on screen, no extra call. */
+var TT_DOMAIN_MIN_EQUIV = 2;
+
+function domainGapReport() {
+  var eq = [], must = 0;
+  (APP.coverage || []).forEach(function (c) {
+    if (!c || c.status !== 'equivalent') return;
+    var r = reqById(c.req_id);
+    if (!r) return;
+    if (r.must_have) must++;
+    eq.push({
+      req_id: r.id,
+      text: r.text,
+      must_have: !!r.must_have,
+      keyword: (r.keywords && r.keywords[0]) ? String(r.keywords[0]) : '',
+      shared: (c.shared_properties || []).slice(0, 2)
+    });
+  });
+  eq.sort(function (a, b) { return reqWeight(b.req_id) - reqWeight(a.req_id); });
+  return {
+    equivalent: eq,
+    mustCount: must,
+    domain: (APP.signals && APP.signals.domain) ? String(APP.signals.domain) : '',
+    /* One equivalent item is a detail. Two, or one the posting cannot do
+       without, is a pattern worth stopping the run for. */
+    trigger: eq.length >= TT_DOMAIN_MIN_EQUIV || (eq.length >= 1 && must >= 1)
+  };
+}
+
+function renderDomainGate(gap) {
+  APP.domainGap = gap;
+  var el = $('domainOut');
+  if (el) {
+    var head = gap.domain
+      ? 'המשרה הזו נמצאת בתחום ' + escapeHtml(gap.domain) + '. '
+      : '';
+    var html = '<p class="mb-2">' + head + 'ב־' + gap.equivalent.length + ' דרישות מצאתי שקורות החיים שלך מוכיחים את העבודה עצמה, ' +
+      'אבל קוראים לה בשם שנהוג בתחום שלך ולא בשם שהמשרה משתמשת בו' +
+      (gap.mustCount ? ', ומתוכן ' + gap.mustCount + ' מוגדרות כדרישת חובה' : '') + '.</p>';
+    html += '<ul class="list-disc ps-5 space-y-1 text-sm mb-3">';
+    gap.equivalent.slice(0, 4).forEach(function (e) {
+      var shared = e.shared.length ? ' · אצלך: ' + escapeHtml(e.shared.join(', ')) : '';
+      html += '<li>' + escapeHtml(e.keyword || e.text) +
+              (e.must_have ? ' <span class="text-xs font-semibold">(חובה)</span>' : '') +
+              '<span class="text-xs">' + shared + '</span></li>';
+    });
+    if (gap.equivalent.length > 4) {
+      html += '<li class="text-xs">ועוד ' + (gap.equivalent.length - 4) + '.</li>';
+    }
+    html += '</ul>';
+    html +=
+      '<p class="mb-1"><b>להישאר בתחום שלי:</b> השאלות והניסוח נשארים בשפה המקצועית שלך. ' +
+      'זו ההתנהגות הרגילה של הכלי.</p>' +
+      '<p class="mb-2"><b>להרחיב למינוח חוצה תעשיות:</b> השאלות יתמקדו במה שהמערכות שלך עשו במונחים כלליים, ' +
+      'ובשכתוב יתווסף התיאור הכללי לצד השם המקורי. השם המקורי לא נמחק, ושום מערכת או תפקיד שלא עשית לא ייכנסו.</p>' +
+      '<p class="text-xs">בשתי האפשרויות טבלת ההשוואה למעלה לא מחושבת מחדש, כדי לא להריץ שוב את שלב 2. ' +
+      'היא ממשיכה להציג את ההשוואה הצרה, וזה בכוונה: המספר שם הוא מה שהוכח, לא מה שאפשר לנסח.</p>';
+    el.innerHTML = html;
+  }
+  var choice = $('domainChoice');
+  if (choice) choice.classList.remove('tt-hidden');
+  show('domainCard');
+  setStatus('');
+  var card = $('domainCard');
+  if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* The card stays on screen after the choice, collapsed to one line. It is the
+   only place the run says which mode it is in, and the note about the frozen
+   comparison table has to survive next to it. */
+function chooseDomainMode(mode) {
+  APP.domainMode = mode === 'broad' ? 'broad' : 'strict';
+  var choice = $('domainChoice');
+  if (choice) choice.classList.add('tt-hidden');
+  var el = $('domainOut');
+  if (el) {
+    el.innerHTML = APP.domainMode === 'broad'
+      ? '<p><b>נבחר: הרחבה למינוח חוצה תעשיות.</b> השאלות מתמקדות במה שהמערכות שלך עשו במונחים כלליים, ' +
+        'והשכתוב יוסיף תיאור כללי לצד השם המקורי. טבלת ההשוואה למעלה נשארת כפי שחושבה, לפי ההשוואה הצרה.</p>'
+      : '<p><b>נבחר: להישאר בתחום שלי.</b> השאלות והניסוח נשארים בשפה המקצועית של קורות החיים.</p>';
+  }
+  startQuestions().catch(function (e) {
+    showError('ההרצה נעצרה בגלל שגיאה: ' + ((e && e.message) || ''));
+  });
+}
+
+/* The one way into stage 3, so the gate cannot be skipped by the "continue
+   anyway" button on the no relation card. */
+async function continueAfterRelevance() {
+  var gap = domainGapReport();
+  if (gap.trigger && !APP.domainMode) { renderDomainGate(gap); return; }
+  await startQuestions();
+}
+
 function renderQueue() {
   var el = $('queueOut');
   if (!el) return;
@@ -5155,10 +5342,14 @@ function bindStageUi() {
   var go = $('btnNoRelationGo');
   if (go) go.addEventListener('click', function () {
     hide('noRelationCard');
-    startQuestions().catch(function (e) {
+    continueAfterRelevance().catch(function (e) {
       showError('ההרצה נעצרה בגלל שגיאה: ' + ((e && e.message) || ''));
     });
   });
+  var dStrict = $('btnDomainStrict');
+  if (dStrict) dStrict.addEventListener('click', function () { chooseDomainMode('strict'); });
+  var dBroad = $('btnDomainBroad');
+  if (dBroad) dBroad.addEventListener('click', function () { chooseDomainMode('broad'); });
 
   var btns = document.querySelectorAll('.tt-langbtn');
   for (var i = 0; i < btns.length; i++) {
@@ -6245,6 +6436,12 @@ function resetPanel(which) {
 function resetRun() {
   clearError();
   APP.doc = null; APP.signals = null; APP.coverage = []; APP.gaps = []; APP.queue = [];
+  /* The mode belongs to one run against one posting, never to the session. A
+     mode that survived into the next run would silently answer a question the
+     candidate was never asked about a job they had not seen yet. */
+  APP.domainMode = ''; APP.domainGap = null;
+  var domChoice = $('domainChoice');
+  if (domChoice) domChoice.classList.remove('tt-hidden');
   APP.skillModel = null; APP.skillPlan = null; APP.skillRanks = null; APP.skillLines = null;
   APP.changes = []; APP.synthesis = {}; APP.added = []; APP.orderPlan = {};
   APP.finalText = ''; APP.rejectedByLanguageLock = 0; APP.metricsNoticeShown = false;
@@ -6264,13 +6461,13 @@ function resetRun() {
   if (typeof showChatRetry === 'function') showChatRetry(false);
   if (typeof clearAnswerSpell === 'function') clearAnswerSpell();
   ['analysisCard', 'chatCard', 'answersCard', 'reviewCard', 'previewCard', 'resultCard',
-   'metricsNotice', 'noticeBox', 'noRelationCard'].forEach(hide);
+   'metricsNotice', 'noticeBox', 'noRelationCard', 'domainCard'].forEach(hide);
   /* Hiding a card is not the same as emptying it. A card that is hidden with
      last run's coverage still inside comes back on the next run showing the
      previous job for as long as it takes the first stage to answer. */
   ['spellOut', 'answersOut', 'chatLog', 'queueOut', 'signalsOut', 'gapsOut',
    'reviewOut', 'diffOut', 'keywordsOut', 'atsOut', 'previewPage', 'finalStruct',
-   'noRelationOut', 'previewActionNote'].forEach(function (id) {
+   'noRelationOut', 'previewActionNote', 'domainOut'].forEach(function (id) {
     var e = $(id);
     if (e) e.innerHTML = '';
   });
