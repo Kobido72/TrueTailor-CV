@@ -49,7 +49,7 @@
      template is typography, spacing, a rule and a heading colour, so nothing
      here changes what an ATS parser extracts. The same numbers drive the docx
      and the print sheet, see TT_TEMPLATES. */
-  .tt-pagewrap { background:#e2e8f0; padding:16px; border-radius:12px; overflow-x:auto; }
+  .tt-pagewrap { background:#E7EEEF; padding:16px; border-radius:12px; overflow-x:auto; }
   .tt-page {
     background:#fff; color:#000; max-width:210mm; margin:0 auto; padding:14mm;
     box-shadow:0 4px 18px rgba(15,23,42,.18); border-radius:2px;
@@ -111,13 +111,18 @@
   }
 
   /* =====================================================================
-     TrueTailor design layer  (v27)  —  "dark studio, white paper"
+     TrueTailor design layer  (v28)  —  "lit studio, white paper"
 
-     The app is a workbench and the resume is the only document on it, so the
-     shell is midnight and every working surface is a white sheet lit against
-     it. One accent does the acting (teal), one does the counting (brass, on
-     the stage rail and the progress bars only), and nothing else is allowed a
-     colour of its own.
+     The shell used to be midnight. It read as a tool you had been shut inside
+     rather than one you were working at, and an hour of answering questions
+     about your own career is long enough that the room should not be dark.
+     The shell is now a cool near-white with the faintest mint cast, and the
+     working surfaces are still white sheets, separated from it by a hairline
+     and a soft shadow rather than by brightness alone.
+
+     The two accents are unchanged in role and were only deepened enough to
+     hold their contrast on a light ground: teal acts, amber counts (the stage
+     rail and the progress bars only), and nothing else gets a colour.
 
      Two things about specificity, learned the hard way. Tailwind's CDN build
      injects its stylesheet into <head> at runtime, after this block, so
@@ -134,13 +139,16 @@
     --tt-ui: "Assistant", "Segoe UI", "Arial Hebrew", Arial, sans-serif;
     --tt-display: "Heebo", "Assistant", "Segoe UI", Arial, sans-serif;
 
-    /* the shell */
-    --sh-0:  #060A12;
-    --sh-1:  #0A1120;
-    --sh-2:  #101B2E;
-    --sh-3:  #1B2A42;
-    --sh-tx: #C7D6E6;
-    --sh-dim:#7E93AC;
+    /* the shell — light now, so sh-0 is the page and sh-3 the strongest line */
+    --sh-0:  #F4F7F8;
+    --sh-1:  #EDF2F3;
+    --sh-2:  #E3EBEC;
+    --sh-3:  #D3DEE1;
+    --sh-tx: #16303A;
+    --sh-dim:#5A7481;
+    --sh-hair:   rgba(18,52,64,.10);
+    --sh-hair-2: rgba(18,52,64,.18);
+    --sh-tint:   rgba(18,52,64,.05);
 
     /* paper */
     --c-paper:  #ffffff;
@@ -151,22 +159,22 @@
     --c-line-2: #F0F3F8;
 
     /* it acts */
-    --c-accent:   #0E9E92;
-    --c-accent-2: #16C2B0;
-    --c-accent-w: #E5F7F5;
-    --c-accent-d: #06544E;
+    --c-accent:   #0E8F86;
+    --c-accent-2: #12A99C;
+    --c-accent-w: #E3F5F2;
+    --c-accent-d: #075049;
     /* it counts */
-    --c-brass:    #E2A93C;
-    --c-brass-d:  #8A5F0E;
-    --c-brass-w:  #FDF3DF;
+    --c-brass:    #C98A15;
+    --c-brass-d:  #7A520A;
+    --c-brass-w:  #FBF1DC;
 
     --c-ok: #10794F; --c-ok-w: #E6F6EE;
     --c-warn: #9A5D0C; --c-warn-w: #FDF2E0;
     --c-bad: #B7261C; --c-bad-w: #FDEBEA;
 
     --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 26px;
-    --sh-card: 0 1px 2px rgba(4,10,20,.28), 0 12px 34px -12px rgba(4,10,20,.55);
-    --sh-lift: 0 2px 4px rgba(4,10,20,.3), 0 26px 60px -18px rgba(4,10,20,.6);
+    --sh-card: 0 1px 2px rgba(18,52,64,.05), 0 10px 26px -14px rgba(18,52,64,.22);
+    --sh-lift: 0 2px 5px rgba(18,52,64,.07), 0 22px 48px -18px rgba(18,52,64,.28);
   }
 
   /* ---------- the shell ---------- */
@@ -175,9 +183,9 @@
     font-family: var(--tt-ui);
     color: var(--sh-tx);
     background:
-      radial-gradient(1000px 620px at 88% -180px, rgba(22,194,176,.20) 0%, rgba(22,194,176,0) 60%),
-      radial-gradient(820px 520px at 6% 4%, rgba(226,169,60,.13) 0%, rgba(226,169,60,0) 58%),
-      linear-gradient(180deg, var(--sh-1) 0%, var(--sh-0) 62%);
+      radial-gradient(1100px 680px at 88% -200px, rgba(18,169,156,.13) 0%, rgba(18,169,156,0) 62%),
+      radial-gradient(880px 560px at 4% 2%, rgba(201,138,21,.07) 0%, rgba(201,138,21,0) 60%),
+      linear-gradient(180deg, #FAFCFC 0%, var(--sh-0) 58%);
     background-attachment: fixed;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
@@ -189,9 +197,9 @@
   .tt-top {
     position: sticky; top: 0; z-index: 30;
     margin: -16px -16px 20px; padding: 14px 18px 12px;
-    background: rgba(10,17,32,.82);
+    background: rgba(250,252,252,.86);
     backdrop-filter: blur(14px) saturate(140%);
-    border-bottom: 1px solid rgba(255,255,255,.07);
+    border-bottom: 1px solid var(--sh-hair);
   }
   .tt-top-in { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .tt-brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
@@ -199,20 +207,20 @@
     width: 38px; height: 38px; flex: none; border-radius: 11px;
     display: grid; place-items: center;
     font-family: var(--tt-display); font-weight: 900; font-size: .92rem; letter-spacing: -.04em;
-    color: #04231F;
-    background: linear-gradient(145deg, var(--c-accent-2) 0%, var(--c-accent) 55%, #0B7A70 100%);
-    box-shadow: 0 6px 18px -6px rgba(22,194,176,.75), inset 0 1px 0 rgba(255,255,255,.45);
+    color: #FFFFFF;
+    background: linear-gradient(145deg, var(--c-accent-2) 0%, var(--c-accent) 55%, #0A756D 100%);
+    box-shadow: 0 6px 16px -7px rgba(14,143,134,.6), inset 0 1px 0 rgba(255,255,255,.35);
   }
   .tt-brandname {
     display: block; font-family: var(--tt-display); font-weight: 900;
-    font-size: 1.18rem; color: #fff; line-height: 1.1;
+    font-size: 1.18rem; color: #0C2630; line-height: 1.1;
   }
-  .tt-brandname em { font-style: normal; color: var(--c-accent-2); }
+  .tt-brandname em { font-style: normal; color: var(--c-accent); }
   .tt-brandsub { display: block; font-size: .74rem; color: var(--sh-dim); margin-top: 1px; }
   .tt-ver {
     font-size: .64rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--c-brass); border: 1px solid rgba(226,169,60,.35);
-    background: rgba(226,169,60,.08);
+    color: var(--c-brass-d); border: 1px solid rgba(201,138,21,.3);
+    background: rgba(201,138,21,.09);
     border-radius: 999px; padding: 3px 9px; align-self: flex-start; flex: none;
   }
 
@@ -223,47 +231,47 @@
   .tt-step {
     display: flex; align-items: center; gap: 8px;
     padding: 6px 12px 6px 8px; border-radius: 999px;
-    background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08);
+    background: #fff; border: 1px solid var(--sh-hair);
     font-size: .75rem; color: var(--sh-dim); white-space: nowrap;
     transition: background .28s, color .28s, border-color .28s, box-shadow .28s;
   }
   .tt-step b { font-family: var(--tt-display); font-weight: 700; font-size: .74rem; }
   .tt-step .tt-stepnum {
     width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
-    background: rgba(255,255,255,.09); font-family: var(--tt-display);
+    background: var(--sh-2); font-family: var(--tt-display);
     font-size: .68rem; font-weight: 800; color: var(--sh-dim);
   }
-  .tt-step.is-done { color: #A9C6C3; border-color: rgba(22,194,176,.3); background: rgba(22,194,176,.07); }
-  .tt-step.is-done .tt-stepnum { background: rgba(22,194,176,.55); color: #04231F; }
+  .tt-step.is-done { color: var(--c-accent-d); border-color: rgba(18,169,156,.3); background: var(--c-accent-w); }
+  .tt-step.is-done .tt-stepnum { background: var(--c-accent); color: #fff; }
   .tt-step.is-now {
-    color: #2A1D02; border-color: transparent;
-    background: linear-gradient(180deg, #F3C463, var(--c-brass));
-    box-shadow: 0 8px 22px -8px rgba(226,169,60,.85);
+    color: #FFF6E4; border-color: transparent;
+    background: linear-gradient(180deg, #D89A20, var(--c-brass-d));
+    box-shadow: 0 8px 18px -8px rgba(122,82,10,.55);
   }
-  .tt-step.is-now .tt-stepnum { background: rgba(0,0,0,.22); color: #2A1D02; }
+  .tt-step.is-now .tt-stepnum { background: rgba(255,255,255,.22); color: #fff; }
 
   /* ---------- the opening statement ---------- */
   .tt-hero { padding: 26px 4px 22px; }
   .tt-hero h2 {
     font-size: clamp(1.7rem, 4.4vw, 2.65rem); font-weight: 900; line-height: 1.12;
-    color: #fff; margin: 0 0 10px; max-width: 22ch;
+    color: #0C2630; margin: 0 0 10px; max-width: 22ch;
   }
   .tt-hero h2 span {
-    background: linear-gradient(100deg, var(--c-accent-2), var(--c-brass));
+    background: linear-gradient(100deg, var(--c-accent), var(--c-brass-d));
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .tt-hero p { color: var(--sh-dim); font-size: .95rem; max-width: 60ch; margin: 0 0 14px; }
   .tt-facts { display: flex; flex-wrap: wrap; gap: 8px; }
   .tt-fact {
     font-size: .75rem; color: var(--sh-tx); padding: 6px 12px; border-radius: 999px;
-    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
+    background: #fff; border: 1px solid var(--sh-hair);
   }
-  .tt-fact b { color: var(--c-accent-2); font-weight: 700; }
+  .tt-fact b { color: var(--c-accent-d); font-weight: 700; }
 
   /* ---------- white sheets ---------- */
   .tt-card {
     background: var(--c-paper); color: var(--c-ink);
-    border: 1px solid rgba(255,255,255,.06);
+    border: 1px solid var(--sh-hair);
     border-radius: var(--r-lg); box-shadow: var(--sh-card);
     padding: 22px; position: relative;
     animation: ttrise .38s cubic-bezier(.2,.8,.3,1) both;
@@ -287,8 +295,8 @@
   .tt-launch {
     display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
     padding: 15px 18px; border-radius: var(--r-lg);
-    background: linear-gradient(120deg, rgba(22,194,176,.13), rgba(226,169,60,.09));
-    border: 1px solid rgba(255,255,255,.10);
+    background: linear-gradient(120deg, rgba(18,169,156,.10), rgba(201,138,21,.07));
+    border: 1px solid var(--sh-hair-2);
   }
   .tt-launch .tt-launch-note { font-size: .82rem; color: var(--sh-dim); flex: 1; min-width: 160px; }
 
@@ -302,22 +310,22 @@
   }
   .tt-btn:hover { background: #F7FAFC; border-color: #C6D2E0; transform: translateY(-1px); }
   .tt-btn:active { transform: translateY(0); }
-  .tt-btn:focus-visible { outline: 2px solid var(--c-accent-2); outline-offset: 2px; }
+  .tt-btn:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .tt-btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
   .tt-btn-primary {
     background: linear-gradient(180deg, var(--c-accent-2), var(--c-accent));
-    border-color: transparent; color: #04231F;
-    box-shadow: 0 10px 24px -10px rgba(22,194,176,.9);
+    border-color: transparent; color: #FFFFFF;
+    box-shadow: 0 8px 20px -10px rgba(14,143,134,.75);
   }
-  .tt-btn-primary:hover { background: linear-gradient(180deg, #1ED4C0, #0FA79A); border-color: transparent; }
+  .tt-btn-primary:hover { background: linear-gradient(180deg, #14BAAB, #0C7F77); border-color: transparent; }
   .tt-btn-dark { background: var(--c-ink); border-color: var(--c-ink); color: #fff; }
   .tt-btn-dark:hover { background: #1D3049; border-color: #1D3049; color: #fff; }
   .tt-btn-ok { background: var(--c-ok); border-color: var(--c-ok); color: #fff; }
   .tt-btn-ok:hover { background: #0C6543; border-color: #0C6543; color: #fff; }
   .tt-btn-ghost {
-    background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); color: #E7F0F7;
+    background: #fff; border-color: var(--sh-hair-2); color: var(--sh-tx);
   }
-  .tt-btn-ghost:hover { background: rgba(255,255,255,.13); border-color: rgba(255,255,255,.28); color: #fff; }
+  .tt-btn-ghost:hover { background: var(--sh-1); border-color: var(--c-accent); color: var(--c-accent-d); }
   .tt-btn-lg { font-size: 1rem; padding: 13px 26px; border-radius: 13px; }
   .tt-btn-sm { font-size: .77rem; padding: 7px 12px; border-radius: 9px; }
   .tt-btn-danger:hover { background: var(--c-bad-w); border-color: #EFB6B1; color: var(--c-bad); }
@@ -331,7 +339,7 @@
   .tt-field::placeholder { color: #9AAABD; }
   .tt-field:focus {
     outline: none; background: #fff; border-color: var(--c-accent-2);
-    box-shadow: 0 0 0 4px rgba(22,194,176,.14);
+    box-shadow: 0 0 0 4px rgba(18,169,156,.16);
   }
   .tt-drop {
     display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
@@ -364,10 +372,10 @@
      for is a spinner that says nothing. */
   .tt-console {
     position: fixed; inset-inline: 0; bottom: 0; z-index: 45;
-    background: linear-gradient(180deg, rgba(16,27,46,.97), rgba(6,10,18,.99));
-    color: #E4EFF5;
-    border-top: 1px solid rgba(22,194,176,.28);
-    box-shadow: 0 -10px 40px rgba(0,0,0,.5);
+    background: rgba(252,253,253,.95);
+    color: var(--sh-tx);
+    border-top: 1px solid rgba(18,169,156,.35);
+    box-shadow: 0 -6px 26px rgba(18,52,64,.10);
     backdrop-filter: blur(10px);
     transform: translateY(100%); transition: transform .3s cubic-bezier(.2,.8,.3,1);
   }
@@ -376,20 +384,20 @@
     max-width: 74rem; margin: 0 auto; padding: 11px 18px;
     display: flex; align-items: center; gap: 13px; font-size: .85rem;
   }
-  .tt-console-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c-accent-2); flex: none; }
+  .tt-console-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c-accent); flex: none; }
   .tt-console.is-busy .tt-console-dot { animation: ttpulse 1.1s ease-in-out infinite; }
-  .tt-console.is-bad .tt-console-dot { background: #FF7566; animation: none; }
-  .tt-console.is-bad .tt-console-msg { color: #FFC9C2; }
+  .tt-console.is-bad .tt-console-dot { background: var(--c-bad); animation: none; }
+  .tt-console.is-bad .tt-console-msg { color: var(--c-bad); }
   @keyframes ttpulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(.7); } }
   .tt-console-msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tt-console-stage {
-    font-size: .71rem; color: var(--c-brass); letter-spacing: .05em; flex: none;
+    font-size: .71rem; color: var(--c-brass-d); letter-spacing: .05em; flex: none;
     font-family: var(--tt-display); font-weight: 700;
   }
   .tt-console-bar { position: absolute; inset-inline: 0; top: 0; height: 2px; overflow: hidden; }
   .tt-console.is-busy .tt-console-bar::before {
     content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 30%;
-    background: linear-gradient(90deg, transparent, var(--c-accent-2), transparent);
+    background: linear-gradient(90deg, transparent, var(--c-accent), transparent);
     animation: ttsweep 1.2s linear infinite;
   }
   @keyframes ttsweep { from { transform: translateX(-100%); } to { transform: translateX(333%); } }
@@ -407,13 +415,13 @@
   .tt-qtrack { flex: 1; min-width: 150px; height: 8px; border-radius: 999px; background: #EFE2C6; overflow: hidden; }
   .tt-qfill {
     height: 100%; border-radius: 999px; width: 0;
-    background: linear-gradient(90deg, #F3C463, var(--c-brass));
+    background: linear-gradient(90deg, #E0A62B, var(--c-brass));
     transition: width .5s cubic-bezier(.2,.8,.3,1);
   }
   .tt-qpips { display: flex; gap: 5px; }
   .tt-qpip { width: 22px; height: 6px; border-radius: 999px; background: #EADCBE; }
   .tt-qpip.is-done { background: var(--c-brass); }
-  .tt-qpip.is-now  { background: var(--c-brass-d); box-shadow: 0 0 0 3px rgba(226,169,60,.25); }
+  .tt-qpip.is-now  { background: var(--c-brass-d); box-shadow: 0 0 0 3px rgba(201,138,21,.25); }
 
   /* ---------- the way out of a step, at the end of the step ---------- */
   .tt-stepfoot {
@@ -430,7 +438,7 @@
      Both used to be flat: one a monospaced block, the other a pile of
      sentences with nothing to say which section any of them came from. They
      are drawn on the shape of the real document now. */
-  .tt-struct { background: #E9EEF4; padding: 16px; border-radius: var(--r-md); overflow-x: auto; }
+  .tt-struct { background: #E7EEEF; padding: 16px; border-radius: var(--r-md); overflow-x: auto; }
   .tt-sheet {
     background: #fff; max-width: 210mm; margin: 0 auto; padding: 24px 28px;
     border-radius: 6px; box-shadow: 0 2px 10px rgba(13,24,38,.14); line-height: 1.5; color: #111;
@@ -456,7 +464,7 @@
   .tt-sheet .tt-gap  { height: 10px; }
   .tt-sheet .tt-hit {
     border-inline-start: 3px solid var(--c-accent-2); padding-inline-start: 10px;
-    background: linear-gradient(90deg, rgba(22,194,176,.07), transparent 72%);
+    background: linear-gradient(90deg, rgba(18,169,156,.08), transparent 72%);
     border-radius: 4px; padding-block: 4px; margin-bottom: 7px;
   }
   .tt-sheet .tt-flag {
@@ -477,11 +485,14 @@
   .tt-chat { background: #F6F9FC; border: 1px solid var(--c-line-2); border-radius: var(--r-md); padding: 12px; }
   /* scoped to the preview only: #printArea builds its own markup and must not
      inherit a drop shadow into the exported PDF */
-  .tt-pagewrap { background: #E9EEF4; }
-  .tt-pagewrap .tt-page { box-shadow: 0 4px 22px rgba(6,10,18,.28); }
+  .tt-pagewrap { background: #E7EEEF; }
+  .tt-pagewrap .tt-page { box-shadow: 0 4px 18px rgba(18,52,64,.16); }
 
   /* the ⚙ button and the status text sit on the dark shell, not on paper */
   #globalStatus { color: var(--sh-dim); }
+  /* Tailwind's slate greys were picked against the old dark shell and are now
+     too faint on a light one. */
+  .tt-card .text-slate-500, .tt-card .text-slate-600 { color: var(--c-mute) !important; }
 
   /* Any white surface that is not a .tt-card must still say what colour its
      text is, or it inherits the shell's light grey and disappears. The modal
@@ -514,7 +525,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v27</span>
+        <span class="tt-ver" id="verBadge">v28.1</span>
       </div>
       <button id="btnSettings" class="tt-btn tt-btn-ghost tt-btn-sm">⚙️ הגדרות</button>
     </div>
@@ -526,7 +537,7 @@
       <div class="tt-step" data-stage="3"><span class="tt-stepnum">3</span><b>שאלות</b></div>
       <div class="tt-step" data-stage="4"><span class="tt-stepnum">4</span><b>כתיבה</b></div>
       <div class="tt-step" data-stage="5"><span class="tt-stepnum">5</span><b>אישור</b></div>
-      <div class="tt-step" data-stage="6"><span class="tt-stepnum">6</span><b>תצוגה והורדה</b></div>
+      <div class="tt-step" data-stage="6"><span class="tt-stepnum">6</span><b>בדיקות והורדה</b></div>
     </nav>
   </header>
 
@@ -724,6 +735,7 @@
         <button id="btnSendAnswer" class="tt-btn tt-btn-primary">שלח תשובה</button>
         <button id="btnSkipQ" class="tt-btn">דלג על השאלה</button>
         <button id="btnDoneQ" class="tt-btn tt-btn-ok">סיימתי, בנה את הגרסה</button>
+        <button id="btnRetryQ" class="tt-btn tt-hidden">↻ נסה שוב</button>
         <span id="chatCounter" class="text-xs self-center" style="color:var(--c-mute)"></span>
       </div>
     </div>
@@ -753,13 +765,53 @@
          next. -->
     <div class="tt-stepfoot">
       <div class="tt-foot-msg" id="reviewFootMsg"></div>
-      <button id="btnToPreview" class="tt-btn tt-btn-primary tt-btn-lg">המשך לתצוגה ⟵</button>
+      <button id="btnToPreview" class="tt-btn tt-btn-primary tt-btn-lg">המשך לבדיקות ולתצוגה ⟵</button>
     </div>
   </section>
 
-  <!-- STEP 6 PREVIEW -->
+  <!-- STEP 6a  CHECKS AND RESULT  (now ahead of the preview) -->
+  <section id="resultCard" class="tt-hidden tt-card mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <h2 class="tt-card-title"><span class="tt-tag">שלב 6</span>בדיקות ותוצאה</h2>
+      <div class="tt-tabbar">
+        <button data-tab="final" class="tt-tab">התוצאה</button>
+        <button data-tab="diff" class="tt-tab">מה השתנה</button>
+        <button data-tab="keywords" class="tt-tab">מילות מפתח</button>
+        <button data-tab="ats" class="tt-tab">בדיקת ATS</button>
+      </div>
+    </div>
+
+    <div id="tabFinal" class="tt-tabpane">
+      <!-- the same text, two ways to look at it. The structure view is the
+           default because a resume is a structure, and reading it as one flat
+           monospaced block is how a missing heading goes unnoticed. -->
+      <div class="flex flex-wrap items-center gap-3 mb-3">
+        <div class="tt-seg" id="finalViewSeg">
+          <button data-view="struct" class="is-on">מבנה קורות החיים</button>
+          <button data-view="text">טקסט גולמי</button>
+        </div>
+        <span class="tt-sub" id="finalViewNote">אותו טקסט בדיוק, מוצג לפי הסקציות שלו.</span>
+      </div>
+      <div id="finalStructWrap" class="tt-struct"><div id="finalStruct" class="tt-sheet"></div></div>
+      <div id="finalTextWrap" class="tt-hidden">
+        <textarea id="finalOutput" rows="20" class="tt-field tt-line font-mono"></textarea>
+        <button id="btnBackToText" class="tt-btn tt-btn-sm mt-2">רענן את התצוגה מהטקסט הזה</button>
+      </div>
+    </div>
+    <div id="tabDiff" class="tt-tabpane tt-hidden">
+      <div id="diffOut" class="text-sm"></div>
+    </div>
+    <div id="tabKeywords" class="tt-tabpane tt-hidden">
+      <div id="keywordsOut" class="text-sm"></div>
+    </div>
+    <div id="tabAts" class="tt-tabpane tt-hidden">
+      <div id="atsOut" class="text-sm"></div>
+    </div>
+  </section>
+
+  <!-- STEP 6b  PREVIEW AND DOWNLOAD -->
   <section id="previewCard" class="tt-hidden tt-card mb-4">
-    <h2 class="tt-card-title mb-2"><span class="tt-tag">שלב 6</span>תצוגה מקדימה, בדיוק כפי שזה יירד</h2>
+    <h2 class="tt-card-title mb-2"><span class="tt-tag">הורדה</span>תצוגה מקדימה, בדיוק כפי שזה יירד</h2>
     <p class="text-xs text-slate-500 mb-3">בחר טמפלט, ערוך את הטקסט ישירות על הדף, ואז לחץ "החל שינויים". רק מה שהוחל יורד לקובץ.</p>
 
     <div id="templatePicker" class="flex flex-wrap gap-3 mb-3"></div>
@@ -799,46 +851,6 @@
     כשמעלים קורות חיים כקובץ Word נוסף טמפלט נוסף שמשחזר את הגופן, הגדלים והצבע של הקובץ שלך.</p>
   </section>
 
-  <!-- STEP 4 RAW RESULT -->
-  <section id="resultCard" class="tt-hidden tt-card mb-4">
-    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-      <h2 class="tt-card-title">בדיקות ותוצאה</h2>
-      <div class="tt-tabbar">
-        <button data-tab="final" class="tt-tab">התוצאה</button>
-        <button data-tab="diff" class="tt-tab">מה השתנה</button>
-        <button data-tab="keywords" class="tt-tab">מילות מפתח</button>
-        <button data-tab="ats" class="tt-tab">בדיקת ATS</button>
-      </div>
-    </div>
-
-    <div id="tabFinal" class="tt-tabpane">
-      <!-- the same text, two ways to look at it. The structure view is the
-           default because a resume is a structure, and reading it as one flat
-           monospaced block is how a missing heading goes unnoticed. -->
-      <div class="flex flex-wrap items-center gap-3 mb-3">
-        <div class="tt-seg" id="finalViewSeg">
-          <button data-view="struct" class="is-on">מבנה קורות החיים</button>
-          <button data-view="text">טקסט גולמי</button>
-        </div>
-        <span class="tt-sub" id="finalViewNote">אותו טקסט בדיוק, מוצג לפי הסקציות שלו.</span>
-      </div>
-      <div id="finalStructWrap" class="tt-struct"><div id="finalStruct" class="tt-sheet"></div></div>
-      <div id="finalTextWrap" class="tt-hidden">
-        <textarea id="finalOutput" rows="20" class="tt-field tt-line font-mono"></textarea>
-        <button id="btnBackToText" class="tt-btn tt-btn-sm mt-2">רענן את התצוגה מהטקסט הזה</button>
-      </div>
-    </div>
-    <div id="tabDiff" class="tt-tabpane tt-hidden">
-      <div id="diffOut" class="text-sm"></div>
-    </div>
-    <div id="tabKeywords" class="tt-tabpane tt-hidden">
-      <div id="keywordsOut" class="text-sm"></div>
-    </div>
-    <div id="tabAts" class="tt-tabpane tt-hidden">
-      <div id="atsOut" class="text-sm"></div>
-    </div>
-  </section>
-
 </div>
 
 <div id="printArea" class="tt-hidden"></div>
@@ -862,7 +874,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v27.0';
+var TT_VERSION = 'v28.1';
 
 var APP = {
   apiKey: '',
@@ -885,7 +897,8 @@ var APP = {
     max: 8,
     done: false,
     pendingQuestion: '',
-    pendingReqId: ''
+    pendingReqId: '',
+    lastTurnMessage: ''   // lets the retry button repeat a turn that failed
   },
   changes: [],          // every proposed change, each approved on its own
   synthesis: {},        // lineId -> new text, compiled from approved changes
@@ -934,7 +947,7 @@ function setStatus(msg, busy) {
   setConsole(msg, busy);
 }
 
-var TT_STAGE_NAMES = ['קלט', 'ניתוח המשרה', 'שאלות הבהרה', 'כתיבה מחדש', 'אישור השינויים', 'תצוגה והורדה'];
+var TT_STAGE_NAMES = ['קלט', 'ניתוח המשרה', 'שאלות הבהרה', 'כתיבה מחדש', 'אישור השינויים', 'בדיקות והורדה'];
 var TT_STAGE = 1;
 var TT_CONSOLE_TIMER = null;
 
@@ -2964,7 +2977,14 @@ function normalizeSignals(obj) {
    candidate as "no changes to propose". Every stage that returns JSON now gets
    room for the worst case it can actually be handed and reports a truncation
    instead of swallowing it. */
-var TT_TOKENS = { signals: 16000, coverage: 24000, synthesis: 16000, skills: 8000, spell: 4000, qtranslate: 4000, answerSpell: 1500 };
+/* question: 700 used to sit here, and it is the whole reason stage 3 came up
+   empty. Every model in the cascade is a thinking model, and thinking tokens
+   are charged against maxOutputTokens before a single character of the answer
+   is written. 700 was spent reasoning about a very long system instruction and
+   the reply was cut off mid JSON, which parsed as nothing, which askNextQuestion
+   read as "the model says it is done". Every other call in this file asks for
+   4000 and up. */
+var TT_TOKENS = { signals: 16000, coverage: 24000, synthesis: 16000, skills: 8000, spell: 4000, qtranslate: 4000, answerSpell: 1500, question: 4000 };
 
 async function stepExtractSignals(jobText) {
   var raw = await callGemini(promptSignals(jobText), {
@@ -3460,6 +3480,29 @@ function buildQueue() {
     });
   });
   items.sort(function (a, b) { return b.priority - a.priority; });
+
+  /* An empty queue is not the same as nothing to ask about, and it used to end
+     the conversation before it started: the system instruction hands the queue
+     to the model and tells it to stop when the queue is exhausted, so an empty
+     array reads as "you are already finished" on turn one. It empties whenever
+     the coverage pass marks everything direct, or marks ask_user false across
+     the board. Fall back to the requirements the posting actually turns on, so
+     there is always something specific on the table. */
+  if (!items.length && APP.signals && Array.isArray(APP.signals.requirements)) {
+    APP.signals.requirements.slice().sort(function (a, b) {
+      return reqWeight(b.id) - reqWeight(a.id);
+    }).slice(0, 6).forEach(function (r) {
+      items.push({
+        req_id: r.id,
+        requirement: r.text,
+        must_have: r.must_have,
+        status: 'confirm',
+        weight: reqWeight(r.id),
+        focus: r.text,
+        priority: reqWeight(r.id) / 20
+      });
+    });
+  }
   return items;
 }
 
@@ -3471,30 +3514,60 @@ function chatContext() {
   return chatSystemInstruction(surgeonView(APP.doc), APP.signals, APP.coverage, APP.queue.slice(0, APP.chat.max + 4), APP.chat.max);
 }
 
+/* Sent back when the model returns something that is not readable JSON. One
+   nudge is worth a try; two means the call itself is the problem. */
+var TT_JSON_REPAIR = [
+  'That reply could not be read as JSON.',
+  'Reply again with the JSON object only, nothing before it and nothing after it, no code fence, no explanation.',
+  'Exactly this shape: {"question":"","req_id":"","done":false,"targets":[]}',
+  'Keep the question short.'
+].join('\n');
+
+/* Three failures used to look identical from the outside, and all three ended
+   the conversation without a single question and without a word of complaint:
+   the model saying it is genuinely done, the model returning half a JSON
+   object because it ran out of output tokens, and the transport dying. Only
+   the first of those means "finished". The other two are errors and are now
+   reported as errors, with the run left where it stands so it can be retried
+   rather than silently pushed on into the writing stage. */
 async function askNextQuestion(userMessage) {
   if (APP.chat.done) return;
   if (APP.chat.asked >= APP.chat.max) { finishChat('הגענו למכסת השאלות.'); return; }
 
   APP.chat.history.push({ role: 'user', parts: [{ text: userMessage }] });
+  APP.chat.lastTurnMessage = userMessage;      // so the retry button can repeat this turn
   setStatus('שלב 3: מנסח שאלה...', true);
   setChatBusy(true);
-  var raw;
-  try {
-    raw = await callGeminiChat(APP.chat.history, {
-      json: true, temperature: 0.6, maxOutputTokens: 700, timeoutMs: 30000,
-      systemInstruction: chatContext()
-    });
-  } catch (e) {
-    setChatBusy(false);
-    setStatus('');
-    showError('לא הצלחתי להביא שאלה: ' + (e && e.message ? e.message : '') + ' אפשר ללחוץ "סיימתי" ולהמשיך לבנייה.');
-    return;
-  }
-  APP.chat.history.push({ role: 'model', parts: [{ text: raw }] });
+  showChatRetry(false);
 
-  var obj = safeJsonParse(raw) || {};
+  var obj = null, transportError = '';
+  for (var attempt = 0; attempt < 2 && !obj; attempt++) {
+    var raw = '';
+    try {
+      raw = await callGeminiChat(APP.chat.history, {
+        json: true, temperature: 0.6,
+        maxOutputTokens: TT_TOKENS.question, timeoutMs: 60000,
+        systemInstruction: chatContext()
+      });
+    } catch (e) {
+      transportError = (e && e.message) ? e.message : '';
+      break;
+    }
+    APP.chat.history.push({ role: 'model', parts: [{ text: raw }] });
+    obj = safeJsonParse(raw);
+    if (!obj) APP.chat.history.push({ role: 'user', parts: [{ text: TT_JSON_REPAIR }] });
+  }
+
   setChatBusy(false);
   setStatus('');
+
+  if (!obj) {
+    showError('לא הצלחתי לנסח שאלה: ' + (transportError || 'תשובת המודל לא הייתה קריאה.') +
+              ' לחץ "נסה שוב" כדי לחזור על הניסיון, או "סיימתי, בנה את הגרסה" כדי להמשיך בלי שאלות נוספות.');
+    showChatRetry(true);
+    return;
+  }
+
   if (obj.done === true || !obj.question || !String(obj.question).trim()) { finishChat(); return; }
 
   APP.chat.asked++;
@@ -3585,11 +3658,29 @@ async function translateAnswerForResume(entry) {
 function finishChat(note) {
   APP.chat.done = true;
   APP.chat.pendingQuestion = '';
+  showChatRetry(false);
   var row = $('chatInputRow');
   if (row) row.classList.add('tt-hidden');
   renderChat();
   if (note) setStatus(note);
   runSynthesis();
+}
+
+function showChatRetry(on) {
+  var b = $('btnRetryQ');
+  if (b) b.classList.toggle('tt-hidden', !on);
+}
+
+/* Drops everything the failed turn added to the history: the user instruction
+   that opened it, the unreadable model reply, and the repair nudge. */
+function rewindChatTurn() {
+  var h = APP.chat.history;
+  while (h.length && h[h.length - 1].role === 'model') h.pop();
+  while (h.length && h[h.length - 1].role === 'user') {
+    var t = h[h.length - 1].parts && h[h.length - 1].parts[0] && h[h.length - 1].parts[0].text;
+    h.pop();
+    if (t !== TT_JSON_REPAIR) break;
+  }
 }
 
 function setChatBusy(busy) {
@@ -4047,10 +4138,17 @@ function collectOrderChanges(cat, obj) {
     if (!next) continue;                                  // already in that order
 
     var textOf = function (id) { var l = lineById(APP.doc, id); return l ? l.text : ''; };
+    /* Both directions, each with its own verb. Only the promotions used to be
+       recorded, and they were recorded with the one word this list had: a line
+       that fell from 2 to 6 produced no sentence at all, so the summary of a
+       reorder described the winners and stayed quiet about who paid for it.
+       from > pos is a smaller index than before, which is higher on the page,
+       which is עולה; from < pos is the other way and is יורד. */
     var moved = [];
     next.forEach(function (id, pos) {
       var from = block.lineIds.indexOf(id);
-      if (from > pos) moved.push('סעיף ' + (from + 1) + ' עולה למקום ' + (pos + 1));
+      if (from < 0 || from === pos) return;
+      moved.push('סעיף ' + (from + 1) + (from > pos ? ' עולה למקום ' : ' יורד למקום ') + (pos + 1));
     });
 
     APP.changes.push({
@@ -5033,6 +5131,17 @@ function bindStageUi() {
   $('btnSendAnswer').addEventListener('click', function () { submitAnswer(false); });
   $('btnSkipQ').addEventListener('click', function () { submitAnswer(true); });
   $('btnDoneQ').addEventListener('click', function () { finishChat(); });
+  /* Repeats the turn that failed. The failed exchange is dropped off the end of
+     the history first, so a retry asks the same thing again instead of stacking
+     another copy of it on top of the one that already did not work. */
+  var retryQ = $('btnRetryQ');
+  if (retryQ) retryQ.addEventListener('click', function () {
+    clearError();
+    showChatRetry(false);
+    var msg = APP.chat.lastTurnMessage || chatTurnInstruction(APP.chat.lang, APP.chat.asked === 0);
+    rewindChatTurn();
+    askNextQuestion(msg);
+  });
   $('chatAnswer').addEventListener('keydown', function (ev) {
     if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) submitAnswer(false);
   });
@@ -6150,7 +6259,9 @@ function resetRun() {
   APP.previewDirty = false; APP.synthesisRunning = false;
   if (typeof setStage === 'function') setStage(1);
   APP.chat = { history: [], turns: [], qa: [], lang: APP.chat.lang, langSeq: APP.chat.langSeq || 0,
-               asked: 0, max: 8, done: false, pendingQuestion: '', pendingReqId: '' };
+               asked: 0, max: 8, done: false, pendingQuestion: '', pendingReqId: '',
+               lastTurnMessage: '' };
+  if (typeof showChatRetry === 'function') showChatRetry(false);
   if (typeof clearAnswerSpell === 'function') clearAnswerSpell();
   ['analysisCard', 'chatCard', 'answersCard', 'reviewCard', 'previewCard', 'resultCard',
    'metricsNotice', 'noticeBox', 'noRelationCard'].forEach(hide);
@@ -6648,10 +6759,13 @@ function openPreview() {
   renderPreview();
   switchTab('final');
   scheduleSpellPass();
-  var note = 'הגרסה מוכנה. עבור עליה, ערוך בתצוגה, ואז הורד.';
+  var note = 'הגרסה מוכנה. עבור על הבדיקות, ואז ערוך והורד בתצוגה שמתחתיהן.';
   if (APP.rejectedByLanguageLock) note += ' ' + APP.rejectedByLanguageLock + ' ניסוחים נדחו כי חרגו משפת המקור.';
   setStatus(note);
-  var el = $('previewCard');
+  /* The checks come before the preview now, so the run lands on them. Reading
+     the diff, the keywords and the ATS report is the point of this stage; the
+     preview is where you act on what you read. */
+  var el = $('resultCard');
   if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
