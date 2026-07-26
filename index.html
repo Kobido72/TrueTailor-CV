@@ -4580,9 +4580,17 @@ function renderDiff() {
       plan.forEach(function (id, pos) {
         var pl = lineById(doc, id);
         if (!pl) return;
-        var note = (wasAt[id] != null && wasAt[id] !== pos)
-          ? 'עלה מסעיף ' + (wasAt[id] + 1) + ' למקום ' + (pos + 1)
-          : '';
+        /* The verb has to follow the direction of the move, not merely the
+           fact that one happened. Both numbers are zero based positions in
+           the same block, so wasAt > pos means the line now sits closer to
+           the top, which is עלה; wasAt < pos means it slid down the block,
+           which is ירד. Saying עלה for both told the reader the opposite of
+           what the page in front of them showed. */
+        var note = '';
+        if (wasAt[id] != null && wasAt[id] !== pos) {
+          note = (wasAt[id] > pos ? 'עלה מסעיף ' : 'ירד מסעיף ') +
+                 (wasAt[id] + 1) + ' למקום ' + (pos + 1);
+        }
         html += lineHtml(pl, note);
       });
       return;
