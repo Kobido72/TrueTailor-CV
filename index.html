@@ -526,6 +526,31 @@
   .tt-prep-gap.is-must { background: #fef2f2; border-color: #fecaca; color: #7f1d1d; }
   .tt-prep-tag { display: inline-block; font-size: .68rem; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-inline-start: 6px; }
   .tt-prep-empty { font-size: .82rem; color: #64748b; }
+
+  /* ---- language switch and about, v31 ----
+     Class based, like everything else that has to survive the Tailwind CDN
+     injecting its sheet after this block. */
+  .tt-topctl { display: inline-flex; align-items: center; gap: 8px; }
+  .tt-langsw { display: inline-flex; gap: 2px; background: rgba(255,255,255,.10); padding: 3px; border-radius: 10px; }
+  .tt-langbtn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 8px;
+    border: 1px solid transparent; background: transparent; cursor: pointer;
+    font-size: .78rem; font-weight: 600; color: rgba(255,255,255,.72); line-height: 1;
+  }
+  .tt-langbtn:hover { color: #fff; background: rgba(255,255,255,.10); }
+  .tt-langbtn.is-on { background: #fff; color: var(--c-ink); box-shadow: 0 4px 12px -6px rgba(0,0,0,.6); }
+  .tt-langbtn svg { display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.18); }
+  .tt-about-h { font-weight: 800; font-size: 1.05rem; margin-bottom: 2px; color: var(--c-ink); }
+  .tt-about-sub { font-size: .82rem; color: #64748b; margin-bottom: 14px; }
+  .tt-about-sec { margin-bottom: 13px; }
+  .tt-about-sec h4 { font-weight: 700; font-size: .88rem; margin-bottom: 4px; color: var(--c-ink); }
+  .tt-about-sec p, .tt-about-sec li { font-size: .82rem; color: #475569; line-height: 1.55; }
+  .tt-about-sec ul { padding-inline-start: 18px; list-style: disc; }
+  .tt-about-note { font-size: .8rem; background: #f1f5f9; border: 1px solid var(--c-line-2); border-radius: 9px; padding: 9px 11px; color: #334155; }
+  .tt-about-foot { font-size: .74rem; color: #64748b; border-top: 1px solid var(--c-line-2); padding-top: 9px; margin-top: 12px; }
+  .tt-about-body { max-height: 62vh; overflow: auto; }
+  .tt-legalbox { display: none; margin-top: 8px; }
+  .tt-legalbox.is-open { display: block; }
 </style>
 </head>
 <body>
@@ -541,7 +566,51 @@
         </span>
         <span class="tt-ver" id="verBadge">v28.1</span>
       </div>
-      <button id="btnSettings" class="tt-btn tt-btn-ghost tt-btn-sm">⚙️ הגדרות</button>
+      <!-- Language, about and settings share one group so they stay together
+           when the shell flips direction. In Hebrew the group renders at the
+           left of the bar, in English at the right, because that is what the
+           end of a line is in each direction.
+           The flags are inline SVG and not the emoji. Windows ships no glyph
+           for a regional indicator pair, so the emoji flag for Israel renders
+           there as the two letters IL, and a flag button that shows letters is
+           not a flag button. The character is deliberately not written even in
+           this comment, so a check for it in the file stays meaningful. -->
+      <div class="tt-topctl">
+        <div class="tt-langsw" id="langSwitch" role="group" aria-label="שפת הממשק / Interface language">
+          <button id="btnUiHe" class="tt-langbtn" data-uilang="he" title="עברית" aria-label="עברית">
+            <svg viewBox="0 0 22 16" width="19" height="14" aria-hidden="true" focusable="false">
+              <rect width="22" height="16" fill="#fff"></rect>
+              <rect y="2" width="22" height="2.1" fill="#0038b8"></rect>
+              <rect y="11.9" width="22" height="2.1" fill="#0038b8"></rect>
+              <path d="M11 5.3 L13.05 8.85 L8.95 8.85 Z" fill="none" stroke="#0038b8" stroke-width=".85"></path>
+              <path d="M11 10.7 L8.95 7.15 L13.05 7.15 Z" fill="none" stroke="#0038b8" stroke-width=".85"></path>
+            </svg>
+            <span>עברית</span>
+          </button>
+          <button id="btnUiEn" class="tt-langbtn" data-uilang="en" title="English" aria-label="English">
+            <svg viewBox="0 0 22 16" width="19" height="14" aria-hidden="true" focusable="false">
+              <rect width="22" height="16" fill="#fff"></rect>
+              <g fill="#b22234">
+                <rect width="22" height="1.75"></rect>
+                <rect y="3.5" width="22" height="1.75"></rect>
+                <rect y="7" width="22" height="1.75"></rect>
+                <rect y="10.5" width="22" height="1.75"></rect>
+                <rect y="14" width="22" height="1.75"></rect>
+              </g>
+              <rect width="9.4" height="8.75" fill="#3c3b6e"></rect>
+              <g fill="#fff">
+                <circle cx="1.9" cy="1.7" r=".62"></circle><circle cx="4.7" cy="1.7" r=".62"></circle><circle cx="7.5" cy="1.7" r=".62"></circle>
+                <circle cx="3.3" cy="3.5" r=".62"></circle><circle cx="6.1" cy="3.5" r=".62"></circle>
+                <circle cx="1.9" cy="5.3" r=".62"></circle><circle cx="4.7" cy="5.3" r=".62"></circle><circle cx="7.5" cy="5.3" r=".62"></circle>
+                <circle cx="3.3" cy="7.1" r=".62"></circle><circle cx="6.1" cy="7.1" r=".62"></circle>
+              </g>
+            </svg>
+            <span>English</span>
+          </button>
+        </div>
+        <button id="btnAbout" class="tt-btn tt-btn-ghost tt-btn-sm">אודות</button>
+        <button id="btnSettings" class="tt-btn tt-btn-ghost tt-btn-sm">⚙️ הגדרות</button>
+      </div>
     </div>
     <!-- Six stages, always the same six, so what is behind and what is still
          ahead are both readable at a glance. -->
@@ -607,6 +676,26 @@
         <button id="btnModalGetKey" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm">פתח את AI Studio</button>
         <button id="btnHowKeyClose" class="px-4 py-2 rounded-lg border border-slate-300 text-sm">סגור</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ABOUT.
+       The privacy section says what this file can actually promise and stops
+       there. The app has no server, so "nothing is stored" is true of the app.
+       What Google does with the text once it arrives at the Gemini API is set
+       by the terms of the tier the candidate's own key sits on, and this file
+       has no way to know which tier that is and no way to change it. Writing a
+       guarantee here that belongs to a third party would be the one thing this
+       whole product refuses to do, which is to state something it cannot back. -->
+  <div id="aboutModal" class="tt-hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-2xl w-full p-5">
+      <div id="aboutBody" class="tt-about-body"></div>
+      <div class="flex flex-wrap gap-2 mt-4">
+        <button id="btnAboutContact" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm">שליחת משוב</button>
+        <button id="btnAboutShare" class="px-4 py-2 rounded-lg border border-slate-300 text-sm">שיתוף האפליקציה</button>
+        <button id="btnAboutClose" class="px-4 py-2 rounded-lg border border-slate-300 text-sm ms-auto">סגור</button>
+      </div>
+      <div id="aboutNote" class="text-sm mt-2"></div>
     </div>
   </div>
 
@@ -923,7 +1012,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v30.0';
+var TT_VERSION = 'v31.0';
 
 var APP = {
   apiKey: '',
@@ -6420,6 +6509,50 @@ function bindUi() {
   $('btnModalGetKey').addEventListener('click', openAiStudio);
   $('btnHowKey').addEventListener('click', function () { show('howKeyModal'); });
   $('btnHowKeyClose').addEventListener('click', function () { hide('howKeyModal'); });
+
+  /* Interface language. Nothing here reaches APP, the prompts or the document:
+     applyUiLang swaps chrome text and the direction of the shell, full stop. */
+  var langBtns = document.querySelectorAll('.tt-langbtn');
+  for (var lb = 0; lb < langBtns.length; lb++) {
+    langBtns[lb].addEventListener('click', function (ev) {
+      applyUiLang(ev.currentTarget.getAttribute('data-uilang'));
+    });
+  }
+
+  var ab = $('btnAbout');
+  if (ab) ab.addEventListener('click', function () { aboutNote(''); renderAbout(); show('aboutModal'); });
+  var abc = $('btnAboutClose');
+  if (abc) abc.addEventListener('click', function () { hide('aboutModal'); });
+  var abm = $('aboutModal');
+  if (abm) abm.addEventListener('click', function (ev) { if (ev.target === abm) hide('aboutModal'); });
+
+  var abContact = $('btnAboutContact');
+  if (abContact) abContact.addEventListener('click', function () {
+    var subj = L('משוב על TrueTailor CV ' + TT_VERSION, 'Feedback on TrueTailor CV ' + TT_VERSION);
+    window.open('mailto:' + TT_CONTACT + '?subject=' + encodeURIComponent(subj), '_blank');
+  });
+
+  /* There is no public address to share yet: this is a file on a disk, so
+     window.location is a file:// path that means nothing on anyone else's
+     machine. Until it is hosted the button copies a short blurb and the
+     contact address, and says so rather than quietly copying a dead link. */
+  var abShare = $('btnAboutShare');
+  if (abShare) abShare.addEventListener('click', function () {
+    var txt = L('TrueTailor CV — כלי שמתאים קורות חיים למשרה אחת, רץ כולו בדפדפן ולא ממציא כלום. לפרטים: ' + TT_CONTACT,
+                'TrueTailor CV — a tool that tailors a resume to one job, runs entirely in the browser and invents nothing. Details: ' + TT_CONTACT);
+    var ok = function () { aboutNote(L('הטקסט הועתק. אין עדיין כתובת ציבורית לאפליקציה, אז זה מה שיש לשתף.',
+                                       'Text copied. The app has no public address yet, so this is what there is to share.')); };
+    var no = function () { aboutNote(L('ההעתקה נחסמה על ידי הדפדפן.', 'The browser blocked the copy.'), 'error'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(ok, no); return; }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var done = document.execCommand('copy');
+      document.body.removeChild(ta);
+      done ? ok() : no();
+    } catch (e) { no(); }
+  });
   $('howKeyModal').addEventListener('click', function (ev) {
     if (ev.target === $('howKeyModal')) hide('howKeyModal');
   });
@@ -6525,6 +6658,13 @@ document.addEventListener('DOMContentLoaded', function () {
   refreshKeyUi();
   updateLangBadges();
   bindUi();
+  /* After bindUi so the buttons exist, and before the version badge so the
+     About panel is built with a version that is already set. A stored choice
+     is read back here; the default stays Hebrew. */
+  var savedLang = 'he';
+  try { savedLang = localStorage.getItem('tt_ui_lang') || 'he'; } catch (e) {}
+  applyUiLang(savedLang);
+  checkUiStrings();
   setStage(1);
   var vb = $('verBadge');
   if (vb) vb.textContent = TT_VERSION;
@@ -6894,6 +7034,246 @@ function renderPreview() {
   renderInterviewSheet();
 }
 
+/* ================= interface language, v31 =================
+   Two things this switch deliberately does NOT touch.
+
+   The prompts. Every call site passes 'he' as uiLang literally, and
+   APP.chat.lang is derived from the language of the resume, not from the
+   chrome. So the model sees exactly the same bytes whichever flag is lit, and
+   the strict path stays byte for byte what it was.
+
+   The document. #previewPage and #printArea write their own dir inline from
+   the language of the resume, and an inline direction wins over an inherited
+   one. An English interface over a Hebrew resume leaves the resume Hebrew and
+   right to left, which is the point: the chrome and the document are two
+   different languages and always were.
+
+   Direction of the shell does follow the switch, and that is the one thing
+   here that is more than text. English text inside a right to left container
+   throws its commas and full stops to the wrong end of every line, so leaving
+   the shell RTL would not have been "only the text changed", it would have
+   been the text changed and broken.
+
+   The Hebrew side of the table is not written down anywhere. It is read out of
+   the markup on first use and cached, so the Hebrew interface cannot be
+   degraded by a typo in a translation table, and a selector that stops
+   matching costs an English string rather than a Hebrew one. */
+var TT_UI_LANG = 'he';
+var TT_UI_HE = null;
+
+/* [selector, the English markup]. Only elements whose text is static.
+   Anything JS writes into at runtime is deliberately absent: #globalStatus,
+   #keyStatus, #qCount, #qHint, #finalViewNote and #bulletToggleNote are all
+   overwritten by their own renderers, and a translation table that fights a
+   renderer loses in whichever order happens to run last. */
+var TT_UI_STRINGS = [
+  ['.tt-brandsub', 'Resume tailoring for one job, with nothing invented'],
+  ['#btnAbout', 'About'],
+  ['#btnSettings', '⚙️ Settings'],
+  ['#stageRail .tt-step[data-stage="1"] b', 'Input'],
+  ['#stageRail .tt-step[data-stage="2"] b', 'Job analysis'],
+  ['#stageRail .tt-step[data-stage="3"] b', 'Fit questions'],
+  ['#stageRail .tt-step[data-stage="4"] b', 'Rewrite'],
+  ['#stageRail .tt-step[data-stage="5"] b', 'Approval'],
+  ['#stageRail .tt-step[data-stage="6"] b', 'Checks and download'],
+  ['.tt-hero h2', 'Your resume, <span>aimed at one job</span>.'],
+  ['.tt-hero p', 'Every line is rewritten against a named requirement in the posting, and no fact goes in until you approve it line by line.'],
+  ['.tt-facts .tt-fact:nth-of-type(1)', '<b>Local</b> · everything runs in your browser'],
+  ['.tt-facts .tt-fact:nth-of-type(2)', '<b>Nothing invented</b> · only what is proved or what you said'],
+  ['.tt-facts .tt-fact:nth-of-type(3)', '<b>ATS friendly</b> · one column, no tables'],
+  ['#onboardBanner p:nth-of-type(1)', 'API key missing'],
+  ['#onboardBanner p:nth-of-type(2)', 'Tailoring a resume needs a Google Gemini key. It is free and takes a minute.'],
+  ['#btnOnboardOpen', 'Open the key panel'],
+  ['#settingsCard .tt-card-title', 'Google Gemini API key'],
+  ['#btnSaveKey', 'Save'],
+  ['#btnTestKey', 'Test connection'],
+  ['#btnGetKey', '🔑 Get a free API key'],
+  ['#btnHowKey', 'How is that done?'],
+  ['#howKeyModal h3', 'How to get a free API key'],
+  ['#howKeyModal > div > p', 'There is no way to create a key from inside this app, Google does not allow it. The only route is the official page:'],
+  ['#howKeyModal ol li:nth-of-type(1)', 'Press "🔑 Get a free API key". A new tab opens on Google AI Studio.'],
+  ['#howKeyModal ol li:nth-of-type(2)', 'Press <b>Create API key</b>.'],
+  ['#howKeyModal ol li:nth-of-type(3)', 'Pick an existing Google Cloud project or create one in a click.'],
+  ['#howKeyModal ol li:nth-of-type(4)', 'Copy the key you were given.'],
+  ['#howKeyModal ol li:nth-of-type(5)', 'Come back here, paste it in the box above, press <b>Save</b> and then <b>Test connection</b>.'],
+  ['#btnModalGetKey', 'Open AI Studio'],
+  ['#btnHowKeyClose', 'Close'],
+  ['#btnTranslateResume', '🌐 Translate the input'],
+  ['#btnResetResume', '🗑️ Clear the resume'],
+  ['#btnResetJob', '🗑️ Clear the posting'],
+  ['#btnStart', 'Start tailoring ⟶'],
+  ['#analysisCard .tt-card-title .tt-tag', 'Stages 1 and 2'],
+  ['#noRelationCard h2', 'There is nothing to tailor here'],
+  ['#btnNoRelationStop', 'Understood, I will load a different posting'],
+  ['#btnNoRelationGo', 'Continue anyway'],
+  ['#domainCard h2', 'How wide to read you, your call'],
+  ['#btnDomainStrict', 'Stay inside my own field'],
+  ['#btnDomainBroad', 'Widen to cross industry wording'],
+  ['#chatCard .tt-card-title .tt-tag', 'Stage 3'],
+  ['#btnSendAnswer', 'Send answer'],
+  ['#btnSkipQ', 'Skip this question'],
+  ['#btnDoneQ', 'Done, build the version'],
+  ['#btnRetryQ', '↻ Try again'],
+  ['#answersCard .tt-card-title .tt-tag', 'Stage 4'],
+  ['#reviewCard .tt-card-title .tt-tag', 'Stage 5'],
+  ['#btnApproveAll', 'Approve all'],
+  ['#btnRejectAll', 'Reject all'],
+  ['#btnToPreview', 'Continue to the checks and the preview ⟶'],
+  ['#resultCard .tt-card-title .tt-tag', 'Stage 6'],
+  ['#resultCard .tt-tab[data-tab="final"]', 'Result'],
+  ['#resultCard .tt-tab[data-tab="diff"]', 'What changed'],
+  ['#resultCard .tt-tab[data-tab="keywords"]', 'Keywords'],
+  ['#resultCard .tt-tab[data-tab="ats"]', 'ATS check'],
+  ['#finalViewSeg button[data-view="struct"]', 'Resume structure'],
+  ['#finalViewSeg button[data-view="text"]', 'Raw text'],
+  ['#btnBackToText', 'Refresh the view from this text'],
+  ['#previewCard .tt-card-title .tt-tag', 'Download'],
+  ['#previewCard > p:nth-of-type(1)', 'Pick a template, edit the text directly on the page, then press "Apply changes". Only what was applied goes into the file.'],
+  ['#previewDirtyBar', 'There are edits that were not applied. Press "Apply changes" to fix them in place.'],
+  ['#btnApplyPreview', '✅ Apply changes'],
+  ['#btnExportDocx', '⬇️ Download as Word'],
+  ['#btnExportPdf', '🖨️ Download as PDF'],
+  ['#btnTranslateFinal', '🌐 Translate this version'],
+  ['#btnBackToReview', '↩ Back to approving the changes'],
+  ['#previewCard > p:nth-of-type(2)', 'Word is the safer file for an ATS. Every template is a single column of ordinary paragraphs, with no tables and no text boxes, so the layout cannot confuse the system. Uploading a Word resume adds one more template that reproduces the font, the sizes and the colour of your own file.'],
+  ['#interviewCard .tt-card-title .tt-tag', 'Stage 7'],
+  ['#interviewCard > p', 'This screen is for you alone and it does not go into the downloaded file. It sums up what moved to the top of each job and why, and what the posting asks for that your resume does not cover. All of it is read from this run, with no extra call to the model.'],
+  ['#btnPrepCopy', 'Copy the sheet'],
+  ['#btnPrepRefresh', 'Refresh'],
+  ['#btnAboutContact', 'Send feedback'],
+  ['#btnAboutShare', 'Share the app'],
+  ['#btnAboutClose', 'Close']
+];
+
+/* One string, two languages, used by the renderers that build their own text.
+   Cheaper than a key lookup for a table this size and it keeps the two
+   versions of a sentence on the same line, where a missing translation is
+   visible instead of silent. */
+function L(he, en) { return TT_UI_LANG === 'en' ? en : he; }
+
+function applyUiLang(lang) {
+  lang = lang === 'en' ? 'en' : 'he';
+  if (!TT_UI_HE) {
+    TT_UI_HE = [];
+    TT_UI_STRINGS.forEach(function (row) {
+      var el = document.querySelector(row[0]);
+      TT_UI_HE.push(el ? el.innerHTML : null);
+    });
+  }
+  TT_UI_LANG = lang;
+  TT_UI_STRINGS.forEach(function (row, i) {
+    var el = document.querySelector(row[0]);
+    if (!el) return;
+    var val = lang === 'en' ? row[1] : TT_UI_HE[i];
+    if (val !== null && val !== undefined) el.innerHTML = val;
+  });
+
+  var root = document.documentElement;
+  root.setAttribute('lang', lang);
+  root.setAttribute('dir', lang === 'en' ? 'ltr' : 'rtl');
+
+  var btns = document.querySelectorAll('.tt-langbtn');
+  for (var i = 0; i < btns.length; i++) {
+    var on = btns[i].getAttribute('data-uilang') === lang;
+    btns[i].className = 'tt-langbtn' + (on ? ' is-on' : '');
+    btns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  try { localStorage.setItem('tt_ui_lang', lang); } catch (e) {}
+
+  /* Two panels build their own markup, so they are rebuilt rather than
+     swapped. Both are cheap and neither calls out of the browser. */
+  if (typeof renderAbout === 'function' && !$('aboutModal').classList.contains('tt-hidden')) renderAbout();
+  else if (typeof renderAbout === 'function') renderAbout();
+  if (typeof renderInterviewSheet === 'function' && APP.finalText) renderInterviewSheet();
+}
+
+/* Reports a selector that stopped matching, once, to the console only. A
+   translation table is the kind of thing that rots quietly when markup moves,
+   and a silent miss shows up as one Hebrew button in an English interface
+   that nobody can explain later. */
+function checkUiStrings() {
+  var bad = [];
+  TT_UI_STRINGS.forEach(function (row) {
+    if (document.querySelectorAll(row[0]).length !== 1) bad.push(row[0]);
+  });
+  if (bad.length && window.console) console.warn('TT i18n: selectors not matching exactly one element:', bad);
+  return bad;
+}
+
+/* ================= about ================= */
+var TT_CONTACT = 'kdoanis@gmail.com';
+
+function renderAbout() {
+  var el = $('aboutBody');
+  if (!el) return;
+  var en = TT_UI_LANG === 'en';
+  var v = escapeHtml(TT_VERSION);
+  var mail = escapeHtml(TT_CONTACT);
+  var h = '';
+
+  h += '<div class="tt-about-h">' + (en
+    ? 'TrueTailor CV — the precise fit for your next job'
+    : 'TrueTailor CV — ההתאמה המדויקת למשרה הבאה שלך') + '</div>';
+  h += '<div class="tt-about-sub">' + (en ? 'Version ' : 'גרסה ') + v + '</div>';
+
+  h += '<div class="tt-about-sec"><h4>' + (en ? 'About the app' : 'על האפליקציה') + '</h4><p>' + (en
+    ? 'The app was built to take some of the stress out of looking for work. It reads your resume against the job description and helps you bring the experience and the skills that fit that job to the front, so your profile stands up to both a recruiter and a screening system (ATS).'
+    : 'האפליקציה נוצרה כדי להוריד את הסטרס מתהליך חיפוש העבודה. בעזרת בינה מלאכותית, המערכת מנתחת את קורות החיים שלך מול תיאור המשרה, ומסייעת לך להבליט את הניסיון והכישורים המתאימים ביותר, כך שהפרופיל שלך יבלוט מול מגייסים ומערכות סינון (ATS).') + '</p></div>';
+
+  h += '<div class="tt-about-sec"><h4>🔒 ' + (en ? 'Privacy and your data' : 'פרטיות וביטחון המידע') + '</h4><p>' + (en
+    ? 'A resume is personal, so here is exactly what happens to it.'
+    : 'קורות החיים שלך מכילים מידע אישי ורגיש, ולכן כתוב כאן בדיוק מה קורה איתו.') + '</p><ul>';
+  h += '<li>' + (en
+    ? 'The app runs entirely in your browser. There is no server and no database, and no copy of your resume exists anywhere except on your own computer.'
+    : 'האפליקציה רצה כולה בדפדפן שלך. אין שרת ואין בסיס נתונים, ואין העתק של קורות החיים שלך בשום מקום מלבד המחשב שלך.') + '</li>';
+  h += '<li>' + (en
+    ? 'Your API key is kept in the browser\'s localStorage and nowhere else.'
+    : 'מפתח ה־API נשמר ב־localStorage של הדפדפן ולא בשום מקום אחר.') + '</li>';
+  h += '<li>' + (en
+    ? 'To analyse anything, the text is sent to the Google Gemini API using your own key. What Google does with that text is set by the terms of the tier your key sits on: on the free tier Google may use the content to improve its products, on a paid tier it does not. That is an agreement between you and Google, and this app has no say in it.'
+    : 'כדי לנתח, הטקסט נשלח ל־Google Gemini API עם המפתח שלך. מה שגוגל עושה בטקסט הזה נקבע בתנאי המסלול שהמפתח שלך יושב עליו: במסלול החינמי גוגל עשויה להשתמש בתוכן לשיפור המוצרים שלה, ובמסלול בתשלום לא. זו התקשרות בינך לבין גוגל, ולאפליקציה אין שליטה עליה.') + '</li>';
+  h += '<li>' + (en
+    ? 'There is no analytics and no tracking. Loading the page does fetch fonts and libraries from public CDNs, which means those servers see your IP address, as they would on any site.'
+    : 'אין אנליטיקס ואין מעקב. טעינת הדף כן מושכת גופנים וספריות מ־CDN ציבורי, כלומר אותם שרתים רואים את כתובת ה־IP שלך, כמו בכל אתר.') + '</li>';
+  h += '</ul></div>';
+
+  h += '<div class="tt-about-sec"><h4>💡 ' + (en ? 'Using AI responsibly' : 'שימוש אחראי ב־AI') + '</h4><p>' + (en
+    ? 'The app offers AI based suggestions, analysis and rewrites. Always read the result, check that it is accurate, and adjust it in your own words where it needs it, before anything goes to a recruiter.'
+    : 'האפליקציה מציעה המלצות, ניתוחים ושיפורים מבוססי AI. מומלץ תמיד לעבור על התוצאות, לוודא שהן מדויקות, ולבצע התאמות אישיות במידת הצורך לפני השליחה למגייס.') + '</p></div>';
+
+  h += '<div class="tt-about-sec"><h4>' + (en ? 'Who is behind it' : 'מי עומד מאחורי האפליקציה') + '</h4><p>' + (en
+    ? 'Built with care by Kobi Doanis. The aim is to help your professional path and to make tailoring a resume to a job faster, sharper and more effective.'
+    : 'האפליקציה פותחה באהבה על ידי קובי דואניס. המטרה שלי היא לעזור לדרככם המקצועית ולהפוך את תהליך התאמת קורות החיים למשרה למהיר, חכם ואפקטיבי יותר.') + '</p><p>' + (en
+    ? 'Ideas for improvement? Found a bug? I would be glad to hear from you, through the feedback button below or at ' + mail + '.'
+    : 'רעיונות לשיפור? מצאתם תקלה? אשמח מאוד לשמוע מכם, בכפתור המשוב למטה או במייל ' + mail + '.') + '</p></div>';
+
+  h += '<div class="tt-about-foot">' + (en ? 'Technical details · version ' : 'פרטים טכניים · גרסה ') + '<b>' + v + '</b>' +
+       (en ? ' · contact: ' : ' · יצירת קשר: ') + mail +
+       '<div style="margin-top:6px"><a href="#" id="lnkTerms">' + (en ? 'Terms of use' : 'תנאי שימוש') + '</a> | ' +
+       '<a href="#" id="lnkPrivacy">' + (en ? 'Privacy policy' : 'מדיניות פרטיות') + '</a></div>' +
+       '<div id="boxTerms" class="tt-legalbox tt-about-note">' + (en
+         ? 'The tool is provided as is, with no warranty. Its output is a draft and not a finished document, and everything you send to a recruiter remains your responsibility. Use of Google Gemini is subject to Google\'s own terms for the tier your key sits on.'
+         : 'הכלי ניתן כמו שהוא, בלי אחריות. הפלט הוא טיוטה ולא מסמך סופי, והאחריות על כל מה שנשלח למגייס נשארת שלך. השימוש ב־Google Gemini כפוף לתנאי השימוש של גוגל, במסלול שהמפתח שלך יושב עליו.') + '</div>' +
+       '<div id="boxPrivacy" class="tt-legalbox tt-about-note">' + (en
+         ? 'No server, no collection. Your resume, the posting and your answers stay in the browser and in the memory of this page, and the API key stays in localStorage. The only thing that leaves your computer is the text sent to Google Gemini for the analysis. No analytics, no third party cookies, nothing shared with anyone else.'
+         : 'אין שרת ואין איסוף. קורות החיים, המשרה והתשובות שלך נשארים בדפדפן ובזיכרון הדף בלבד, ומפתח ה־API נשמר ב־localStorage. הדבר היחיד שיוצא מהמחשב שלך הוא הטקסט שנשלח ל־Google Gemini לצורך הניתוח. אין אנליטיקס, אין קוקיז של צד שלישי ואין שיתוף עם אף גורם אחר.') + '</div>' +
+       '</div>';
+
+  el.innerHTML = h;
+  var t = $('lnkTerms'), p = $('lnkPrivacy');
+  if (t) t.addEventListener('click', function (ev) { ev.preventDefault(); $('boxTerms').classList.toggle('is-open'); });
+  if (p) p.addEventListener('click', function (ev) { ev.preventDefault(); $('boxPrivacy').classList.toggle('is-open'); });
+}
+
+function aboutNote(msg, kind) {
+  var el = $('aboutNote');
+  if (!el) return;
+  if (!msg) { el.innerHTML = ''; return; }
+  el.innerHTML = '<span class="' + (kind === 'error' ? 'text-red-700' : 'text-emerald-700') +
+                 ' font-semibold">' + escapeHtml(msg) + '</span>';
+}
+
 /* ================= stage 7: the interview preparation sheet =================
    Three parts: which points came to the top of each job and why, what the
    candidate should be ready to talk about, and what this posting asks for
@@ -7024,57 +7404,85 @@ function interviewSheet() {
 function renderInterviewSheet() {
   var el = $('prepOut');
   if (!el) return;
-  if (!APP.finalText) { el.innerHTML = '<div class="tt-prep-empty">הגיליון נבנה אחרי שהתוצאה מוכנה.</div>'; return; }
+  if (!APP.finalText) {
+    el.innerHTML = '<div class="tt-prep-empty">' +
+      L('הגיליון נבנה אחרי שהתוצאה מוכנה.', 'The sheet is built once the result is ready.') + '</div>';
+    return;
+  }
   var s = interviewSheet();
   var d = function (t) { return dirForText(t, 'he'); };
   var html = '';
 
-  html += '<div class="tt-prep-sec"><div class="tt-prep-h">1. מה עלה לראש, ולמה</div>';
-  html += '<div class="tt-prep-lead">הסעיפים שטיפסו למעלה בכל תפקיד, והדרישה שהם משרתים. אלה השורות שמגייס יקרא ראשונות, ולכן אלה השורות שהוא ישאל עליהן.</div>';
+  html += '<div class="tt-prep-sec"><div class="tt-prep-h">' +
+          L('1. מה עלה לראש, ולמה', '1. What moved to the top, and why') + '</div>';
+  html += '<div class="tt-prep-lead">' + L(
+    'הסעיפים שטיפסו למעלה בכל תפקיד, והדרישה שהם משרתים. אלה השורות שמגייס יקרא ראשונות, ולכן אלה השורות שהוא ישאל עליהן.',
+    'The points that climbed in each job, and the requirement they answer. A recruiter reads these first, so these are the ones you get asked about.') + '</div>';
   if (!s.shifts.length) {
-    html += '<div class="tt-prep-empty">שום סעיף לא הועלה. הסדר המקורי כבר הציג את הדברים הרלוונטיים בראש, או שלא אישרת שינוי סדר.</div>';
+    html += '<div class="tt-prep-empty">' + L(
+      'שום סעיף לא הועלה. הסדר המקורי כבר הציג את הדברים הרלוונטיים בראש, או שלא אישרת שינוי סדר.',
+      'Nothing was promoted. Either the original order already led with the relevant points, or no reorder was approved.') + '</div>';
   } else {
     s.shifts.forEach(function (sh) {
       if (sh.role) html += '<div class="tt-prep-role" dir="' + d(sh.role) + '">' + escapeHtml(sh.role) + '</div>';
       sh.lines.forEach(function (l) {
         html += '<div class="tt-prep-line" dir="' + d(l.text) + '">' + escapeHtml(l.text) +
-                '<div class="tt-prep-meta">ממקום ' + l.from + ' למקום ' + l.to + '</div></div>';
+                '<div class="tt-prep-meta">' + L('ממקום ' + l.from + ' למקום ' + l.to,
+                    'from position ' + l.from + ' to position ' + l.to) + '</div></div>';
       });
       if (sh.why) html += '<div class="tt-prep-meta" dir="' + d(sh.why) + '">' + escapeHtml(sh.why) + '</div>';
-      if (sh.reqs.length) html += '<div class="tt-prep-meta">משרת: ' + escapeHtml(sh.reqs.join(' | ')) + '</div>';
+      if (sh.reqs.length) html += '<div class="tt-prep-meta">' + L('משרת: ', 'answers: ') +
+        escapeHtml(sh.reqs.join(' | ')) + '</div>';
     });
   }
   html += '</div>';
 
-  html += '<div class="tt-prep-sec"><div class="tt-prep-h">2. מה לספר כששואלים מה אתה עושה ביום יום</div>';
-  html += '<div class="tt-prep-lead">מה שכתוב בראש התפקיד הראשון בסעיף הניסיון. השיחה בראיון צריכה להישמע כמו הדף, אחרת הפער בולט.</div>';
-  if (!s.talk.length) html += '<div class="tt-prep-empty">אין סעיפי ניסיון לקרוא מהם.</div>';
+  html += '<div class="tt-prep-sec"><div class="tt-prep-h">' +
+          L('2. מה לספר כששואלים מה אתה עושה ביום יום',
+            '2. What to say when they ask what you do day to day') + '</div>';
+  html += '<div class="tt-prep-lead">' + L(
+    'מה שכתוב בראש התפקיד הראשון בסעיף הניסיון. השיחה בראיון צריכה להישמע כמו הדף, אחרת הפער בולט.',
+    'What now sits at the top of the first job in the experience section. The interview has to sound like the page, or the gap shows.') + '</div>';
+  if (!s.talk.length) html += '<div class="tt-prep-empty">' +
+    L('אין סעיפי ניסיון לקרוא מהם.', 'There are no experience lines to read from.') + '</div>';
   else s.talk.forEach(function (t) {
     html += '<div class="tt-prep-line" dir="' + d(t) + '">' + escapeHtml(t) + '</div>';
   });
   if (s.stated.length) {
-    html += '<div class="tt-prep-lead" style="margin-top:10px">ומה שאתה עצמך הוספת בשיחה. זה נכנס לקורות החיים, אז זה נכנס גם לראיון.</div>';
+    html += '<div class="tt-prep-lead" style="margin-top:10px">' + L(
+      'ומה שאתה עצמך הוספת בשיחה. זה נכנס לקורות החיים, אז זה נכנס גם לראיון.',
+      'And what you added yourself in the conversation. It went into the resume, so it goes into the interview.') + '</div>';
     s.stated.forEach(function (p) {
       html += '<div class="tt-prep-line" dir="' + d(p.a) + '">' + escapeHtml(p.a) +
-              (p.req ? '<div class="tt-prep-meta">נאמר על: ' + escapeHtml(p.req) + '</div>' : '') + '</div>';
+              (p.req ? '<div class="tt-prep-meta">' + L('נאמר על: ', 'said about: ') +
+                       escapeHtml(p.req) + '</div>' : '') + '</div>';
     });
   }
   html += '</div>';
 
-  html += '<div class="tt-prep-sec"><div class="tt-prep-h">3. מה המשרה מבקשת ואין לזה כיסוי</div>';
-  html += '<div class="tt-prep-lead">הרשימה הזו לא נכנסת לקובץ ואין לה ניסוח מוצע. היא כאן כדי שלא תופתע כששואלים.</div>';
+  html += '<div class="tt-prep-sec"><div class="tt-prep-h">' +
+          L('3. מה המשרה מבקשת ואין לזה כיסוי',
+            '3. What the posting asks for and nothing covers') + '</div>';
+  html += '<div class="tt-prep-lead">' + L(
+    'הרשימה הזו לא נכנסת לקובץ ואין לה ניסוח מוצע. היא כאן כדי שלא תופתע כששואלים.',
+    'This list never reaches the file and it suggests no wording. It is here so the question does not catch you cold.') + '</div>';
   if (!s.missing.length && !s.nameGaps.length) {
-    html += '<div class="tt-prep-empty">אין דרישה שנשארה בלי כיסוי.</div>';
+    html += '<div class="tt-prep-empty">' +
+      L('אין דרישה שנשארה בלי כיסוי.', 'No requirement was left uncovered.') + '</div>';
   }
   s.missing.forEach(function (g) {
     html += '<div class="tt-prep-gap' + (g.must ? ' is-must' : '') + '" dir="' + d(g.text) + '">' +
-            escapeHtml(g.text) + (g.must ? '<span class="tt-prep-tag">חובה</span>' : '') + '</div>';
+            escapeHtml(g.text) +
+            (g.must ? '<span class="tt-prep-tag">' + L('חובה', 'must have') + '</span>' : '') + '</div>';
   });
   if (s.nameGaps.length) {
-    html += '<div class="tt-prep-lead" style="margin-top:10px">ואלה דרישות חובה שאתה מוכיח את התוכן שלהן אבל לא את השם. בקורות החיים נכתבו המאפיינים המשותפים ולא המונח עצמו, כי אתה לא עשית בדיוק את הדבר הזה. אם ישאלו על המונח, זו התשובה שצריך להיות מוכן אליה.</div>';
+    html += '<div class="tt-prep-lead" style="margin-top:10px">' + L(
+      'ואלה דרישות חובה שאתה מוכיח את התוכן שלהן אבל לא את השם. בקורות החיים נכתבו המאפיינים המשותפים ולא המונח עצמו, כי אתה לא עשית בדיוק את הדבר הזה. אם ישאלו על המונח, זו התשובה שצריך להיות מוכן אליה.',
+      'And these are must have requirements whose substance you prove but whose name you do not. The resume states the shared properties and not the term itself, because you did not do exactly that thing. If the term comes up by name, this is the answer to have ready.') + '</div>';
     s.nameGaps.forEach(function (g) {
       html += '<div class="tt-prep-gap" dir="' + d(g.text) + '">' + escapeHtml(g.text) +
-              (g.shared && g.shared.length ? '<div class="tt-prep-meta">מה כן מוכח: ' + escapeHtml(g.shared.join('; ')) + '</div>' : '') +
+              (g.shared && g.shared.length ? '<div class="tt-prep-meta">' + L('מה כן מוכח: ', 'what is proved: ') +
+                 escapeHtml(g.shared.join('; ')) + '</div>' : '') +
               '</div>';
     });
   }
