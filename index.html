@@ -512,6 +512,20 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
   }
+
+  /* ---- stage 7, the interview sheet ----
+     Class based selectors only, like everything else that has to survive the
+     Tailwind CDN injecting its sheet into the head after this block. */
+  .tt-prep-sec { border: 1px solid var(--c-line-2); border-radius: var(--r-md); padding: 14px; margin-bottom: 12px; background: #fff; }
+  .tt-prep-h { font-weight: 700; font-size: .95rem; margin-bottom: 4px; color: var(--c-ink); }
+  .tt-prep-lead { font-size: .78rem; color: #64748b; margin-bottom: 10px; }
+  .tt-prep-role { font-weight: 600; font-size: .85rem; margin: 10px 0 4px; color: var(--c-accent-d); }
+  .tt-prep-line { font-size: .85rem; padding: 5px 0 5px 0; border-inline-start: 3px solid var(--c-accent); padding-inline-start: 9px; margin-bottom: 5px; }
+  .tt-prep-meta { font-size: .74rem; color: #64748b; margin-top: 2px; }
+  .tt-prep-gap { font-size: .85rem; padding: 7px 9px; border-radius: 8px; background: #fff7ed; border: 1px solid #fed7aa; margin-bottom: 6px; color: #7c2d12; }
+  .tt-prep-gap.is-must { background: #fef2f2; border-color: #fecaca; color: #7f1d1d; }
+  .tt-prep-tag { display: inline-block; font-size: .68rem; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-inline-start: 6px; }
+  .tt-prep-empty { font-size: .82rem; color: #64748b; }
 </style>
 </head>
 <body>
@@ -865,6 +879,27 @@
     כשמעלים קורות חיים כקובץ Word נוסף טמפלט נוסף שמשחזר את הגופן, הגדלים והצבע של הקובץ שלך.</p>
   </section>
 
+  <!-- STEP 7  INTERVIEW PREPARATION.
+       Last card on the page on purpose: it is read after the resume is
+       finished, not while it is being built.
+       This card must never reach the exported file. Two things already
+       guarantee that: the PDF path hides everything outside #printArea, and
+       the Word path is built from APP.finalText, which this card does not
+       touch. tt-noprint is the third lock, not the first. -->
+  <section id="interviewCard" class="tt-hidden tt-card mb-4 tt-noprint">
+    <h2 class="tt-card-title mb-1"><span class="tt-tag">שלב 7</span>הכנה לראיון</h2>
+    <p class="text-xs text-slate-500 mb-3">
+      המסך הזה הוא בשבילך בלבד והוא לא נכנס לקובץ שיורד. הוא מסכם מה עלה לראש כל תפקיד ולמה,
+      ומה המשרה מבקשת ואין לו כיסוי בקורות החיים. הכל נקרא מהנתונים של ההרצה הזו, בלי קריאה נוספת למודל.
+    </p>
+    <div id="prepOut" class="text-sm"></div>
+    <div class="flex flex-wrap gap-2 mt-3">
+      <button id="btnPrepCopy" class="tt-btn tt-btn-sm">העתק את הגיליון</button>
+      <button id="btnPrepRefresh" class="tt-btn tt-btn-sm">רענן</button>
+    </div>
+    <div id="prepNote" class="text-sm mt-2"></div>
+  </section>
+
 </div>
 
 <div id="printArea" class="tt-hidden"></div>
@@ -888,7 +923,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v29.0';
+var TT_VERSION = 'v30.0';
 
 var APP = {
   apiKey: '',
@@ -6469,13 +6504,13 @@ function resetRun() {
   if (typeof showChatRetry === 'function') showChatRetry(false);
   if (typeof clearAnswerSpell === 'function') clearAnswerSpell();
   ['analysisCard', 'chatCard', 'answersCard', 'reviewCard', 'previewCard', 'resultCard',
-   'metricsNotice', 'noticeBox', 'noRelationCard', 'domainCard'].forEach(hide);
+   'metricsNotice', 'noticeBox', 'noRelationCard', 'domainCard', 'interviewCard'].forEach(hide);
   /* Hiding a card is not the same as emptying it. A card that is hidden with
      last run's coverage still inside comes back on the next run showing the
      previous job for as long as it takes the first stage to answer. */
   ['spellOut', 'answersOut', 'chatLog', 'queueOut', 'signalsOut', 'gapsOut',
    'reviewOut', 'diffOut', 'keywordsOut', 'atsOut', 'previewPage', 'finalStruct',
-   'noRelationOut', 'previewActionNote', 'domainOut'].forEach(function (id) {
+   'noRelationOut', 'previewActionNote', 'domainOut', 'prepOut', 'prepNote'].forEach(function (id) {
     var e = $(id);
     if (e) e.innerHTML = '';
   });
@@ -6854,6 +6889,258 @@ function renderPreview() {
   renderDiff();
   renderKeywords();
   renderAts();
+  /* The sheet describes the finished text, so it is rebuilt wherever the text
+     is rebuilt. It costs nothing: no call leaves the browser. */
+  renderInterviewSheet();
+}
+
+/* ================= stage 7: the interview preparation sheet =================
+   Three parts: which points came to the top of each job and why, what the
+   candidate should be ready to talk about, and what this posting asks for
+   that nothing in the resume supports.
+
+   Not one model call. That is deliberate on two counts. A model asked "what
+   should this person say in an interview" helps by inventing, and inventing is
+   the one thing this file exists not to do. And all three parts are a lookup
+   over state that already exists: the approved reorder changes carry the
+   promotions and their reasons, and the coverage map already knows which
+   requirement nothing proves. Section 6 of the dossier says a judgement that
+   reduces to arithmetic belongs in code, not in a prompt.
+
+   The gaps list diagnoses and stops there. It never suggests wording, because
+   a gap the candidate can answer honestly in a room is worth more than a
+   sentence that papers over it on the page. */
+
+/* Which job a block sits under. Blocks do not carry an owner, so walk back to
+   the first company or role line above the block's first line. A blank line
+   and a company line both end a block, so a long job can be several blocks and
+   every one of them resolves to the same header. */
+function blockRoleLabel(doc, blockId) {
+  var block = doc && blockById(doc, blockId);
+  if (!block || !block.lineIds.length) return '';
+  var idx = -1;
+  for (var i = 0; i < doc.lines.length; i++) {
+    if (doc.lines[i].id === block.lineIds[0]) { idx = i; break; }
+  }
+  if (idx < 0) return '';
+  var heading = '';
+  for (var j = idx - 1; j >= 0; j--) {
+    var l = doc.lines[j];
+    if (!l.raw.trim()) continue;
+    if (l.subtype === 'roleheader') return l.text;
+    if (l.isHeading) { heading = l.text; break; }
+  }
+  return heading;
+}
+
+/* The text as it stands after the candidate approved things, not as it was
+   written. APP.synthesis holds only the approved rewrites, so a line that was
+   left alone falls back to the original. */
+function prepLineText(id) {
+  if (APP.synthesis && APP.synthesis[id]) return APP.synthesis[id];
+  var l = APP.doc && lineById(APP.doc, id);
+  return l ? l.text : '';
+}
+
+function interviewSheet() {
+  var doc = APP.doc;
+  var reqMap = reqTextMap(APP.signals);
+  var reqs = (APP.signals && APP.signals.requirements) || [];
+  var mustMap = {};
+  reqs.forEach(function (r) { mustMap[r.id] = !!r.must_have; });
+
+  /* 1. what moved to the top, and against which requirement */
+  var shifts = [];
+  (APP.changes || []).forEach(function (ch) {
+    if (ch.kind !== 'line_order' || ch.status !== 'approved') return;
+    if (!Array.isArray(ch.order) || !ch.order.length) return;
+    var block = blockById(doc, ch.blockId);
+    if (!block) return;
+    var promoted = [];
+    ch.order.slice(0, 3).forEach(function (id, pos) {
+      var from = block.lineIds.indexOf(id);
+      if (from < 0 || from <= pos) return;         // it did not climb
+      promoted.push({ text: prepLineText(id), from: from + 1, to: pos + 1 });
+    });
+    if (!promoted.length) return;
+    shifts.push({
+      role: blockRoleLabel(doc, ch.blockId),
+      why: String(ch.why || ''),
+      reqs: (ch.reqIds || []).map(function (r) { return reqMap[r] || r; }).filter(Boolean),
+      lines: promoted
+    });
+  });
+
+  /* 2. what to be ready to talk about: the top of the first experience block
+     on the page, plus every fact the candidate typed into the conversation.
+     The first block is called the first block and not "the current role",
+     because the file does not read dates and guessing which job is current
+     from position is exactly the kind of inference this app refuses. */
+  var talk = [];
+  var firstExp = (doc && doc.blocks || []).filter(function (b) { return b.cat === 'experience'; })[0];
+  if (firstExp) {
+    var ids = (APP.orderPlan && APP.orderPlan[firstExp.id]) || firstExp.lineIds;
+    ids.slice(0, 3).forEach(function (id) {
+      var t = prepLineText(id);
+      if (t) talk.push(t);
+    });
+  }
+  var stated = [];
+  ((APP.chat && APP.chat.qa) || []).forEach(function (p) {
+    if (!p || p.skipped) return;
+    var a = String(p.a || '').trim();
+    if (!a) return;
+    stated.push({ q: String(p.q || '').trim(), a: a, req: reqMap[p.reqId] || '' });
+  });
+
+  /* 3. what this posting wants and nothing here proves.
+     missing is the hard gap. equivalent on a must_have is the softer one and
+     it is listed separately: the candidate can prove the properties but not
+     the name, and an interviewer who asks for the name by name will hear a
+     pause unless they saw this screen first. */
+  var missing = [], nameGaps = [];
+  (APP.coverage || []).forEach(function (c) {
+    if (!c || !c.req_id) return;
+    var text = reqMap[c.req_id];
+    if (!text) return;
+    var row = { text: text, must: !!mustMap[c.req_id], id: c.req_id };
+    if (c.status === 'missing') missing.push(row);
+    else if (c.status === 'equivalent' && mustMap[c.req_id]) {
+      row.shared = (c.shared_properties || []).filter(Boolean);
+      nameGaps.push(row);
+    }
+  });
+  var byMust = function (a, b) { return (b.must ? 1 : 0) - (a.must ? 1 : 0); };
+  missing.sort(byMust);
+
+  return {
+    role: (APP.signals && APP.signals.role_title) || '',
+    shifts: shifts, talk: talk, stated: stated,
+    missing: missing, nameGaps: nameGaps,
+    domainMode: APP.domainMode || ''
+  };
+}
+
+function renderInterviewSheet() {
+  var el = $('prepOut');
+  if (!el) return;
+  if (!APP.finalText) { el.innerHTML = '<div class="tt-prep-empty">הגיליון נבנה אחרי שהתוצאה מוכנה.</div>'; return; }
+  var s = interviewSheet();
+  var d = function (t) { return dirForText(t, 'he'); };
+  var html = '';
+
+  html += '<div class="tt-prep-sec"><div class="tt-prep-h">1. מה עלה לראש, ולמה</div>';
+  html += '<div class="tt-prep-lead">הסעיפים שטיפסו למעלה בכל תפקיד, והדרישה שהם משרתים. אלה השורות שמגייס יקרא ראשונות, ולכן אלה השורות שהוא ישאל עליהן.</div>';
+  if (!s.shifts.length) {
+    html += '<div class="tt-prep-empty">שום סעיף לא הועלה. הסדר המקורי כבר הציג את הדברים הרלוונטיים בראש, או שלא אישרת שינוי סדר.</div>';
+  } else {
+    s.shifts.forEach(function (sh) {
+      if (sh.role) html += '<div class="tt-prep-role" dir="' + d(sh.role) + '">' + escapeHtml(sh.role) + '</div>';
+      sh.lines.forEach(function (l) {
+        html += '<div class="tt-prep-line" dir="' + d(l.text) + '">' + escapeHtml(l.text) +
+                '<div class="tt-prep-meta">ממקום ' + l.from + ' למקום ' + l.to + '</div></div>';
+      });
+      if (sh.why) html += '<div class="tt-prep-meta" dir="' + d(sh.why) + '">' + escapeHtml(sh.why) + '</div>';
+      if (sh.reqs.length) html += '<div class="tt-prep-meta">משרת: ' + escapeHtml(sh.reqs.join(' | ')) + '</div>';
+    });
+  }
+  html += '</div>';
+
+  html += '<div class="tt-prep-sec"><div class="tt-prep-h">2. מה לספר כששואלים מה אתה עושה ביום יום</div>';
+  html += '<div class="tt-prep-lead">מה שכתוב בראש התפקיד הראשון בסעיף הניסיון. השיחה בראיון צריכה להישמע כמו הדף, אחרת הפער בולט.</div>';
+  if (!s.talk.length) html += '<div class="tt-prep-empty">אין סעיפי ניסיון לקרוא מהם.</div>';
+  else s.talk.forEach(function (t) {
+    html += '<div class="tt-prep-line" dir="' + d(t) + '">' + escapeHtml(t) + '</div>';
+  });
+  if (s.stated.length) {
+    html += '<div class="tt-prep-lead" style="margin-top:10px">ומה שאתה עצמך הוספת בשיחה. זה נכנס לקורות החיים, אז זה נכנס גם לראיון.</div>';
+    s.stated.forEach(function (p) {
+      html += '<div class="tt-prep-line" dir="' + d(p.a) + '">' + escapeHtml(p.a) +
+              (p.req ? '<div class="tt-prep-meta">נאמר על: ' + escapeHtml(p.req) + '</div>' : '') + '</div>';
+    });
+  }
+  html += '</div>';
+
+  html += '<div class="tt-prep-sec"><div class="tt-prep-h">3. מה המשרה מבקשת ואין לזה כיסוי</div>';
+  html += '<div class="tt-prep-lead">הרשימה הזו לא נכנסת לקובץ ואין לה ניסוח מוצע. היא כאן כדי שלא תופתע כששואלים.</div>';
+  if (!s.missing.length && !s.nameGaps.length) {
+    html += '<div class="tt-prep-empty">אין דרישה שנשארה בלי כיסוי.</div>';
+  }
+  s.missing.forEach(function (g) {
+    html += '<div class="tt-prep-gap' + (g.must ? ' is-must' : '') + '" dir="' + d(g.text) + '">' +
+            escapeHtml(g.text) + (g.must ? '<span class="tt-prep-tag">חובה</span>' : '') + '</div>';
+  });
+  if (s.nameGaps.length) {
+    html += '<div class="tt-prep-lead" style="margin-top:10px">ואלה דרישות חובה שאתה מוכיח את התוכן שלהן אבל לא את השם. בקורות החיים נכתבו המאפיינים המשותפים ולא המונח עצמו, כי אתה לא עשית בדיוק את הדבר הזה. אם ישאלו על המונח, זו התשובה שצריך להיות מוכן אליה.</div>';
+    s.nameGaps.forEach(function (g) {
+      html += '<div class="tt-prep-gap" dir="' + d(g.text) + '">' + escapeHtml(g.text) +
+              (g.shared && g.shared.length ? '<div class="tt-prep-meta">מה כן מוכח: ' + escapeHtml(g.shared.join('; ')) + '</div>' : '') +
+              '</div>';
+    });
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+/* Plain text, because this is meant to be pasted into whatever the candidate
+   keeps their notes in, and it is the one output of this app that is not a
+   resume. */
+function interviewSheetText() {
+  var s = interviewSheet();
+  var out = ['גיליון הכנה לראיון' + (s.role ? ' — ' + s.role : ''), ''];
+  out.push('1. מה עלה לראש, ולמה');
+  if (!s.shifts.length) out.push('  שום סעיף לא הועלה.');
+  s.shifts.forEach(function (sh) {
+    if (sh.role) out.push('  ' + sh.role);
+    sh.lines.forEach(function (l) { out.push('   • ' + l.text + '   (ממקום ' + l.from + ' למקום ' + l.to + ')'); });
+    if (sh.why) out.push('     ' + sh.why);
+    if (sh.reqs.length) out.push('     משרת: ' + sh.reqs.join(' | '));
+  });
+  out.push('', '2. מה לספר כששואלים מה אתה עושה ביום יום');
+  s.talk.forEach(function (t) { out.push('   • ' + t); });
+  if (s.stated.length) {
+    out.push('  ומה שהוספת בשיחה:');
+    s.stated.forEach(function (p) { out.push('   • ' + p.a + (p.req ? '   (על: ' + p.req + ')' : '')); });
+  }
+  out.push('', '3. מה המשרה מבקשת ואין לזה כיסוי');
+  if (!s.missing.length && !s.nameGaps.length) out.push('   אין דרישה שנשארה בלי כיסוי.');
+  s.missing.forEach(function (g) { out.push('   • ' + g.text + (g.must ? '   [חובה]' : '')); });
+  if (s.nameGaps.length) {
+    out.push('  מוכח בתוכן ולא בשם:');
+    s.nameGaps.forEach(function (g) {
+      out.push('   • ' + g.text + (g.shared && g.shared.length ? '   (מוכח: ' + g.shared.join('; ') + ')' : ''));
+    });
+  }
+  return out.join('\n');
+}
+
+function prepNote(msg, kind) {
+  var el = $('prepNote');
+  if (!el) return;
+  if (!msg) { el.innerHTML = ''; return; }
+  var tone = kind === 'error' ? 'text-red-700 font-semibold' : 'text-emerald-700 font-semibold';
+  el.innerHTML = '<span class="' + tone + '">' + escapeHtml(msg) + '</span>';
+}
+
+function copyInterviewSheet() {
+  var txt = interviewSheetText();
+  var done = function () { prepNote('הגיליון הועתק.'); };
+  var fail = function () { prepNote('ההעתקה נחסמה על ידי הדפדפן. סמן את הטקסט והעתק ידנית.', 'error'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done, fail);
+    return;
+  }
+  /* file:// in some browsers has no clipboard API at all, and this app is
+     opened from disk more often than not */
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    var ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    ok ? done() : fail();
+  } catch (e) { fail(); }
 }
 
 /* ---------------- bullets ----------------
@@ -6960,6 +7247,7 @@ function openPreview() {
   if (box) box.value = APP.finalText;
   show('resultCard');
   show('previewCard');
+  show('interviewCard');
   renderTemplatePicker();
   renderPreview();
   switchTab('final');
@@ -7009,6 +7297,14 @@ function bindPreviewUi() {
     show('reviewCard');
     var el = $('reviewCard');
     if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  var prepCopy = $('btnPrepCopy');
+  if (prepCopy) prepCopy.addEventListener('click', copyInterviewSheet);
+  var prepRefresh = $('btnPrepRefresh');
+  if (prepRefresh) prepRefresh.addEventListener('click', function () {
+    renderInterviewSheet();
+    prepNote('הגיליון נבנה מחדש מהמצב הנוכחי.');
   });
 }
 /* =========================================================================
