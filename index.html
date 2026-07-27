@@ -49,14 +49,55 @@
      template is typography, spacing, a rule and a heading colour, so nothing
      here changes what an ATS parser extracts. The same numbers drive the docx
      and the print sheet, see TT_TEMPLATES. */
-  .tt-pagewrap { background:#E7EEEF; padding:16px; border-radius:12px; overflow-x:auto; }
+  .tt-pagewrap { background:#E7EEEF; padding:16px; border-radius:12px; overflow-x:auto; position:relative; }
   .tt-page {
-    background:#fff; color:#000; max-width:210mm; margin:0 auto; padding:14mm;
+    background:#fff; color:#000; width:210mm; max-width:100%; margin:0 auto; padding:14mm;
     box-shadow:0 4px 18px rgba(15,23,42,.18); border-radius:2px;
     line-height:1.32; font-family:var(--tt-font);
+    /* A4 is 297mm. Below that the sheet still looks like a sheet, above it the
+       page break rulers say where the printer will actually cut. */
+    min-height:297mm; position:relative;
   }
-  .tt-page [contenteditable="true"]:focus { outline:2px solid #93c5fd; outline-offset:2px; border-radius:2px; }
-  .tt-page [contenteditable="true"]:hover { background:#f8fafc; }
+  /* Where page two starts. Drawn from the same 297mm the print stylesheet uses,
+     so "exactly as it will download" now includes the one thing it never showed:
+     which line falls off the bottom. */
+  .tt-pagecut {
+    position:absolute; left:0; right:0; height:0;
+    border-top:1px dashed #94a3b8; pointer-events:none; z-index:2;
+  }
+  .tt-pagecut::after {
+    content:attr(data-label); position:absolute; inset-inline-end:4px; top:3px;
+    font-size:.62rem; letter-spacing:.06em; color:#64748b;
+    background:#fff; padding:1px 6px; border-radius:999px; border:1px solid #cbd5e1;
+    font-family:var(--tt-ui);
+  }
+
+  /* ---------- the page is editable, and it has to look editable ----------
+     A contenteditable div with a faint hover tint reads as a static document to
+     anyone who does not already know it is not one. The dotted underline is
+     always on, so the affordance exists before the mouse arrives. */
+  .tt-page.is-editable [contenteditable="true"] {
+    border-bottom:1px dotted rgba(100,116,139,.42);
+    transition:background .12s ease;
+  }
+  .tt-page [contenteditable="true"]:focus {
+    outline:2px solid #0E8F86; outline-offset:2px; border-radius:2px;
+    background:#F0FBFA; border-bottom-color:transparent !important;
+  }
+  .tt-page.is-editable [contenteditable="true"]:hover {
+    background:#FFFBEB; box-shadow:0 0 0 3px #FFFBEB; border-radius:2px;
+    cursor:text;
+  }
+  .tt-editbar {
+    display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    background:#FFFBEB; border:1px solid #FCD34D; border-radius:10px;
+    padding:8px 11px; margin-bottom:10px; font-size:.82rem; color:#78350F;
+  }
+  .tt-editbar b { font-weight:700; }
+  .tt-editbar .tt-editpen {
+    width:24px; height:24px; flex:none; border-radius:7px; display:grid; place-items:center;
+    background:#FCD34D; color:#42200A; font-size:.8rem;
+  }
   .tt-pv-name    { font-size:var(--tt-name); font-weight:700; color:var(--tt-namecolor);
                    letter-spacing:var(--tt-nametrack); margin:0 0 1pt; }
   .tt-pv-contact { font-size:var(--tt-body); color:var(--tt-contact); margin:0 0 1pt; }
@@ -530,15 +571,120 @@
   /* ---- language switch and about, v31 ----
      Class based, like everything else that has to survive the Tailwind CDN
      injecting its sheet after this block. */
-  .tt-topctl { display: inline-flex; align-items: center; gap: 8px; }
-  .tt-langsw { display: inline-flex; gap: 2px; background: rgba(255,255,255,.10); padding: 3px; border-radius: 10px; }
+  /* Two rows now: about and settings on top, the flags underneath them. The
+     flags used to sit between the brand and those buttons, which is the middle
+     of the bar, and the middle of the bar is where the animation goes. */
+  .tt-topctl { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 5px; flex: none; }
+  .tt-topctl-row { display: inline-flex; align-items: center; gap: 8px; }
+  .tt-langsw { display: inline-flex; gap: 2px; background: rgba(12,38,48,.05); padding: 3px; border-radius: 10px; }
+
+  /* ---------- the header animation ----------
+     A posting rolls in from one side, a resume rolls in from the other, they
+     meet in the middle, and what comes out of the small burst is one finished
+     document with a seal on it. That is the whole product in one loop, which is
+     why it earns the middle of the bar.
+
+     It is decoration and it behaves like decoration: aria-hidden, no pointer
+     events, first to go when the bar gets narrow, and completely still for
+     anyone who asked their system for reduced motion. */
+  .tt-anim {
+    flex: 1 1 auto; display: flex; justify-content: center; align-items: center;
+    min-width: 0; pointer-events: none; user-select: none;
+  }
+  .tt-anim svg { width: 216px; height: 50px; overflow: visible; }
+  .tt-anim g { transform-box: fill-box; transform-origin: center; }
+  .tt-anim .tt-a-job,
+  .tt-anim .tt-a-cv,
+  .tt-anim .tt-a-spark,
+  .tt-anim .tt-a-out,
+  .tt-anim .tt-a-seal,
+  .tt-anim .tt-a-flash { animation: tt-a-hold 8.6s cubic-bezier(.34,.9,.32,1) infinite; }
+
+  @keyframes tt-a-hold { 0%, 100% { opacity: 0; } }
+
+  .tt-anim .tt-a-job   { animation-name: tt-a-in-right; }
+  .tt-anim .tt-a-cv    { animation-name: tt-a-in-left; }
+  .tt-anim .tt-a-flash { animation-name: tt-a-flash; animation-timing-function: ease-out; }
+  .tt-anim .tt-a-spark { animation-name: tt-a-spark; animation-timing-function: cubic-bezier(.2,.7,.3,1); }
+  .tt-anim .tt-a-out   { animation-name: tt-a-out; }
+  .tt-anim .tt-a-seal  { animation-name: tt-a-seal; animation-timing-function: cubic-bezier(.2,1.5,.4,1); }
+
+  /* the posting, rolling in from the right */
+  @keyframes tt-a-in-right {
+    0%   { opacity: 0; transform: translateX(74px) rotate(190deg) scale(.62); }
+    9%   { opacity: 1; }
+    34%  { opacity: 1; transform: translateX(0) rotate(0deg) scale(1); }
+    40%  { opacity: 1; transform: translateX(0) rotate(0deg) scale(.86); }
+    44%  { opacity: 0; transform: translateX(0) rotate(0deg) scale(.7); }
+    100% { opacity: 0; transform: translateX(0) rotate(0deg) scale(.7); }
+  }
+  /* the resume, rolling in from the left */
+  @keyframes tt-a-in-left {
+    0%   { opacity: 0; transform: translateX(-74px) rotate(-190deg) scale(.62); }
+    9%   { opacity: 1; }
+    34%  { opacity: 1; transform: translateX(0) rotate(0deg) scale(1); }
+    40%  { opacity: 1; transform: translateX(0) rotate(0deg) scale(.86); }
+    44%  { opacity: 0; transform: translateX(0) rotate(0deg) scale(.7); }
+    100% { opacity: 0; transform: translateX(0) rotate(0deg) scale(.7); }
+  }
+  /* the moment they touch */
+  @keyframes tt-a-flash {
+    0%, 36%  { opacity: 0; transform: scale(.2); }
+    41%      { opacity: .95; transform: scale(1.25); }
+    50%      { opacity: 0; transform: scale(1.9); }
+    100%     { opacity: 0; transform: scale(1.9); }
+  }
+  /* the small fireworks */
+  @keyframes tt-a-spark {
+    0%, 37%  { opacity: 0; transform: scale(.15); }
+    42%      { opacity: 1; transform: scale(1); }
+    58%      { opacity: 0; transform: scale(1.5); }
+    100%     { opacity: 0; transform: scale(1.5); }
+  }
+  /* and what comes out of it */
+  @keyframes tt-a-out {
+    0%, 41%  { opacity: 0; transform: scale(.55) translateY(3px); }
+    52%      { opacity: 1; transform: scale(1.06) translateY(0); }
+    58%      { opacity: 1; transform: scale(1) translateY(0); }
+    88%      { opacity: 1; transform: scale(1) translateY(0); }
+    97%      { opacity: 0; transform: scale(.94) translateY(0); }
+    100%     { opacity: 0; transform: scale(.94) translateY(0); }
+  }
+  @keyframes tt-a-seal {
+    0%, 54%  { opacity: 0; transform: scale(0) rotate(-70deg); }
+    64%      { opacity: 1; transform: scale(1) rotate(0deg); }
+    88%      { opacity: 1; transform: scale(1) rotate(0deg); }
+    97%      { opacity: 0; transform: scale(1) rotate(0deg); }
+    100%     { opacity: 0; transform: scale(1) rotate(0deg); }
+  }
+
+  /* the sparks fly outwards, each on its own vector */
+  .tt-anim .tt-a-sparks { animation: tt-a-spark 8.6s cubic-bezier(.2,.7,.3,1) infinite; }
+  .tt-anim .tt-a-sparks circle { transform-box: fill-box; transform-origin: center; }
+
+  @media (max-width: 900px) { .tt-anim { display: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    /* Still, not absent: the finished document stays on screen and nothing
+       moves. An animation that runs at 0.001ms just flickers. */
+    .tt-anim .tt-a-job, .tt-anim .tt-a-cv,
+    .tt-anim .tt-a-flash, .tt-anim .tt-a-sparks { display: none !important; }
+    .tt-anim .tt-a-out, .tt-anim .tt-a-seal {
+      animation: none !important; opacity: 1 !important; transform: none !important;
+    }
+  }
   .tt-langbtn {
     display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 8px;
     border: 1px solid transparent; background: transparent; cursor: pointer;
-    font-size: .78rem; font-weight: 600; color: rgba(255,255,255,.72); line-height: 1;
+    font-size: .78rem; font-weight: 600; color: #5A6B72; line-height: 1;
   }
-  .tt-langbtn:hover { color: #fff; background: rgba(255,255,255,.10); }
-  .tt-langbtn.is-on { background: #fff; color: var(--c-ink); box-shadow: 0 4px 12px -6px rgba(0,0,0,.6); }
+  /* These colours were written for a dark header that this app no longer has.
+     White text at 72% on a near white bar is a button you can only find by
+     hovering it. */
+  .tt-langbtn:hover { color: var(--c-ink); background: rgba(12,38,48,.07); }
+  .tt-langbtn.is-on {
+    background: #fff; color: var(--c-ink);
+    box-shadow: 0 1px 3px rgba(12,38,48,.16); border-color: var(--sh-hair);
+  }
   .tt-langbtn svg { display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.18); }
   .tt-about-h { font-weight: 800; font-size: 1.05rem; margin-bottom: 2px; color: var(--c-ink); }
   .tt-about-sub { font-size: .82rem; color: #64748b; margin-bottom: 14px; }
@@ -564,18 +710,100 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v28.1</span>
+        <span class="tt-ver" id="verBadge">v33</span>
       </div>
-      <!-- Language, about and settings share one group so they stay together
-           when the shell flips direction. In Hebrew the group renders at the
-           left of the bar, in English at the right, because that is what the
-           end of a line is in each direction.
+      <!-- The animation owns the middle of the bar. A posting rolls in from
+           one side, a resume from the other, they meet, and one finished
+           document comes out of the burst. Decorative only: aria-hidden, no
+           pointer events, dropped entirely below 900px, and held still for
+           anyone whose system asked for reduced motion. -->
+      <div class="tt-anim" aria-hidden="true">
+        <svg viewBox="0 0 216 50" xmlns="http://www.w3.org/2000/svg" focusable="false">
+          <defs>
+            <linearGradient id="ttaPaper" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#FFFFFF"/><stop offset="100%" stop-color="#F1F6F7"/>
+            </linearGradient>
+            <linearGradient id="ttaGold" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#E9C46A"/><stop offset="55%" stop-color="#C98A15"/><stop offset="100%" stop-color="#9A6A0C"/>
+            </linearGradient>
+            <linearGradient id="ttaTeal" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#14B8A6"/><stop offset="100%" stop-color="#0A756D"/>
+            </linearGradient>
+          </defs>
+
+          <!-- the posting -->
+          <g class="tt-a-job">
+            <rect x="94" y="9" width="28" height="34" rx="3.5" fill="url(#ttaPaper)" stroke="#94A3B8" stroke-width="1.1"/>
+            <rect x="99" y="14" width="18" height="4.4" rx="1.6" fill="#0E8F86" opacity=".85"/>
+            <rect x="99" y="22" width="18" height="1.9" rx=".95" fill="#94A3B8"/>
+            <rect x="99" y="26.5" width="14" height="1.9" rx=".95" fill="#94A3B8"/>
+            <rect x="99" y="31" width="17" height="1.9" rx=".95" fill="#94A3B8"/>
+            <rect x="99" y="35.5" width="10" height="1.9" rx=".95" fill="#94A3B8"/>
+            <path d="M104 6.4h8v3.2h-8z" fill="#0E8F86" opacity=".55"/>
+          </g>
+
+          <!-- the resume -->
+          <g class="tt-a-cv">
+            <rect x="94" y="9" width="28" height="34" rx="3.5" fill="url(#ttaPaper)" stroke="#94A3B8" stroke-width="1.1"/>
+            <circle cx="103.5" cy="17.5" r="4" fill="#CBD5E1"/>
+            <rect x="110" y="14.5" width="9" height="2" rx="1" fill="#94A3B8"/>
+            <rect x="110" y="18.5" width="7" height="2" rx="1" fill="#CBD5E1"/>
+            <rect x="99" y="26" width="18" height="1.9" rx=".95" fill="#94A3B8"/>
+            <rect x="99" y="30.5" width="15" height="1.9" rx=".95" fill="#94A3B8"/>
+            <rect x="99" y="35" width="18" height="1.9" rx=".95" fill="#94A3B8"/>
+          </g>
+
+          <!-- the moment of contact -->
+          <g class="tt-a-flash">
+            <circle cx="108" cy="26" r="15" fill="#FDE68A" opacity=".55"/>
+            <circle cx="108" cy="26" r="8" fill="#FFFFFF" opacity=".85"/>
+          </g>
+
+          <!-- small fireworks -->
+          <g class="tt-a-sparks">
+            <circle cx="108" cy="4"  r="1.9" fill="#C98A15"/>
+            <circle cx="128" cy="10" r="1.6" fill="#14B8A6"/>
+            <circle cx="136" cy="26" r="2.1" fill="#E9C46A"/>
+            <circle cx="128" cy="42" r="1.5" fill="#0E8F86"/>
+            <circle cx="108" cy="48" r="1.8" fill="#C98A15"/>
+            <circle cx="88"  cy="42" r="1.6" fill="#14B8A6"/>
+            <circle cx="80"  cy="26" r="2"   fill="#E9C46A"/>
+            <circle cx="88"  cy="10" r="1.5" fill="#0E8F86"/>
+            <circle cx="120" cy="14" r="1.2" fill="#E9C46A"/>
+            <circle cx="96"  cy="38" r="1.2" fill="#14B8A6"/>
+          </g>
+
+          <!-- the finished document -->
+          <g class="tt-a-out">
+            <rect x="92" y="6" width="32" height="38" rx="4" fill="url(#ttaPaper)" stroke="url(#ttaGold)" stroke-width="1.5"/>
+            <rect x="97" y="11" width="22" height="5" rx="2" fill="url(#ttaTeal)"/>
+            <rect x="97" y="20"   width="22" height="2" rx="1" fill="#64748B"/>
+            <rect x="97" y="24.5" width="18" height="2" rx="1" fill="#94A3B8"/>
+            <rect x="97" y="29"   width="22" height="2" rx="1" fill="#94A3B8"/>
+            <rect x="97" y="33.5" width="13" height="2" rx="1" fill="#94A3B8"/>
+          </g>
+          <g class="tt-a-seal">
+            <circle cx="122" cy="38" r="7.6" fill="url(#ttaGold)"/>
+            <path d="M118.6 38.1l2.4 2.4 4.5-4.7" fill="none" stroke="#FFFFFF" stroke-width="1.9"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+        </svg>
+      </div>
+
+      <!-- About and settings on the top row, the flags on the row beneath
+           them. In Hebrew the group renders at the left of the bar, in English
+           at the right, because that is what the end of a line is in each
+           direction.
            The flags are inline SVG and not the emoji. Windows ships no glyph
            for a regional indicator pair, so the emoji flag for Israel renders
            there as the two letters IL, and a flag button that shows letters is
            not a flag button. The character is deliberately not written even in
            this comment, so a check for it in the file stays meaningful. -->
       <div class="tt-topctl">
+        <div class="tt-topctl-row">
+          <button id="btnAbout" class="tt-btn tt-btn-ghost tt-btn-sm">אודות</button>
+          <button id="btnSettings" class="tt-btn tt-btn-ghost tt-btn-sm">⚙️ הגדרות</button>
+        </div>
         <div class="tt-langsw" id="langSwitch" role="group" aria-label="שפת הממשק / Interface language">
           <button id="btnUiHe" class="tt-langbtn" data-uilang="he" title="עברית" aria-label="עברית">
             <svg viewBox="0 0 22 16" width="19" height="14" aria-hidden="true" focusable="false">
@@ -608,8 +836,6 @@
             <span>English</span>
           </button>
         </div>
-        <button id="btnAbout" class="tt-btn tt-btn-ghost tt-btn-sm">אודות</button>
-        <button id="btnSettings" class="tt-btn tt-btn-ghost tt-btn-sm">⚙️ הגדרות</button>
       </div>
     </div>
     <!-- Six stages, always the same six, so what is behind and what is still
@@ -941,7 +1167,16 @@
   <!-- STEP 6b  PREVIEW AND DOWNLOAD -->
   <section id="previewCard" class="tt-hidden tt-card mb-4">
     <h2 class="tt-card-title mb-2"><span class="tt-tag">הורדה</span>תצוגה מקדימה, בדיוק כפי שזה יירד</h2>
-    <p class="text-xs text-slate-500 mb-3">בחר טמפלט, ערוך את הטקסט ישירות על הדף, ואז לחץ "החל שינויים". רק מה שהוחל יורד לקובץ.</p>
+    <p class="text-xs text-slate-500 mb-3">הדף שלמטה הוא בגודל A4 אמיתי, והקו המקווקו מסמן איפה מתחיל עמוד חדש בקובץ.</p>
+
+    <!-- The page below is a live document, and it did not look like one. This
+         bar says so before the mouse gets there, and the dotted underline under
+         every line on the sheet repeats it. -->
+    <div class="tt-editbar">
+      <span class="tt-editpen">✎</span>
+      <span><b>הדף למטה ניתן לעריכה.</b> לחץ על כל שורה וכתוב ישירות עליה, בדיוק כמו במסמך.
+      כשתסיים לחץ <b>"החל שינויים"</b> בתחתית, אחרת העריכות לא ייכנסו לקובץ.</span>
+    </div>
 
     <div id="templatePicker" class="flex flex-wrap gap-3 mb-3"></div>
 
@@ -967,7 +1202,7 @@
     <div class="flex flex-wrap gap-2 mt-4">
       <button id="btnApplyPreview" class="tt-btn" disabled>✅ החל שינויים</button>
       <button id="btnExportDocx" class="tt-btn tt-btn-dark">⬇️ הורד כ־Word</button>
-      <button id="btnExportPdf" class="tt-btn">🖨️ הורד כ־PDF</button>
+      <button id="btnExportPdf" class="tt-btn">🖨️ הדפס או שמור כ־PDF</button>
       <button id="btnTranslateFinal" class="tt-btn">🌐 תרגם את הגרסה</button>
       <button id="btnBackToReview" class="tt-btn">↩ חזור לאישור השינויים</button>
     </div>
@@ -1024,7 +1259,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v32.0';
+var TT_VERSION = 'v33.0';
 
 var APP = {
   apiKey: '',
@@ -2722,10 +2957,11 @@ function buildSkillLines(model, plan) {
    because reordering a list is not a per line edit.
    orderPlan, when given, is blockId -> the line ids of that block in their new
    order. A line carries its own added bullets with it when it moves. */
-function rebuildDocument(doc, synthesis, added, skillLines, skillLineIds, orderPlan) {
+function rebuildDocument(doc, synthesis, added, skillLines, skillLineIds, orderPlan, dropped) {
   synthesis = synthesis || {};
   added = added || [];
   orderPlan = orderPlan || {};
+  dropped = dropped || {};
   var addedBy = {};
   for (var a = 0; a < added.length; a++) {
     (addedBy[added[a].afterId] = addedBy[added[a].afterId] || []).push(added[a]);
@@ -2738,10 +2974,15 @@ function rebuildDocument(doc, synthesis, added, skillLines, skillLineIds, orderP
   // everything one line contributes, so a reorder can move it as a unit
   function emit(l) {
     var rows = [];
-    if (l.editable && synthesis[l.id] != null && String(synthesis[l.id]).trim()) {
-      rows.push(l.marker + synthesis[l.id]);
-    } else {
-      rows.push(l.raw);
+    /* An approved drop removes the line itself and nothing else. A new bullet
+       the candidate approved that was anchored to this line still belongs to
+       the job it was written under, so it survives its anchor. */
+    if (!dropped[l.id]) {
+      if (l.editable && synthesis[l.id] != null && String(synthesis[l.id]).trim()) {
+        rows.push(l.marker + synthesis[l.id]);
+      } else {
+        rows.push(l.raw);
+      }
     }
     var extra = addedBy[l.id];
     if (extra) {
@@ -2900,11 +3141,30 @@ function domainModeBlock() {
   return [
     'CROSS INDUSTRY WORDING, THE CANDIDATE ASKED FOR THIS EXPLICITLY:',
     'X1. The candidate\'s sector and the posting\'s sector are different. They have chosen to be read across industries rather than inside their own vocabulary.',
-    'X2. Where a line names a sector specific system, ADD the general description of what that system is, in the posting\'s vocabulary, and KEEP the original name. "MES" becomes "MES, מערכת ליבה תפעולית לניהול תהליכים בזמן אמת". It never becomes "מערכת ליבה תפעולית" on its own.',
-    'X3. Removing the original system name is forbidden. It is a true term the candidate owns and a screener searches for it by name.',
-    'X4. This permits WORDING ONLY. Rules 1 to 8 above are untouched. No new system, no new duty, no new tool, no new environment, and never the name of the thing the posting asks for and the candidate has not done.',
-    'X5. Generalise the LABEL of a system, never the facts around it. Scale, metrics, dates, standards, regulation and the verb stay exactly as they are.',
-    'X6. If a line names no sector specific system, leave it alone. Broad wording is not a licence to rewrite lines that were already fine.'
+    '',
+    'X2. THE SHAPE OF THE REWRITE, THIS IS THE RULE THAT MATTERS MOST HERE.',
+    '    Where a line names a system, a process, a method, a certification or a unit that only that sector uses, LEAD WITH the cross industry description and put the original name in brackets after it.',
+    '    Correct:   "מערכת ליבה תפעולית לניהול תהליכים ובקרת מלאי בזמן אמת (MES)"',
+    '    Wrong:     "MES, מערכת ליבה תפעולית לניהול תהליכים בזמן אמת"   <- the sector term still leads, no widening happened',
+    '    Wrong:     "מערכת ליבה תפעולית"                                <- original deleted, a real searchable term was thrown away',
+    '    The general description comes first because that is the half a reader outside the sector understands. The original name survives in brackets because it is true and because a screener inside the sector searches for it by name.',
+    '',
+    'X3. THE GENERAL DESCRIPTION MUST BE WRITTEN IN THE POSTING\'S OWN VOCABULARY, NOT IN A NEUTRAL DICTIONARY VOICE.',
+    '    Read the posting. Find the words it uses for systems of that class, for that kind of work, for that kind of user. Describe the candidate\'s system in THOSE words.',
+    '    Worked example, a manufacturing MES against a retail posting that talks about "מערכות ליבה", "ניהול מלאי" and "זמינות מדף":',
+    '      "אחריות על MES"  ->  "ניהול מערכת ליבה תפעולית שמנהלת מלאי וזמינות בזמן אמת על פני קווי פעילות (MES)"',
+    '    The same MES against a logistics posting is described with the logistics posting\'s words instead. The system did not change, the audience did.',
+    '    A description that could have been written without reading the posting is a failed rewrite. Do it again with the posting\'s words.',
+    '',
+    'X4. WHAT YOU MAY NEVER DO, AND THIS OUTRANKS EVERYTHING ABOVE:',
+    '    X4a. Never write the NAME of a product, platform, vendor or system the candidate did not use. Not SAP, not Salesforce, not Priority, not Jira, not anything, however neatly it would map. A name is a claim of hands on use and the candidate would have to defend it in an interview.',
+    '    X4b. Never write a comparison. No "מקביל ל", no "בדומה ל", no "כמו", no "equivalent to", no "such as". Describe what the candidate\'s system DID. Let the reader draw the parallel.',
+    '    X4c. Never invent a capability the original system did not have in order to make the description fit the posting better. You are translating a label, not upgrading a CV.',
+    '',
+    'X5. Generalise the LABEL, never the facts around it. Scale, metrics, headcount, dates, standards, regulation, and the verb of the sentence all stay exactly as they were.',
+    'X6. If a line names nothing sector specific, leave it alone. Broad wording is not a licence to rewrite lines that were already fine.',
+    'X7. Bracket the original ONCE per section. After a term has been introduced as "general description (ORIGINAL)", later lines in the same section use whichever half reads better and do not repeat the bracket.',
+    'X8. Keep it to one clause. "מערכת ליבה תפעולית לניהול תהליכים בזמן אמת (MES)" is right. A three line definition of what an MES is, is a glossary entry, not a resume line.'
   ].join('\n');
 }
 
@@ -3143,8 +3403,39 @@ var ANSWER_RULES = [
   'AB. An answer may have been typed in a different language from the resume. That is normal and it is not a reason to ignore it. The FACT crosses over, the WORDS do not: read the fact and write it into the line in the language that line is already in. Never paste the answer\'s own words into a line in another language, the result is rejected automatically and the whole rewrite of that line is lost.',
   'AB2. EVERY line you return is written in the language of the line it replaces, end to end, with no exceptions and no mixed clauses. An English resume comes back entirely in English. Product names, tools, systems and standards keep their own spelling, and that is the only foreign text allowed anywhere in your output.',
   'AC. Every answer that contains a usable fact must show up somewhere in your output. If an answer genuinely cannot be used, say so in used_answers instead of silently dropping it.',
-  'AD. A fact from an answer is a fact the candidate stated. It is a permitted source, exactly like the resume text. It is still not a licence to round it up, extend it or generalise it.'
+  'AD. A fact from an answer is a fact the candidate stated. It is a permitted source, exactly like the resume text. It is still not a licence to round it up, extend it or generalise it.',
+  '',
+  'SHORT ANSWERS. THIS IS WHERE MOST OF THE VALUE IN THIS CONVERSATION IS LOST, READ IT PROPERLY:',
+  'AE. Most answers are two or three words typed in a hurry. "8". "כן, ISO 9001". "בערך 40 משתמשים". They are not resume lines and they must never be pasted in as one.',
+  'AF. The QUESTION is given to you next to every answer, and the question carries the rest of the sentence. Read the pair as one statement and write that statement as a resume line.',
+  '    Q: "כמה אנשים היו בצוות שניהלת?"  A: "8"          ->  "ניהול צוות של 8 עובדים"',
+  '    Q: "באיזה תקן עבדתם?"            A: "כן, ISO 9001" ->  "עבודה בסביבה מתוקננת לפי ISO 9001"',
+  '    Q: "כמה משתמשים היו למערכת?"     A: "בערך 40"      ->  "תמיכה במערכת ששירתה כ 40 משתמשים"',
+  'AG. Write it the way a professional would have written it in the first place: a real verb, the object, and the scope that the answer actually gave. Grammar, register and phrasing are all yours to fix. This is the whole point of this rule.',
+  'AH. You may also state the outcome or the purpose that the question and the surrounding line already imply, when it follows necessarily from what was said. If a question asked what a process was for and the answer named the process, the purpose can be written out.',
+  'AI. THE HARD LIMIT ON AG AND AH, AND IT IS ABSOLUTE. You may supply WORDS. You may never supply FACTS.',
+  '    Forbidden: a number the candidate did not say, a percentage, a saving, a timeframe, a team size, a tool, a standard, a client, a seniority level, or a result that merely sounds likely.',
+  '    "8" is a team of 8. It is not "a team of 8 that cut cycle time". Nobody said anything about cycle time.',
+  '    If you cannot write the line without inventing something, write the shorter line. A short true line beats a full sentence with one invented clause in it, every time.',
+  'AJ. Put the finished statement INSIDE the line it belongs to, in that line\'s own language and grammar, so it reads as one sentence a person wrote. Never append it as a fragment on the end, and never leave the answer\'s raw wording visible.',
+  'AK. An answer of one or two words is still an answer. "Too short to use" is not a valid entry in used_answers unless the answer genuinely carries no fact at all, such as "לא זוכר" or "לא רלוונטי".'
 ].join('\n');
+
+/* The state into action work is decided locally, by the same regex the ATS
+   panel shows the candidate, and the ids are handed over. Telling a model "fix
+   lines that describe a state" gets a model's opinion of which those are. This
+   way the panel and the rewriter are looking at exactly the same list, which is
+   also the only way the panel's count can honestly go down after a run. */
+function stateLineBrief(doc, cat) {
+  if (!doc) return '';
+  var hits = editableLines(doc, cat).filter(function (l) {
+    return l.text.length > 25 && TT_STATE_OPENERS.test(l.text.trim());
+  });
+  if (!hits.length) return '';
+  return 'LINES THAT DESCRIBE A STATE RATHER THAN AN ACTION.\n' +
+    'These were found in this section by a local check, not by you. Rule D6 applies to every one of them that you are rewriting anyway.\n' +
+    hits.slice(0, 14).map(function (l) { return '  ' + l.id + ': ' + l.text; }).join('\n');
+}
 
 /* ---- stage 4: rewrite one section, aimed at named requirements ---- */
 function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
@@ -3168,6 +3459,23 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     'D3. VOCABULARY SWAP. Where a line already proves something and says it in the resume\'s own words, rewrite it in the posting\'s words. "ניהול מערכות ליבה" against a posting that says "Global System Owner" becomes the posting\'s term, because it is the same fact stated in the words the screener searches for. This changes wording, never the claim. Where the fact is not proved, the word stays out, whatever it would do for the match.',
     'D4. Second list below: the allowed words this section does not use yet. Every one of them is a term the coverage map already permits. Work them in wherever a real line can carry one, in the section\'s own language, and leave the rest alone.',
     'D5. Once is enough. A term that already appears in this section is covered; repeating it into a second and a third line reads as padding to a human and adds nothing to a keyword match. Spend the next rewrite on a term that is not there yet.',
+    '',
+    'D6. STATE INTO ACTION. THIS APPLIES TO EVERY LINE YOU ARE ALREADY REWRITING, AND ONLY TO THOSE.',
+    '    A screener, and every scoring model behind one, reads a resume for what the person DID. A line that describes a standing condition scores as a job description. A line that names an action scores as evidence.',
+    '    So when you rewrite a line, if it opens by describing a state, rebuild it around the action underneath that state.',
+    '    Hebrew:  "אחראי על תחזוקת המערכת"        ->  "תחזוקת מערכת ... " or "תחזקתי את המערכת ..."',
+    '             "היה חלק מצוות שהטמיע"          ->  the verb the candidate personally did, and nothing above it',
+    '             "עבודה מול ספקים"               ->  "ניהול ממשק מול ספקים" only if the line already says they ran it',
+    '    English: "Responsible for maintaining X"  ->  "Maintained X"',
+    '             "Was involved in the rollout"    ->  "Supported the rollout of X"',
+    '',
+    'D7. THE CEILING ON D6, AND IT OUTRANKS D6 COMPLETELY. Rule 3 of the hard rules is not suspended here.',
+    '    Convert the verb. Never promote the person.',
+    '    "אחראי על ניהול צוות של 6" -> "ניהלתי צוות של 6" is correct: the line already said they managed the team, only the grammar changed.',
+    '    "השתתפתי בפרויקט" -> "הובלתי את הפרויקט" is a lie and is forbidden. So is "היה חלק מ" -> "ניהלתי", and "סייעתי ל" -> "אחראי ל".',
+    '    Where the only honest action verb would be weaker than the state phrasing implies, keep the line closer to what it said. A true supporting verb beats a false leading one.',
+    '',
+    'D8. Do not touch a line for D6 alone. If a line proves nothing this posting asks for and you had no other reason to return it, leave it out of the array. D6 changes HOW you rewrite, not WHICH lines you rewrite.',
     'E. If an answer contains a real fact that does not belong inside any existing line, you may add it as one new bullet, attached to the id of the line it belongs next to.',
     'F. A skipped question means the candidate gave you nothing. Do not guess what they would have said.',
     'G. Lines marked "(context, not editable)" are companies, roles and dates. Use them to understand the timeline. Never return them and never restate a date range.',
@@ -3178,15 +3486,30 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     'J. The section is split into blocks, marked "-- block B1 --". A block is one run of lines under one job or one heading.',
     '   Return an order entry for every block that should change, listing ALL of that block\'s ids in the order they should appear, strongest match for this posting first.',
     '   Never move an id into a different block. A bullet belongs to the job it was written under and moving it between jobs is a lie about who the candidate did it for.',
-    '   Order by how directly the line proves a must_have requirement. A line that proves nothing this posting asks for goes last, it does not get deleted.',
+    '   Order by how directly the line proves a must_have requirement. A line that proves nothing this posting asks for goes to the bottom of its block.',
     '   Leave a block out of the array when its current order is already right. Chronological blocks that read as a story stay as they are.',
     'K. "order_why" is one short sentence saying which line came to the top and which requirement it proves.',
+    '',
+    'DROPPING DEAD WEIGHT FROM OLDER ROLES:',
+    'L. A resume has a page of attention in it. A bullet under a job from six years ago that serves nothing this posting asks for is spending that attention on the wrong thing, and pushing the lines that do matter further down the page.',
+    '   You may therefore PROPOSE that such a bullet be left out. You are proposing, not deciding: every one of these is shown to the candidate switched off, and it only leaves the resume if they personally turn it on.',
+    'M. A bullet qualifies for the drop array only when ALL of these are true:',
+    '   M1. It is under an OLDER role. Never the current or most recent one. That job is the one being read closely and it must stay whole.',
+    '   M2. It serves no requirement in the coverage map, not directly, not as an equivalent, not partially. If you can name a requirement id for it, it stays.',
+    '   M3. It carries no number, no percentage, no amount, no headcount, no timeframe. A quantified line is the strongest kind of line there is, and a screener reads it even when the topic is off. Those never go.',
+    '   M4. It is genuinely generic or off topic: routine admin, a duty every job in that title has, a tool nobody asked about, an activity from a different discipline entirely.',
+    '   M5. Its block has other bullets that survive. Never empty a job, and never reduce one to a single line. A role with one bullet reads as a role the candidate is hiding something about.',
+    'N. When you are unsure, do not propose the drop. A weak line that stays costs one line of space. A strong line proposed for removal costs the candidate something they cannot get back if they click through quickly.',
+    'O. Aim for nothing at all, and at most three. This array being empty is the normal, correct outcome for most resumes. It is not a quota.',
+    'P. "why" here is one short sentence in Hebrew, addressed to the candidate, saying plainly what the line does not serve. "לא נמצאה בו זיקה לאף דרישה במשרה, והוא מתאר עבודה שוטפת שאינה קשורה לתפקיד הזה." Never insult the work and never call the candidate\'s experience worthless.',
     '',
     'Return JSON only, and keep every "why" to one short sentence so the answer has room to finish:',
     '{"lines":[{"id":"L12","text":"the rewritten line","why":"serves R4, states the regulated environment explicitly","req_ids":["R4"],"from_answers":["A2"]}],',
     ' "added":[{"afterId":"L12","text":"a new bullet","why":"","req_ids":[""],"from_answers":["A3"]}],',
     ' "order":[{"blockId":"B1","ids":["L14","L12","L13"],"order_why":"","req_ids":["R4"]}],',
+    ' "drop":[{"id":"L31","why":"one short sentence in Hebrew, what this line does not serve"}],',
     ' "used_answers":[{"answer":"A1","used":true,"where":["L12"],"note":"one short sentence, why it could not be used when used is false"}]}',
+    'drop is almost always an empty array. Read rules L to P again before you put anything into it.',
     'from_answers lists the answer tags a line was built from. Leave it empty for a line you rewrote from the resume alone.',
     'used_answers must have one entry per answer you were given, including the skipped ones.',
     '',
@@ -3197,6 +3520,8 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     '',
     sectionKeywordGaps(sectionText, 12),
     '',
+    stateLineBrief(APP.doc, cat) || null,
+    stateLineBrief(APP.doc, cat) ? '' : null,
     'COVERAGE MAP:',
     JSON.stringify(coverage),
     '',
@@ -4348,54 +4673,91 @@ async function runSynthesis() {
   APP.answerUse = [];
   var cats = ['summary', 'experience', 'other'];
 
-  try {
-    for (var i = 0; i < cats.length; i++) {
-      var cat = cats[i];
-      if (!editableLines(APP.doc, cat).length) continue;
-      setStatus('שלב 4: כותב מחדש את ' + SECTION_NAMES[cat] + '...', true);
-      var raw;
-      try {
-        raw = await callGemini(promptSynthesis(cat, sectionExcerpt(APP.doc, cat), APP.signals, APP.coverage, APP.chat.qa), {
+  /* ---------------------------------------------------------------------
+     This stage used to run four calls one after another: summary, then
+     experience, then the extra sections, then skills. Nothing in any of them
+     reads the output of any other. Each has a ninety second ceiling, so a
+     candidate who skipped every question and pressed straight through sat in
+     front of a spinner for the sum of four calls to get work that could have
+     taken the length of one.
+
+     They are fired together now. Two things had to be true first, and both
+     are: a 429 already falls down the model cascade rather than failing, so
+     four requests at once degrade instead of breaking; and the results are
+     collected in the original order after they all land, not in the order they
+     happen to arrive, because APP.changes is what the review list is built
+     from and a review list that reshuffles itself between runs is unusable.
+     --------------------------------------------------------------------- */
+  APP.skillModel = parseSkills(APP.doc);
+  var jobs = [];
+
+  cats.forEach(function (cat) {
+    if (!editableLines(APP.doc, cat).length) return;
+    jobs.push({
+      cat: cat,
+      label: SECTION_NAMES[cat],
+      run: function () {
+        return callGemini(promptSynthesis(cat, sectionExcerpt(APP.doc, cat), APP.signals, APP.coverage, APP.chat.qa), {
           json: true, temperature: 0.35, maxOutputTokens: TT_TOKENS.synthesis, timeoutMs: 90000,
           failOnTruncation: true
         });
-      } catch (e) {
-        APP.parseFailures.push({ cat: cat, reason: (e && e.message) || 'הקריאה נכשלה.' });
-        showError('כתיבת ' + SECTION_NAMES[cat] + ' נכשלה: ' + (e && e.message ? e.message : '') + ' הסקציה נשארה כפי שהייתה.');
-        continue;
-      }
-      /* A response that cannot be read is a failure, not an opinion that the
-         section was already perfect. It used to become {} here and vanish. */
-      var obj = safeJsonParse(raw);
-      if (!obj) {
-        APP.parseFailures.push({ cat: cat, reason: 'התשובה של המודל לא הייתה JSON תקין.' });
-        showError('התשובה על ' + SECTION_NAMES[cat] + ' חזרה בפורמט שלא ניתן לקרוא, ולכן הסקציה נשארה כפי שהייתה. אפשר לנסות שוב.');
-        continue;
-      }
-      collectLineChanges(cat, obj);
-      collectAnswerUse(cat, obj);
-    }
+      },
+      take: function (obj) { collectLineChanges(this.cat, obj); collectAnswerUse(this.cat, obj); }
+    });
+  });
 
-    APP.skillModel = parseSkills(APP.doc);
-    if (APP.skillModel) {
-      setStatus('שלב 4: מסדר את הכישורים מול המשרה...', true);
-      try {
-        var rawSkills = await callGemini(promptSkillPlan(APP.skillModel.groups, APP.signals, APP.coverage, APP.chat.qa, 'he'), {
+  if (APP.skillModel) {
+    jobs.push({
+      cat: 'skills',
+      label: 'הכישורים',
+      run: function () {
+        return callGemini(promptSkillPlan(APP.skillModel.groups, APP.signals, APP.coverage, APP.chat.qa, 'he'), {
           json: true, temperature: 0.25, maxOutputTokens: TT_TOKENS.skills, timeoutMs: 60000,
           failOnTruncation: true
         });
-        var skillObj = safeJsonParse(rawSkills);
-        if (!skillObj) {
-          APP.parseFailures.push({ cat: 'skills', reason: 'התשובה של המודל לא הייתה JSON תקין.' });
-          showError('התשובה על הכישורים חזרה בפורמט שלא ניתן לקרוא, ולכן הכישורים נשארו כפי שהיו.');
-        } else {
-          collectSkillChanges(skillObj);
-        }
-      } catch (e) {
-        APP.parseFailures.push({ cat: 'skills', reason: (e && e.message) || 'הקריאה נכשלה.' });
-        showError('סידור הכישורים נכשל: ' + (e && e.message ? e.message : '') + ' הכישורים נשארו כפי שהיו.');
+      },
+      take: function (obj) { collectSkillChanges(obj); }
+    });
+  }
+
+  try {
+    if (jobs.length) {
+      setStatus('שלב 4: כותב מחדש ' + jobs.length + ' מקטעים במקביל, ' +
+                jobs.map(function (j) { return j.label; }).join(', ') + '...', true);
+    }
+
+    /* Every job resolves. A job that failed resolves with its failure rather
+       than rejecting, so one dead section cannot take the other three down
+       with it, which is what a bare Promise.all would do here. */
+    var settled = await Promise.all(jobs.map(function (j) {
+      return j.run().then(
+        function (raw) { return { job: j, raw: raw, err: null }; },
+        function (e)   { return { job: j, raw: null, err: e }; }
+      );
+    }));
+
+    /* Collected in declaration order, so the review list reads summary,
+       experience, extras, skills, exactly as it did when this ran serially. */
+    settled.forEach(function (res) {
+      var j = res.job;
+      if (res.err) {
+        APP.parseFailures.push({ cat: j.cat, reason: (res.err && res.err.message) || 'הקריאה נכשלה.' });
+        showError('כתיבת ' + j.label + ' נכשלה: ' + ((res.err && res.err.message) || '') + ' הסקציה נשארה כפי שהייתה.');
+        return;
       }
-    } else {
+      /* A response that cannot be read is a failure, not an opinion that the
+         section was already perfect. It used to become {} here and vanish. */
+      var obj = safeJsonParse(res.raw);
+      if (!obj) {
+        APP.parseFailures.push({ cat: j.cat, reason: 'התשובה של המודל לא הייתה JSON תקין.' });
+        showError('התשובה על ' + j.label + ' חזרה בפורמט שלא ניתן לקרוא, ולכן הסקציה נשארה כפי שהייתה. אפשר לנסות שוב.');
+        return;
+      }
+      try { j.take(obj); }
+      catch (e) { APP.parseFailures.push({ cat: j.cat, reason: (e && e.message) || 'שגיאה בעיבוד התשובה.' }); }
+    });
+
+    if (!APP.skillModel) {
       /* Silence here used to look like "the skills were fine". It was not: it
          meant no skills heading was recognised, so the whole skills stage never
          ran and no skills card appeared in the review. */
@@ -4403,12 +4765,8 @@ async function runSynthesis() {
                  'כותרת בשורה נפרדת כמו "כישורים", "מיומנויות", "Skills" או "Core Skills" תפעיל אותו.');
     }
   } catch (e) {
-    /* Only the API calls were guarded, and everything around them was assumed
-       not to throw. Anything that did, in the parsing or in the collecting, took
-       the rest of this function with it: the spinner stayed on "שלב 4", the
-       review screen never opened, no error was shown, and there was nothing on
-       the page left to press. A crash here is still a technical failure, so it
-       is reported as one and the work that did survive is still handed over. */
+    /* Same rule as before: a crash outside the guarded calls used to leave the
+       spinner running with nothing on the page left to press. */
     APP.parseFailures.push({ cat: 'general', reason: (e && e.message) || 'שגיאה לא צפויה.' });
     showError('שלב הכתיבה נעצר בגלל שגיאה: ' + ((e && e.message) ? e.message : '') +
               ' מה שכבר הוצע מוצג למטה. הרצה חוזרת בדרך כלל פותרת את זה.');
@@ -4484,7 +4842,7 @@ function renderAnswerUse() {
         '<span class="text-[10px] rounded px-1.5 py-0.5 bg-slate-200 text-slate-700">' + escapeHtml(u.tag) + '</span>' +
         (r ? '<span class="text-[10px] text-slate-500">' + escapeHtml(r.id + ' · ' + r.text) + '</span>' : '') +
         '<span class="text-[10px] ms-auto ' + (u.skipped ? 'text-slate-500' : ok ? 'text-emerald-700' : 'text-amber-800') + '">' +
-          (u.skipped ? 'דילגת' : ok ? 'נכנס ל־' + landed.length + ' שורות' : 'לא נמצא לו מקום') + '</span>' +
+          (u.skipped ? 'דילגת' : ok ? '✓ נכנס ל־' + landed.length + ' שורות, הן מופיעות כאן למטה' : '⚠ לא נמצא לו מקום') + '</span>' +
       '</div>' +
       '<div class="text-xs text-slate-500" dir="' + qDir + '">' + escapeHtml(u.q) + '</div>' +
       (u.skipped ? '' : '<div class="text-sm mt-0.5" dir="' + aDir + '">' + escapeHtml(u.a) + '</div>') +
@@ -4494,7 +4852,8 @@ function renderAnswerUse() {
     landed.forEach(function (id) {
       var ch = null;
       APP.changes.forEach(function (c) { if (c.lineId === id) ch = c; });
-      if (ch) html += '<div class="text-xs mt-1 border-s-2 border-emerald-300 ps-2" dir="' + dirForText(ch.after, ch.lang) + '">' + escapeHtml(ch.after) + '</div>';
+      if (ch) html += '<div class="text-[10px] text-emerald-800 mt-1">השורה שנוצרה מזה בקורות החיים:</div>' +
+        '<div class="text-xs border-s-2 border-emerald-400 ps-2 font-medium" dir="' + dirForText(ch.after, ch.lang) + '">' + escapeHtml(ch.after) + '</div>';
     });
     if (u.notes.length) html += '<div class="text-xs text-amber-900 mt-1">' + escapeHtml(u.notes.join(' ')) + '</div>';
     html += '</div>';
@@ -4502,18 +4861,128 @@ function renderAnswerUse() {
   html += '</div>';
 
   var answered = APP.chat.qa.filter(function (p) { return !p.skipped; }).length;
-  var head = '<p class="text-sm text-slate-600 mb-2">ענית על <b>' + answered + '</b> שאלות. ' +
-    '<b>' + used + '</b> מהתשובות נכנסו לניסוח מחדש של שורה קיימת או לשורה חדשה. ' +
-    'תשובה שלא נכנסה מסומנת בכתום, עם הסיבה כשהמודל מסר אותה.</p>' +
-    '<p class="text-xs text-slate-500 mb-3">התשובה שלך לא נשתלת כלשונה. היא נמסרת לשלב הכתיבה יחד עם הדרישה שהשאלה נשאלה עליה, ' +
-    'והעובדה שבתוכה נכתבת מחדש בשפה של השורה שמשתנה. אפשר לענות בכל שפה: תשובה שנכתבה בשפה אחרת מזו של קורות החיים ' +
-    'מתורגמת לשפת קורות החיים לפני שהיא נמסרת, כדי שהמסמך יישאר כולו בשפה אחת.</p>';
+  var head = '<p class="text-sm text-slate-600 mb-2">ענית על <b>' + answered + '</b> שאלות, ו־<b>' + used + '</b> מהן ' +
+    'נכנסו לקורות החיים. מתחת לכל תשובה מופיעה השורה המדויקת שנוצרה ממנה, ' +
+    'ואותה שורה מסומנת גם באישור השינויים בתגית תכולה עם מספר התשובה.</p>' +
+    '<p class="text-xs text-slate-500 mb-1">התשובה שלך לא נשתלת כלשונה. היא נמסרת לשלב הכתיבה יחד עם השאלה שנשאלה ועם הדרישה שמאחוריה, ' +
+    'ונכתבת מחדש כמשפט שלם בשפה ובסגנון של השורה שמשתנה.</p>' +
+    '<p class="text-xs text-slate-500 mb-3">גם תשובה של מילה או שתיים נחשבת. השאלה עצמה נושאת את שאר המשפט: ' +
+    'לשאלה "כמה אנשים היו בצוות?" ולתשובה "8" ייכתב "ניהול צוות של 8 עובדים". ' +
+    'מה שלא אמרת לא נוסף, גם לא מספר או תוצאה שנשמעים סבירים. ' +
+    'תשובה שסומנה בכתום לא מצאה שורה לשבת בה, והסיבה מופיעה לידה כשהמודל מסר אותה.</p>';
 
   el.innerHTML = head + html;
 }
 
 /* Every text the model returns passes through here. Ids outside the surgeon
    scope are dropped, every text goes through sanitize plus the language lock. */
+/* ---------- dropping dead weight, and the fence around it ----------
+   The model proposes. This decides. Every rule below is checked here, in the
+   browser, against the parsed document, because "only from an older role" and
+   "never empty a job" are facts about the document and a prompt is not a place
+   to enforce a fact. A model that ignores rule M1 gets its proposal thrown
+   away here rather than shown to the candidate as a legitimate option.
+
+   And the protection is the point: the failure mode of this feature is not a
+   weak line surviving, it is a candidate clicking through a list quickly and
+   silently losing a line about the one thing that would have got them the
+   interview. So the fence is deliberately tighter than the prompt. */
+
+var TT_MAX_DROPS = 3;
+var TT_MIN_BLOCK_SURVIVORS = 2;
+
+/* Any number that is not a year. The same test the metrics audit uses, applied
+   to one line: a quantified bullet is never droppable, whatever it is about. */
+function lineHasNumber(text) {
+  var t = String(text || '');
+  if (/(\d+\s*%|%\s*\d+|[₪$€£]\s*\d|\d+\s*[₪$€£]|\bSLA\b)/.test(t)) return true;
+  var nums = t.match(/\d+/g) || [];
+  for (var n = 0; n < nums.length; n++) {
+    if (!/^(19|20)\d{2}$/.test(nums[n]) && Number(nums[n]) > 1) return true;
+  }
+  return false;
+}
+
+/* The role header a block sits under, so "is this the current job" can be
+   answered from the document rather than assumed. */
+function roleHeaderForBlock(doc, blockId) {
+  var seen = null;
+  for (var i = 0; i < doc.lines.length; i++) {
+    var l = doc.lines[i];
+    if (l.subtype === 'roleheader' || l.isHeading) seen = l;
+    if (l.blockId === blockId) return seen;
+  }
+  return null;
+}
+
+/* Which line ids may be proposed for dropping at all. Everything else is
+   refused before the candidate ever sees it. */
+function droppableLineIds(doc, cat) {
+  var out = {};
+  if (cat !== 'experience') return out;              // only ever the experience section
+  var blocks = (doc.blocks || []).filter(function (b) { return b.cat === 'experience'; });
+  blocks.forEach(function (b, idx) {
+    /* The first experience block is the most recent role in a reverse
+       chronological resume, which is nearly all of them, and it is the block a
+       recruiter actually reads. It is never thinned. Neither is any block whose
+       role header still says the candidate is there. */
+    if (idx === 0) return;
+    var head = roleHeaderForBlock(doc, b.id);
+    if (head && TT_PRESENT_RE.test(head.text)) return;
+    if (b.lineIds.length <= TT_MIN_BLOCK_SURVIVORS) return;   // too small to thin at all
+    b.lineIds.forEach(function (id) { out[id] = b.id; });
+  });
+  return out;
+}
+
+function collectDropChanges(cat, obj) {
+  var drops = Array.isArray(obj.drop) ? obj.drop : [];
+  if (!drops.length) return;
+  var allowed = droppableLineIds(APP.doc, cat);
+  if (!Object.keys(allowed).length) return;
+
+  // how many are already proposed per block, so a block cannot be emptied
+  var perBlock = {};
+  APP.changes.forEach(function (c) {
+    if (c.kind === 'line_drop' && c.blockId) perBlock[c.blockId] = (perBlock[c.blockId] || 0) + 1;
+  });
+  var taken = APP.changes.filter(function (c) { return c.kind === 'line_drop'; }).length;
+
+  for (var i = 0; i < drops.length; i++) {
+    if (taken >= TT_MAX_DROPS) break;
+    var it = drops[i];
+    if (!it || !it.id) continue;
+    var blockId = allowed[it.id];
+    if (!blockId) continue;                           // not an older role, or not droppable
+    var l = lineById(APP.doc, it.id);
+    if (!l || !l.editable) continue;
+    if (lineHasNumber(l.text)) continue;              // quantified lines are never dropped
+    /* A line the same run just rewrote to serve a requirement cannot also be
+       dead weight. The model contradicting itself is not a decision to pass on
+       to the candidate. */
+    var alsoRewritten = APP.changes.some(function (c) {
+      return (c.kind === 'line' || c.kind === 'add') && c.lineId === l.id;
+    });
+    if (alsoRewritten) continue;
+
+    var block = blockById(APP.doc, blockId);
+    var size = block ? block.lineIds.length : 0;
+    if (size - ((perBlock[blockId] || 0) + 1) < TT_MIN_BLOCK_SURVIVORS) continue;
+
+    perBlock[blockId] = (perBlock[blockId] || 0) + 1;
+    taken++;
+    APP.changes.push({
+      id: uid('c'), kind: 'line_drop', cat: cat, lineId: l.id, blockId: blockId,
+      before: l.text, after: '', lang: l.lang,
+      why: String(it.why || '').trim() || 'לא נמצאה בשורה הזו זיקה לאף דרישה במשרה.',
+      reqIds: [],
+      /* Off. This is the only change in the app that removes something the
+         candidate wrote, and it does not happen unless they say so. */
+      status: 'rejected'
+    });
+  }
+}
+
 function collectLineChanges(cat, obj) {
   var lines = Array.isArray(obj.lines) ? obj.lines : [];
   for (var i = 0; i < lines.length; i++) {
@@ -4572,6 +5041,9 @@ function collectLineChanges(cat, obj) {
     });
   }
   collectOrderChanges(cat, obj);
+  /* After the rewrites, deliberately: the check that refuses to drop a line the
+     same response also rewrote needs those changes to already be on the list. */
+  collectDropChanges(cat, obj);
 }
 
 /* One card per block whose order changed. The card shows the lines as they
@@ -4696,6 +5168,7 @@ function compileApproved() {
   APP.added = [];
   APP.skillLines = null;
   APP.orderPlan = {};
+  APP.dropped = {};
 
   APP.changes.forEach(function (ch) {
     if (ch.status !== 'approved') return;
@@ -4709,6 +5182,7 @@ function compileApproved() {
       carryEmphasis(ch.before, ch.after);
     } else if (ch.kind === 'add') APP.added.push({ afterId: ch.lineId, text: ch.after });
     else if (ch.kind === 'line_order' && ch.order) APP.orderPlan[ch.blockId] = ch.order;
+    else if (ch.kind === 'line_drop') APP.dropped[ch.lineId] = 1;
   });
 
   if (APP.skillModel) {
@@ -4743,7 +5217,7 @@ function compileApproved() {
   }
 
   APP.finalText = rebuildDocument(APP.doc, APP.synthesis, APP.added,
-    APP.skillLines, APP.skillModel ? APP.skillModel.lineIds : null, APP.orderPlan);
+    APP.skillLines, APP.skillModel ? APP.skillModel.lineIds : null, APP.orderPlan, APP.dropped);
   return APP.finalText;
 }
 
@@ -5205,6 +5679,21 @@ var TT_ACTION_VERBS = new RegExp('^(?:' + [
   'ניהול', 'פיתוח', 'הטמעה', 'תכנון', 'הקמה', 'ייעול', 'ביצוע', 'ליווי', 'הדרכה'
 ].join('|') + ')', 'i');
 
+/* The other half of the same question. A line can fail TT_ACTION_VERBS simply
+   because it opens with a noun nobody listed, which is a style quibble. A line
+   that opens with one of THESE is a different thing: it describes a standing
+   condition rather than an act, and that is the shape every scoring model reads
+   as a job description instead of as evidence. Only these get named as a
+   problem, and only these are handed to the rewriter as work to do. */
+var TT_STATE_OPENERS = new RegExp('^(?:' + [
+  'אחראי', 'אחראית', 'אחריות', 'באחריות', 'היה חלק', 'הייתי חלק', 'חלק מ', 'שותף ל', 'שותפה ל',
+  'עבודה מול', 'עבודה עם', 'ממשק מול', 'עוסק ב', 'עוסקת ב', 'מעורב ב', 'מעורבות ב',
+  'תפקיד הכולל', 'תחומי אחריות', 'כפוף ל', 'נדרש ל', 'סיוע ל', 'סייע ל', 'השתתפות ב', 'השתתפתי ב',
+  'responsible for', 'accountable for', 'in charge of', 'was part of', 'were part of', 'part of',
+  'involved in', 'participated in', 'worked with', 'working with', 'duties include',
+  'responsibilities include', 'tasked with', 'assisted with', 'assisted in', 'exposure to'
+].join('|') + ')', 'i');
+
 var TT_DATE_SHAPES = [
   { key: 'slash', re: /\b\d{1,2}\/\d{4}\b/ },
   { key: 'month', re: /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|ינואר|פברואר|מרץ|אפריל|מאי|יוני|יולי|אוגוסט|ספטמבר|אוקטובר|נובמבר|דצמבר)[a-z]*\s+\d{4}\b/i },
@@ -5244,15 +5733,31 @@ function atsAudit(text) {
     add('skills', 'ok', 'יש סעיף כישורים', '');
   }
 
-  var weak = editableLines(doc, 'experience').filter(function (l) {
-    return l.text.length > 25 && !TT_ACTION_VERBS.test(l.text);
+  /* Two different findings that used to be one. A line describing a standing
+     condition is a real problem and the rewriter is told to fix it. A line that
+     merely opens with an unlisted noun is a much weaker signal and saying "bad"
+     about it costs the panel its credibility. */
+  var expLines = editableLines(doc, 'experience').filter(function (l) { return l.text.length > 25; });
+  var stateLines = expLines.filter(function (l) { return TT_STATE_OPENERS.test(l.text.trim()); });
+  var noVerb = expLines.filter(function (l) {
+    return !TT_ACTION_VERBS.test(l.text) && !TT_STATE_OPENERS.test(l.text.trim());
   });
-  if (weak.length >= 2) {
-    add('verbs', 'warn', weak.length + ' שורות ניסיון לא נפתחות בפועל פעולה',
-        'שורה שנפתחת ב"אחראי על..." או ב"היה חלק מ..." מתארת מצב. שורה שנפתחת ב"ניהלתי", "הטמעתי", "צמצמתי" מתארת מה עשית, וזה מה שנמדד.',
-        weak.slice(0, 4).map(function (l) { return l.text; }));
+
+  if (stateLines.length) {
+    add('verbs', stateLines.length >= 3 ? 'bad' : 'warn',
+        stateLines.length + ' שורות ניסיון מתארות מצב ולא פעולה',
+        'זה הפריט שהכי משפיע על איך שקורות החיים נקראים. "אחראי על תחזוקת המערכת" מתאר מה היה תחום האחריות שלך, ' +
+        'כלומר מה שהיה כתוב בהגדרת התפקיד. "תחזקתי את המערכת" מתאר מה אתה בפועל עשית. ' +
+        'מגייס, וגם מנוע דירוג שקורא לפניו, מודד את השני ולא את הראשון: הוא סופר פעלים של עשייה ואת מה שנתלה עליהם. ' +
+        'ההתאמה כאן הופכת את השורות האלה לשורות של מה עשית, בלי להעלות אותך בדרגה שלא היית בה.',
+        stateLines.slice(0, 4).map(function (l) { return l.text; }));
+  } else if (noVerb.length >= 3) {
+    add('verbs', 'warn', noVerb.length + ' שורות ניסיון לא נפתחות בפועל פעולה מוכר',
+        'לא בהכרח בעיה, אבל שורה שנפתחת ב"ניהול", "הטמעה", "צמצום" נקראת מהר יותר כהישג ולא כתיאור.',
+        noVerb.slice(0, 3).map(function (l) { return l.text; }));
   } else {
-    add('verbs', 'ok', 'שורות הניסיון נפתחות בפעולה', '');
+    add('verbs', 'ok', 'שורות הניסיון מתארות פעולה, לא מצב',
+        'כל שורה נפתחת במה שעשית. זה מה שנמדד.');
   }
 
   if (!hasMeasurableAchievement(doc)) {
@@ -5636,8 +6141,13 @@ function renderDomainGate(gap) {
     html +=
       '<p class="mb-1"><b>להישאר בתחום שלי:</b> השאלות והניסוח נשארים בשפה המקצועית שלך. ' +
       'זו ההתנהגות הרגילה של הכלי.</p>' +
-      '<p class="mb-2"><b>להרחיב למינוח חוצה תעשיות:</b> השאלות יתמקדו במה שהמערכות שלך עשו במונחים כלליים, ' +
-      'ובשכתוב יתווסף התיאור הכללי לצד השם המקורי. השם המקורי לא נמחק, ושום מערכת או תפקיד שלא עשית לא ייכנסו.</p>' +
+      '<p class="mb-1"><b>להרחיב למינוח חוצה תעשיות:</b> השאלות יתמקדו במה שהמערכות והתהליכים שלך באמת עשו, ' +
+      'ובשכתוב התיאור הכללי יעבור להוביל את השורה, בשפה שהמודעה עצמה משתמשת בה, והשם המקורי יישאר בסוגריים אחריו.</p>' +
+      '<p class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 mb-2">' +
+      'לדוגמה, מי שניהל MES מול משרה בקמעונאות יקבל: ' +
+      '<span dir="rtl">"ניהול מערכת ליבה תפעולית שמנהלת מלאי וזמינות בזמן אמת (MES)"</span>. ' +
+      'שם של מערכת שלא עבדת איתה לעולם לא ייכנס, גם אם היא המקבילה המדויקת בתחום של המשרה, ' +
+      'ולא ייכתב שום ניסוח של "מקביל ל" או "בדומה ל".</p>' +
       '<p class="text-xs">בשתי האפשרויות טבלת ההשוואה למעלה לא מחושבת מחדש, כדי לא להריץ שוב את שלב 2. ' +
       'היא ממשיכה להציג את ההשוואה הצרה, וזה בכוונה: המספר שם הוא מה שהוכח, לא מה שאפשר לנסח.</p>';
     el.innerHTML = html;
@@ -5660,8 +6170,9 @@ function chooseDomainMode(mode) {
   var el = $('domainOut');
   if (el) {
     el.innerHTML = APP.domainMode === 'broad'
-      ? '<p><b>נבחר: הרחבה למינוח חוצה תעשיות.</b> השאלות מתמקדות במה שהמערכות שלך עשו במונחים כלליים, ' +
-        'והשכתוב יוסיף תיאור כללי לצד השם המקורי. טבלת ההשוואה למעלה נשארת כפי שחושבה, לפי ההשוואה הצרה.</p>'
+      ? '<p><b>נבחר: הרחבה למינוח חוצה תעשיות.</b> השאלות מתמקדות במה שהמערכות שלך באמת עשו, ' +
+        'והשכתוב יוביל בתיאור הכללי בשפת המודעה, עם השם המקורי בסוגריים אחריו. ' +
+        'טבלת ההשוואה למעלה נשארת כפי שחושבה, לפי ההשוואה הצרה.</p>'
       : '<p><b>נבחר: להישאר בתחום שלי.</b> השאלות והניסוח נשארים בשפה המקצועית של קורות החיים.</p>';
   }
   startQuestions().catch(function (e) {
@@ -6760,13 +7271,52 @@ function renderStructurePanel() {
   var tgl = $('btnStructureToggle');
   if (tgl) tgl.textContent = structToggleLabel();
 
+  /* Two bare numbers told the candidate nothing they could act on, and read as
+     boilerplate that never changes. It does change, it is counted from their
+     own file, and the only thing worth saying about it is the consequence:
+     a point gets rewritten, a spine line does not. A section that came out
+     with no points at all is the failure this panel exists to catch, so it is
+     called out by name rather than left for the candidate to work out from a
+     total. */
+  var empty = [];
+  order.forEach(function (cat) {
+    var rows = groups[cat];
+    if (!rows || !rows.length) return;
+    var p = rows.filter(function (l) { return l.editable; }).length;
+    if (!p) empty.push(TT_STRUCT_LABELS[cat] ? L(TT_STRUCT_LABELS[cat][0], TT_STRUCT_LABELS[cat][1]) : cat);
+  });
+  var per = [];
+  order.forEach(function (cat) {
+    var rows = groups[cat];
+    if (!rows || !rows.length) return;
+    var p = rows.filter(function (l) { return l.editable; }).length;
+    per.push(escapeHtml(TT_STRUCT_LABELS[cat] ? L(TT_STRUCT_LABELS[cat][0], TT_STRUCT_LABELS[cat][1]) : cat) + ' ' + p);
+  });
+
   sum.innerHTML = L(
-    '<b>' + points + '</b> שורות יטופלו כסעיפים להתאמה, ו<b>' + spine + '</b> שורות זוהו כמבנה ' +
-    '(שם חברה, תפקיד, תאריכים) ויועתקו כמות שהן, ללא שינוי. ' +
-    '<span class="text-slate-500">אם שורה סווגה לא נכון, אפשר להפוך אותה בפירוט.</span>',
-    '<b>' + points + '</b> lines will be treated as tailorable points, and <b>' + spine + '</b> were read as ' +
-    'structure (employer, title, dates) and will be copied through untouched. ' +
-    '<span class="text-slate-500">Any line read the wrong way can be flipped in the detail below.</span>'
+    '<p class="mb-1">מתוך הקובץ שלך, <b>' + points + '</b> שורות ישוכתבו מול המשרה. ' +
+    '<b>' + spine + '</b> שורות זוהו כשלד המסמך, כלומר שמות חברות, תפקידים ותאריכים, ' +
+    'והן יעברו לקובץ הסופי מילה במילה בלי שאף מודל יגע בהן.</p>' +
+    (per.length ? '<p class="text-xs text-slate-500 mb-1">שורות לשכתוב לפי מקטע: ' + per.join(' · ') + '</p>' : '') +
+    (empty.length
+      ? '<p class="text-sm text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 mb-1">' +
+        'שים לב: במקטע ' + empty.join(', ') + ' לא נמצאה אף שורה לשכתוב, כלומר המקטע הזה יישאר בדיוק כפי שהוא. ' +
+        'אם יש שם תוכן שאמור להשתנות, פתח את הפירוט וסמן אותו כסעיף.</p>'
+      : '') +
+    '<p class="text-xs text-slate-500">הסיווג נעשה בדפדפן שלך לפני שנשלח משהו לאנשהו. ' +
+    'שורת הישג שסווגה בטעות כשלד פשוט לא תשוכתב, ולכן שווה לעבור על הפירוט ולהפוך כל שורה שסווגה לא נכון.</p>',
+
+    '<p class="mb-1">Out of your file, <b>' + points + '</b> lines will be rewritten against this posting. ' +
+    '<b>' + spine + '</b> were read as the document spine, meaning employers, titles and dates, ' +
+    'and they go into the final file word for word with no model touching them.</p>' +
+    (per.length ? '<p class="text-xs text-slate-500 mb-1">Tailorable lines per section: ' + per.join(' · ') + '</p>' : '') +
+    (empty.length
+      ? '<p class="text-sm text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 mb-1">' +
+        'Note: no tailorable line was found in ' + empty.join(', ') + ', so that section will come out exactly as it went in. ' +
+        'If there is content there that should change, open the detail and mark it as a point.</p>'
+      : '') +
+    '<p class="text-xs text-slate-500">The classification runs in your browser before anything is sent anywhere. ' +
+    'An achievement line read as spine simply never gets rewritten, so it is worth reading the detail and flipping anything that was read the wrong way.</p>'
   );
 
   var html = '';
@@ -7040,6 +7590,7 @@ var CHANGE_LABEL = {
   line:         'ניסוח מחדש',
   add:          'שורה חדשה',
   line_order:   'סדר הסעיפים',
+  line_drop:    'הסרת סעיף לא רלוונטי',
   skill_rename: 'שינוי שם כישור',
   skill_drop:   'מחיקת כישור',
   skill_add:    'הוספת כישור',
@@ -7050,6 +7601,7 @@ var CHANGE_TONE = {
   line:         'bg-slate-100 text-slate-700',
   add:          'bg-emerald-100 text-emerald-800',
   line_order:   'bg-violet-100 text-violet-800',
+  line_drop:    'bg-red-100 text-red-800',
   skill_rename: 'bg-sky-100 text-sky-800',
   skill_drop:   'bg-red-100 text-red-800',
   skill_add:    'bg-emerald-100 text-emerald-800',
@@ -7084,7 +7636,14 @@ function openReview() {
   setStage(5);
   show('reviewCard');
   renderReview();
-  var el = $('reviewCard');
+  /* The answers card sits above the review card and used to be scrolled past
+     without ever being seen: the run jumped straight to the approval list, and
+     the one screen that says what six answers actually did was above the fold
+     the candidate landed on. When there were answers, that is the screen the
+     run lands on, and the approval list is one scroll below it where it was. */
+  var el = (APP.chat.qa && APP.chat.qa.length && $('answersCard') &&
+            !$('answersCard').classList.contains('tt-hidden'))
+    ? $('answersCard') : $('reviewCard');
   if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -7100,8 +7659,15 @@ function renderReview() {
   var c = reviewCounts();
   var sum = $('reviewSummary');
   if (sum) {
+    var drops = APP.changes.filter(function (x) { return x.kind === 'line_drop'; });
+    var dropsOn = drops.filter(function (x) { return x.status === 'approved'; }).length;
     sum.innerHTML = '<b>' + c.approved + '</b> מאושרים, <b>' + c.rejected + '</b> נדחו, מתוך ' + c.total + ' הצעות. ' +
-      '<span style="color:var(--c-mute)">מחיקות והוספות מגיעות כבויות בכוונה, הן משנות את מה שקורות החיים טוענים.</span>';
+      '<span style="color:var(--c-mute)">מחיקות והוספות מגיעות כבויות בכוונה, הן משנות את מה שקורות החיים טוענים.</span>' +
+      (drops.length
+        ? '<br><span class="text-red-800">' + drops.length + ' סעיפים מתפקידים קודמים סומנו כלא רלוונטיים למשרה הזו' +
+          (dropsOn ? ', ומתוכם ' + dropsOn + ' יוסרו בפועל' : ', ואף אחד מהם לא יוסר עד שתאשר') +
+          '. "אשר הכל" לא מסיר אותם.</span>'
+        : '');
   }
   var foot = $('reviewFootMsg');
   if (foot) {
@@ -7126,9 +7692,30 @@ function renderReview() {
   wireReviewCards();
 }
 
+/* Which answers fed this particular change. The answers card already reports
+   the same relationship from the other end, but a candidate reading the
+   approval list has no way to tell a line the model rewrote from the resume
+   alone from a line that exists because of something they typed. That is the
+   difference between approving a guess and approving their own words. */
+function answerTagsForLine(lineId) {
+  if (!lineId || !APP.answerUse || !APP.answerUse.length) return [];
+  var tags = [];
+  APP.answerUse.forEach(function (u) {
+    if (u.skipped) return;
+    if (u.lineIds && u.lineIds.indexOf(lineId) !== -1) tags.push(u);
+  });
+  return tags;
+}
+
 function renderChangeCard(ch) {
   var on = ch.status === 'approved';
   var dir = dirForText(ch.after || ch.before, ch.lang);
+  var fromAnswers = answerTagsForLine(ch.lineId).map(function (u) {
+    return '<span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] bg-sky-100 text-sky-900 border border-sky-200" ' +
+      'title="' + escapeHtml('התשובה שלך: ' + u.a) + '">' +
+      '\u21b3 ' + escapeHtml(u.tag) + ' ' + escapeHtml(String(u.a).slice(0, 34)) + (String(u.a).length > 34 ? '…' : '') +
+      '</span>';
+  }).join(' ');
   var reqs = (ch.reqIds || []).map(function (id) {
     var r = reqById(id);
     return r ? '<span class="inline-block rounded px-1.5 py-0.5 text-[10px] me-1 ' +
@@ -7136,7 +7723,20 @@ function renderChangeCard(ch) {
   }).join('');
 
   var body;
-  if (ch.kind === 'add' || ch.kind === 'skill_add') {
+  if (ch.kind === 'line_drop') {
+    /* The only change in the app that takes something away, so it is the only
+       one that shows the whole line intact, struck through, with the reason
+       stated as a claim the candidate can disagree with rather than as a
+       verdict they have to accept. */
+    body = '<div class="rounded p-2 bg-red-50 border border-red-200 line-through text-slate-600">' +
+             escapeHtml(ch.before) + '</div>' +
+           '<div class="text-xs text-slate-600 mt-2">' +
+             '<b>הטענה:</b> ' + escapeHtml(ch.why) +
+           '</div>' +
+           '<div class="text-xs text-slate-500 mt-1">' +
+             'הסעיף הזה יישאר בקורות החיים אלא אם תאשר את ההסרה. הוא לא נמחק מהקובץ המקורי שלך בשום מקרה.' +
+           '</div>';
+  } else if (ch.kind === 'add' || ch.kind === 'skill_add') {
     body = '<div class="tt-ins rounded p-1">' + escapeHtml(ch.after) + '</div>';
   } else if (ch.kind === 'skill_drop') {
     body = '<div class="tt-del rounded p-1">' + escapeHtml(ch.before) + '</div>';
@@ -7154,13 +7754,24 @@ function renderChangeCard(ch) {
     body = '<div>' + wordDiff(ch.before, ch.after) + '</div>';
   }
 
-  return '<div class="tt-change rounded-lg border p-3 ' + (on ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-slate-50 opacity-70') + '" data-id="' + ch.id + '">' +
+  /* An approved removal is not a green tick. It is a line about to leave the
+     document, and the card says so in the colour of the thing that is about to
+     happen rather than in the colour of "you agreed". */
+  var shell = ch.kind === 'line_drop'
+    ? (on ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white')
+    : (on ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-slate-50 opacity-70');
+  return '<div class="tt-change rounded-lg border p-3 ' + shell + '" data-id="' + ch.id + '">' +
     '<div class="flex items-start justify-between gap-2 mb-2">' +
-      '<span class="text-[10px] rounded px-1.5 py-0.5 ' + (CHANGE_TONE[ch.kind] || 'bg-slate-100') + '">' + escapeHtml(CHANGE_LABEL[ch.kind] || ch.kind) + '</span>' +
+      '<span class="flex flex-wrap items-center gap-1">' +
+        '<span class="text-[10px] rounded px-1.5 py-0.5 ' + (CHANGE_TONE[ch.kind] || 'bg-slate-100') + '">' + escapeHtml(CHANGE_LABEL[ch.kind] || ch.kind) + '</span>' +
+        fromAnswers +
+      '</span>' +
       '<div class="flex gap-1 shrink-0">' +
-        '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (on ? 'bg-emerald-600 text-white' : 'border border-slate-300 hover:bg-white') + '" data-act="approve">אשר</button>' +
-        '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (!on ? 'bg-slate-700 text-white' : 'border border-slate-300 hover:bg-white') + '" data-act="reject">דחה</button>' +
-        (ch.kind === 'skill_order' || ch.kind === 'skill_drop' || ch.kind === 'line_order' ? '' :
+        '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (on ? (ch.kind === 'line_drop' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white') : 'border border-slate-300 hover:bg-white') + '" data-act="approve">' +
+          (ch.kind === 'line_drop' ? 'הסר' : 'אשר') + '</button>' +
+        '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (!on ? 'bg-slate-700 text-white' : 'border border-slate-300 hover:bg-white') + '" data-act="reject">' +
+          (ch.kind === 'line_drop' ? 'השאר' : 'דחה') + '</button>' +
+        (ch.kind === 'skill_order' || ch.kind === 'skill_drop' || ch.kind === 'line_order' || ch.kind === 'line_drop' ? '' :
           '<button class="tt-ch-act text-xs px-2 py-1 rounded border border-slate-300 hover:bg-white" data-act="edit">ערוך</button>') +
       '</div>' +
     '</div>' +
@@ -7212,7 +7823,14 @@ function wireReviewCards() {
     bulk[k].addEventListener('click', function (ev) {
       var cat = ev.currentTarget.getAttribute('data-cat');
       var act = ev.currentTarget.getAttribute('data-act');
-      APP.changes.forEach(function (c) { if (c.cat === cat) c.status = act === 'approve' ? 'approved' : 'rejected'; });
+      /* "Approve all" must not silently delete anything. A removal is the one
+         change the candidate has to say yes to individually, so a bulk approve
+         passes over it and a bulk reject still cancels it. */
+      APP.changes.forEach(function (c) {
+        if (c.cat !== cat) return;
+        if (act === 'approve' && c.kind === 'line_drop') return;
+        c.status = act === 'approve' ? 'approved' : 'rejected';
+      });
       renderReview();
     });
   }
@@ -7221,7 +7839,8 @@ function wireReviewCards() {
 function bindReviewUi() {
   var all = $('btnApproveAll');
   if (all) all.addEventListener('click', function () {
-    APP.changes.forEach(function (c) { c.status = 'approved'; });
+    // same rule as the per section bulk button: removals are never bulk approved
+    APP.changes.forEach(function (c) { if (c.kind !== 'line_drop') c.status = 'approved'; });
     renderReview();
   });
   var none = $('btnRejectAll');
@@ -7311,6 +7930,40 @@ function renderTemplatePicker() {
 
 /* The page. One column, real headings, no tables and no text boxes, so the
    same structure survives an ATS parse and still looks composed on screen. */
+/* "Exactly as it will download" was true of the fonts, the sizes and the
+   colours and false of the one thing a candidate cannot get back once the file
+   is out: where the page ends. A resume whose last two bullets fall onto a
+   second page is a different document from the one on screen, and nothing here
+   ever said so. The rule is drawn from the same 297mm the print stylesheet
+   uses, measured in real pixels off the element rather than guessed, so it
+   moves when the template, the font size or the text changes. */
+function drawPageCuts(page) {
+  if (!page) return;
+  var old = page.querySelectorAll('.tt-pagecut');
+  for (var i = 0; i < old.length; i++) old[i].parentNode.removeChild(old[i]);
+
+  // one millimetre in this document's pixels, measured, not assumed
+  var probe = document.createElement('div');
+  probe.style.cssText = 'position:absolute;visibility:hidden;height:100mm;';
+  page.appendChild(probe);
+  var mm = probe.getBoundingClientRect().height / 100;
+  page.removeChild(probe);
+  if (!mm || !isFinite(mm)) return;
+
+  var pageH = 297 * mm;
+  var total = page.scrollHeight;
+  var pages = Math.ceil(total / pageH);
+  if (pages < 2) return;
+
+  for (var n = 1; n < pages && n < 12; n++) {
+    var cut = document.createElement('div');
+    cut.className = 'tt-pagecut';
+    cut.style.top = (pageH * n) + 'px';
+    cut.setAttribute('data-label', 'עמוד ' + (n + 1));
+    page.appendChild(cut);
+  }
+}
+
 function renderPreview() {
   var page = $('previewPage');
   if (!page) return;
@@ -7372,6 +8025,9 @@ function renderPreview() {
   if (box) box.value = APP.finalText;
   syncFinalBox();
   renderFinalStruct();
+
+  page.classList.add('is-editable');
+  drawPageCuts(page);
 
   var blocks = page.querySelectorAll('[contenteditable="true"]');
   for (var b = 0; b < blocks.length; b++) {
@@ -7486,11 +8142,12 @@ var TT_UI_STRINGS = [
   ['#finalViewSeg button[data-view="text"]', 'Raw text'],
   ['#btnBackToText', 'Refresh the view from this text'],
   ['#previewCard .tt-card-title .tt-tag', 'Download'],
-  ['#previewCard > p:nth-of-type(1)', 'Pick a template, edit the text directly on the page, then press "Apply changes". Only what was applied goes into the file.'],
+  ['#previewCard > p:nth-of-type(1)', 'The sheet below is a real A4 page, and the dashed rule marks where a new page starts in the file.'],
+  ['#previewCard .tt-editbar span:nth-of-type(2)', '<b>The page below is editable.</b> Click any line and type straight onto it, exactly as you would in a document. When you are done press <b>"Apply changes"</b> at the bottom, otherwise your edits never reach the file.'],
   ['#previewDirtyBar', 'There are edits that were not applied. Press "Apply changes" to fix them in place.'],
   ['#btnApplyPreview', '✅ Apply changes'],
   ['#btnExportDocx', '⬇️ Download as Word'],
-  ['#btnExportPdf', '🖨️ Download as PDF'],
+  ['#btnExportPdf', '🖨️ Print or save as PDF'],
   ['#btnTranslateFinal', '🌐 Translate this version'],
   ['#btnBackToReview', '↩ Back to approving the changes'],
   ['#previewCard > p:nth-of-type(2)', 'Word is the safer file for an ATS. Every template is a single column of ordinary paragraphs, with no tables and no text boxes, so the layout cannot confuse the system. Uploading a Word resume adds one more template that reproduces the font, the sizes and the colour of your own file.'],
