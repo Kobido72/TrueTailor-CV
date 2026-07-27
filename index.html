@@ -749,6 +749,18 @@
     </div>
   </section>
 
+  <!-- STRUCTURE REVIEW  —  what will be treated as a tailorable point and
+       what will be copied through untouched. Shown before the run, because
+       this is the one decision the user must be able to see and correct. -->
+  <section id="structureCard" class="tt-hidden tt-card mb-4">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <h2 class="tt-card-title mb-0"><span class="tt-tag">מבנה</span>מה ייחשב סעיף להתאמה</h2>
+      <button id="btnStructureToggle" class="tt-btn tt-btn-sm">הצג פירוט</button>
+    </div>
+    <div id="structureSummary" class="text-sm text-slate-600 mt-2" dir="rtl"></div>
+    <div id="structureList" class="tt-hidden mt-3 space-y-4 tt-scroll" dir="rtl"></div>
+  </section>
+
   <div class="tt-launch mb-4">
     <button id="btnStart" class="tt-btn tt-btn-primary tt-btn-lg">התחל התאמה ⟵</button>
     <span class="tt-launch-note" id="globalStatus">שני השדות למעלה צריכים להיות מלאים. הריצה לוקחת בערך דקה, וההתקדמות מוצגת למטה.</span>
@@ -1012,7 +1024,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v31.0';
+var TT_VERSION = 'v32.0';
 
 var APP = {
   apiKey: '',
@@ -2189,14 +2201,249 @@ function lineType(raw) {
   return 'prose';
 }
 
-/* Company / role / date lines inside experience are structural. They are kept
-   verbatim so the model can never restate a date range or invent a seniority
-   claim out of one. */
-function looksLikeRoleHeader(raw) {
-  var t = String(raw).trim();
-  if (!t || BULLET_RE.test(raw)) return false;
-  if (t.length > 90) return false;
-  return YEAR_RE.test(t) || /(present|current|today|היום|כיום)\s*$/i.test(t);
+/* =====================================================================
+   Structural lines  —  what is NOT a bullet
+   ---------------------------------------------------------------------
+   A company name, a job title, a date range and a location are the SPINE
+   of the document. They are not achievements, actions or skills, and the
+   moment one of them is handed to the model as an editable point, the
+   tailored document stops being credible: "Teva Pharmaceutical Industries"
+   comes back rewritten to match a job posting.
+
+   The old test asked one question, "does this line contain a year", so a
+   company sitting on its own line and a job title on its own line both
+   fell through and were tailored as if they were bullets.
+
+   Three rules now decide, in this order of confidence:
+
+     1  DATES        a line carrying a year or ending in "present" is a
+                     date line. Unambiguous, so it stands alone.
+     2  POSITION     prose sitting directly above a bullet block, in a CV
+                     that uses bullets, is the header of the job those
+                     bullets belong to. This is the rule that carries most
+                     real CVs, and it needs no vocabulary at all.
+     3  VOCABULARY   two independent signals out of {organisation word,
+                     job title word, header separator, Title Case} on a
+                     short line. This is the fallback for CVs with no
+                     bullet markers at all.
+
+   Every rule is gated by the same negatives: an explicit bullet marker, a
+   full sentence, an opening action verb or a measured result means the
+   line is content, whatever else it looks like. The asymmetry is
+   deliberate. Treating a bullet as structure costs one untailored line.
+   Treating the employer as a bullet costs the credibility of the whole
+   document, which is the failure being fixed here.
+   ===================================================================== */
+
+var TT_STRUCT_CATEGORIES = { experience: true, other: true };
+var TT_STRUCT_RUN_MAX = 4;          // company + title + location + dates
+var TT_HEAD_WORD_MAX = 12;          // a header is short, a bullet is not
+var TT_HEAD_CHAR_MAX = 110;
+
+function ttWordListRe(list) {
+  return new RegExp('(^|[^A-Za-z0-9' + TT_HEBREW_CLASS + '])(' + list.join('|') + ')' +
+                    '(?![A-Za-z0-9' + TT_HEBREW_CLASS + '])', 'i');
+}
+
+/* Words that name an employer or an institution. */
+var TT_ORG_RE = ttWordListRe([
+  'ltd', 'limited', 'inc', 'llc', 'plc', 'gmbh', 'ag', 'nv', 'bv', 'sarl', 'srl',
+  'corp', 'corporation', 'company', 'group', 'holdings', 'enterprises', 'ventures',
+  'industries', 'industry', 'pharmaceuticals', 'pharmaceutical', 'pharma', 'biotech',
+  'technologies', 'technology', 'systems', 'solutions', 'services', 'consulting',
+  'labs', 'laboratories', 'software', 'semiconductor', 'semiconductors', 'medical',
+  'bank', 'insurance', 'university', 'college', 'institute', 'academy', 'school',
+  'hospital', 'clinic', 'ministry', 'municipality', 'agency', 'foundation', 'association',
+  'בע"מ', 'בעמ', 'חברת', 'קבוצת', 'תעשיות', 'תעשייה', 'מערכות', 'טכנולוגיות', 'פתרונות',
+  'שירותי', 'מעבדות', 'תרופות', 'בנק', 'ביטוח', 'אוניברסיטת', 'אוניברסיטה', 'מכללת',
+  'מכללה', 'מכון', 'קופת', 'עיריית', 'מועצת', 'משרד', 'יחידת', 'צה"ל'
+]);
+
+/* Words that name a role. */
+var TT_TITLE_RE = ttWordListRe([
+  'manager', 'director', 'head', 'lead', 'leader', 'chief', 'officer', 'president',
+  'vp', 'evp', 'svp', 'ceo', 'cto', 'cio', 'coo', 'cfo', 'engineer', 'developer',
+  'analyst', 'specialist', 'consultant', 'administrator', 'architect', 'coordinator',
+  'supervisor', 'technician', 'associate', 'assistant', 'executive', 'principal',
+  'senior', 'junior', 'intern', 'owner', 'founder', 'partner', 'representative',
+  'trainer', 'teacher', 'lecturer', 'researcher', 'scientist', 'designer', 'tester',
+  'מנהל', 'מנהלת', 'סמנכ"ל', 'מנכ"ל', 'יו"ר', 'ראש', 'מוביל', 'מובילת', 'מהנדס', 'מהנדסת',
+  'מפתח', 'מפתחת', 'אנליסט', 'אנליסטית', 'מומחה', 'מומחית', 'יועץ', 'יועצת', 'ארכיטקט',
+  'רכז', 'רכזת', 'מפקח', 'טכנאי', 'עוזר', 'בכיר', 'בכירה', 'זוטר', 'נציג', 'מדריך',
+  'מורה', 'מרצה', 'חוקר', 'מדען', 'מעצב', 'בודק', 'סטודנט', 'שותף', 'מייסד', 'בעלים'
+]);
+
+/* An opening verb is the signature of an achievement line and outranks
+   every structural signal. Hebrew first person past ends in תי, which is
+   worth more than any word list. */
+var TT_ACTION_RE = new RegExp('^\\s*(' + [
+  'led', 'leading', 'managed', 'managing', 'ran', 'running', 'owned', 'owning',
+  'built', 'building', 'developed', 'developing', 'implemented', 'implementing',
+  'designed', 'designing', 'created', 'creating', 'improved', 'improving',
+  'reduced', 'reducing', 'increased', 'increasing', 'delivered', 'delivering',
+  'supported', 'supporting', 'coordinated', 'coordinating', 'analyzed', 'analysed',
+  'analyzing', 'maintained', 'maintaining', 'drove', 'driving', 'launched',
+  'launching', 'migrated', 'migrating', 'integrated', 'integrating', 'trained',
+  'training', 'defined', 'defining', 'established', 'establishing', 'streamlined',
+  'streamlining', 'oversaw', 'overseeing', 'spearheaded', 'spearheading',
+  'responsible', 'accountable', 'serving', 'served', 'acted', 'acting',
+  'הובלתי', 'ניהלתי', 'הטמעתי', 'פיתחתי', 'בניתי', 'תכננתי', 'יצרתי', 'שיפרתי',
+  'הפחתתי', 'הגדלתי', 'סיפקתי', 'תמכתי', 'תיאמתי', 'ניתחתי', 'הקמתי', 'הובלת',
+  'אחראי', 'אחריות', 'ביצעתי', 'הובילה', 'ליוויתי', 'הדרכתי', 'ייעצתי'
+].join('|') + ')(?![A-Za-z' + TT_HEBREW_CLASS + '])', 'i');
+
+var TT_HEAD_SEP_RE = /\||\t|\s{3,}|\s[–—]\s|·|، | \/ /;
+var TT_METRIC_RE = /%|\b\d+\s*(?:users|customers|people|hours|days|projects|sites|systems)\b|משתמשים|לקוחות|אתרים|פרויקטים/i;
+var TT_PRESENT_RE = /(present|current|today|now|היום|כיום|בהווה)\s*$/i;
+
+function ttWordCount(t) { return String(t).trim().split(/\s+/).filter(Boolean).length; }
+
+function hasDateSignal(t) { return YEAR_RE.test(t) || TT_PRESENT_RE.test(t); }
+
+/* Everything that says "this is a real content line", checked before any
+   structural signal is allowed to count. */
+function headerNegativesOk(raw) {
+  var t = String(raw || '').trim();
+  if (!t || BULLET_RE.test(raw)) return false;              // an explicit bullet is content
+  if (t.length > TT_HEAD_CHAR_MAX) return false;
+  if (ttWordCount(t) > TT_HEAD_WORD_MAX) return false;
+  if (/[.!?;]\s*$/.test(t)) return false;                   // a finished sentence
+  if (TT_ACTION_RE.test(t)) return false;                   // opens with an action
+  if (/[א-ת]{2,}תי(\s|$)/.test(t.split(/\s+/)[0] || '')) return false;
+  if (TT_METRIC_RE.test(t) && !hasDateSignal(t)) return false;  // a measured result
+  return true;
+}
+
+/* Title Case is a Latin script signal only. Hebrew has no case, which is
+   why the vocabulary rule needs two signals and not one. */
+function looksTitleCase(t) {
+  var words = String(t).trim().split(/\s+/).filter(function (w) { return /[A-Za-z]/.test(w); });
+  if (words.length < 2) return false;
+  var caps = 0;
+  words.forEach(function (w) { if (/^[A-Z]/.test(w)) caps++; });
+  return caps >= Math.ceil(words.length * 0.6);
+}
+
+function structuralScore(t) {
+  var s = 0;
+  if (TT_ORG_RE.test(t)) s++;
+  if (TT_TITLE_RE.test(t)) s++;
+  if (TT_HEAD_SEP_RE.test(t)) s++;
+  if (looksTitleCase(t)) s++;
+  if (/^[A-Z0-9\s&.,'"\-]+$/.test(t) && /[A-Z]{3,}/.test(t)) s++;   // ALL CAPS company line
+  return s;
+}
+
+/* Rule 1 and rule 3. Rule 2 needs the neighbours and lives in markStructure. */
+function structuralSeed(raw) {
+  var t = String(raw || '').trim();
+  if (!t || BULLET_RE.test(raw)) return '';
+  if (hasDateSignal(t) && ttWordCount(t) <= 16 && t.length <= TT_HEAD_CHAR_MAX &&
+      !TT_ACTION_RE.test(t) && !/[.!?]\s*$/.test(t)) return 'dates';
+  if (!headerNegativesOk(t)) return '';
+  if (structuralScore(t) >= 2) return 'org';
+  return '';
+}
+
+/* Kept for the older call sites: the question they ask is still "is this
+   line structure rather than content". */
+function looksLikeRoleHeader(raw) { return !!structuralSeed(raw); }
+
+/* ---------- manual override ----------
+   No classifier is right on every CV ever written, and the user is the one
+   holding the document. An override is keyed on the text of the line, not
+   on its id, so it survives editing elsewhere in the box and re-parsing. */
+var TT_STRUCT_OVERRIDE = {};
+
+function structKey(raw) { return String(raw || '').trim().replace(/\s+/g, ' '); }
+
+function setStructOverride(raw, mode) {
+  var k = structKey(raw);
+  if (!k) return;
+  if (mode) TT_STRUCT_OVERRIDE[k] = mode; else delete TT_STRUCT_OVERRIDE[k];
+}
+
+function clearStructOverrides() { TT_STRUCT_OVERRIDE = {}; }
+
+/* The three rules, run over the parsed lines. */
+function markStructure(doc) {
+  var lines = doc.lines;
+
+  function candidate(i) {
+    var l = lines[i];
+    return l && !l.isHeading && l.type === 'prose' && !!TT_STRUCT_CATEGORIES[l.cat];
+  }
+  // nearest non blank neighbour that is still inside the same section
+  function step(i, dir) {
+    for (var j = i + dir; j >= 0 && j < lines.length; j += dir) {
+      if (lines[j].type === 'blank') continue;
+      if (lines[j].isHeading || lines[j].cat !== lines[i].cat) return -1;
+      return j;
+    }
+    return -1;
+  }
+  function mark(i, kind) {
+    if (!candidate(i) || lines[i].structKind) return false;
+    lines[i].structKind = kind;
+    lines[i].subtype = 'roleheader';
+    return true;
+  }
+
+  // rule 1 and rule 3
+  for (var i = 0; i < lines.length; i++) {
+    if (!candidate(i)) continue;
+    var seed = structuralSeed(lines[i].raw);
+    if (seed) mark(i, seed);
+  }
+
+  // rule 2: prose immediately above a bullet block is that job's header
+  for (var b = 0; b < lines.length; b++) {
+    if (lines[b].type !== 'bullet' || !TT_STRUCT_CATEGORIES[lines[b].cat]) continue;
+    var prev = step(b, -1);
+    if (prev < 0 || lines[prev].type !== 'prose') continue;   // not the first bullet of a block
+    var run = 0;
+    while (prev >= 0 && run < TT_STRUCT_RUN_MAX && candidate(prev) &&
+           headerNegativesOk(lines[prev].raw)) {
+      mark(prev, lines[prev].structKind || 'header');
+      run++;
+      prev = step(prev, -1);
+      if (prev >= 0 && lines[prev].type !== 'prose') break;
+    }
+  }
+
+  // contagion: a line touching a confirmed structural line, with nothing of
+  // its own to say, belongs to the same header block
+  for (var pass = 0; pass < 2; pass++) {
+    for (var k = 0; k < lines.length; k++) {
+      if (!lines[k].structKind) continue;
+      [-1, 1].forEach(function (dir) {
+        var n = k + dir;
+        if (n < 0 || n >= lines.length) return;
+        if (!candidate(n) || lines[n].structKind) return;
+        if (!headerNegativesOk(lines[n].raw)) return;
+        if (ttWordCount(lines[n].text) > 10) return;
+        mark(n, 'header');
+      });
+    }
+  }
+
+  // the user has the last word, in both directions
+  for (var m = 0; m < lines.length; m++) {
+    var l = lines[m];
+    if (l.isHeading || l.type === 'blank') continue;
+    var ov = TT_STRUCT_OVERRIDE[structKey(l.text)];   // the body, so a bullet marker does not change the key
+    if (ov === 'content') { l.structKind = ''; l.subtype = ''; l.overridden = true; }
+    else if (ov === 'structure' && EDITABLE_CATEGORIES[l.cat]) {
+      l.structKind = 'manual'; l.subtype = 'roleheader'; l.overridden = true;
+    }
+  }
+
+  // editable is the single gate every later stage reads
+  for (var e = 0; e < lines.length; e++) {
+    var x = lines[e];
+    x.editable = !!EDITABLE_CATEGORIES[x.cat] && !x.isHeading && x.type !== 'blank' && !x.structKind;
+  }
+  return doc;
 }
 
 function parseResume(text) {
@@ -2225,24 +2472,26 @@ function parseResume(text) {
       body = raw.slice(marker.length);
     }
 
-    var subtype = '';
-    if (!isHeading && cat === 'experience' && type === 'prose' && looksLikeRoleHeader(raw)) subtype = 'roleheader';
-
-    var editable = !!EDITABLE_CATEGORIES[cat] && !isHeading && type !== 'blank' && subtype !== 'roleheader';
-
     doc.lines.push({
       id: 'L' + (idx++),
       raw: raw,
       marker: marker,
       text: body.trim(),
       type: type,
-      subtype: subtype,
+      subtype: '',
+      structKind: '',            // '' means content; anything else is spine
+      overridden: false,
       cat: isHeading ? heading : cat,
       isHeading: isHeading,
-      editable: editable,
+      editable: !!EDITABLE_CATEGORIES[isHeading ? heading : cat] && !isHeading && type !== 'blank',
       lang: detectLang(body)
     });
   }
+
+  /* Company, title, location and date lines are taken out of reach here,
+     BEFORE the blocks are built, so a header can never end up inside a
+     block of bullets and can never be sent to the model. */
+  markStructure(doc);
 
   // section index
   var current = null;
@@ -6462,6 +6711,109 @@ function requireKeyOrOnboard() {
   return false;
 }
 
+/* ---------- structure review panel ----------
+   The classifier decides what is a point and what is the spine of the
+   document. This panel shows that decision line by line before anything is
+   sent anywhere, and lets it be corrected in either direction. A CV written
+   in a way no rule anticipated is still the user's CV. */
+var TT_STRUCT_LABELS = {
+  summary:    ['תקציר', 'Summary'],
+  experience: ['ניסיון תעסוקתי', 'Experience'],
+  skills:     ['כישורים', 'Skills'],
+  other:      ['הסמכות, קורסים ופרויקטים', 'Certifications, courses and projects']
+};
+var TT_STRUCT_KINDS = {
+  dates:  ['תאריכים', 'dates'],
+  org:    ['שם חברה או תפקיד', 'employer or title'],
+  header: ['כותרת תפקיד', 'job header'],
+  manual: ['סומן ידנית', 'set by you']
+};
+
+function structToggleLabel() {
+  var list = $('structureList');
+  var hidden = !list || list.classList.contains('tt-hidden');
+  return hidden ? L('הצג פירוט', 'Show detail') : L('הסתר פירוט', 'Hide detail');
+}
+
+function renderStructurePanel() {
+  var card = $('structureCard');
+  if (!card) return;
+  var text = $('resumeInput') ? $('resumeInput').value : '';
+  if (!text.trim()) { card.classList.add('tt-hidden'); return; }
+
+  var doc = parseResume(text);
+  var order = ['summary', 'experience', 'skills', 'other'];
+  var groups = {}, points = 0, spine = 0;
+
+  doc.lines.forEach(function (l) {
+    if (l.isHeading || l.type === 'blank' || !l.text) return;
+    if (!EDITABLE_CATEGORIES[l.cat]) return;
+    (groups[l.cat] = groups[l.cat] || []).push(l);
+    if (l.editable) points++; else spine++;
+  });
+
+  card.classList.remove('tt-hidden');
+  card.setAttribute('dir', L('rtl', 'ltr'));
+  var sum = $('structureSummary'), lst = $('structureList');
+  sum.setAttribute('dir', L('rtl', 'ltr'));
+  lst.setAttribute('dir', L('rtl', 'ltr'));
+  var tgl = $('btnStructureToggle');
+  if (tgl) tgl.textContent = structToggleLabel();
+
+  sum.innerHTML = L(
+    '<b>' + points + '</b> שורות יטופלו כסעיפים להתאמה, ו<b>' + spine + '</b> שורות זוהו כמבנה ' +
+    '(שם חברה, תפקיד, תאריכים) ויועתקו כמות שהן, ללא שינוי. ' +
+    '<span class="text-slate-500">אם שורה סווגה לא נכון, אפשר להפוך אותה בפירוט.</span>',
+    '<b>' + points + '</b> lines will be treated as tailorable points, and <b>' + spine + '</b> were read as ' +
+    'structure (employer, title, dates) and will be copied through untouched. ' +
+    '<span class="text-slate-500">Any line read the wrong way can be flipped in the detail below.</span>'
+  );
+
+  var html = '';
+  order.forEach(function (cat) {
+    var rows = groups[cat];
+    if (!rows || !rows.length) return;
+    var label = TT_STRUCT_LABELS[cat] ? L(TT_STRUCT_LABELS[cat][0], TT_STRUCT_LABELS[cat][1]) : cat;
+    html += '<div><div class="text-sm font-semibold text-slate-600 mb-1">' + escapeHtml(label) + '</div>';
+    rows.forEach(function (l) {
+      var isPoint = !!l.editable;
+      var kind = TT_STRUCT_KINDS[l.structKind];
+      var chip = isPoint
+        ? '<span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">' +
+          L('סעיף', 'point') + '</span>'
+        : '<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 shrink-0">' +
+          L('מבנה', 'structure') + (kind ? ' \u00b7 ' + L(kind[0], kind[1]) : '') + '</span>';
+      html += '<div class="flex items-start gap-2 py-1 border-b border-slate-100 last:border-0">' + chip +
+        '<span class="text-sm flex-1 ' + (isPoint ? 'text-slate-800' : 'text-slate-500') + '" dir="' +
+        dirForText(l.text, l.lang) + '">' + escapeHtml(l.text) + '</span>' +
+        '<button class="tt-btn tt-btn-sm shrink-0" data-struct-flip="' + escapeHtml(structKey(l.text)) + '" data-struct-to="' +
+        (isPoint ? 'structure' : 'content') + '">' +
+        (isPoint ? L('סמן כמבנה', 'mark as structure') : L('סמן כסעיף', 'mark as point')) + '</button>' +
+        (l.overridden ? '<span class="text-[11px] text-sky-600 shrink-0">' + L('ידני', 'manual') + '</span>' : '') +
+        '</div>';
+    });
+    html += '</div>';
+  });
+  lst.innerHTML = html || '<div class="text-sm text-slate-500">' +
+    L('לא זוהו מקטעים להתאמה.', 'No tailorable sections were recognised.') + '</div>';
+}
+
+function bindStructurePanel() {
+  var t = $('btnStructureToggle');
+  if (t) t.addEventListener('click', function () {
+    var list = $('structureList');
+    if (list) list.classList.toggle('tt-hidden');
+    t.textContent = structToggleLabel();
+  });
+  var list = $('structureList');
+  if (list) list.addEventListener('click', function (ev) {
+    var btn = ev.target && ev.target.closest ? ev.target.closest('[data-struct-flip]') : null;
+    if (!btn) return;
+    setStructOverride(btn.getAttribute('data-struct-flip'), btn.getAttribute('data-struct-to'));
+    renderStructurePanel();
+  });
+}
+
 function updateLangBadges() {
   var r = $('resumeInput').value, j = $('jobInput').value;
   var rb = $('resumeLangBadge'), jb = $('jobLangBadge');
@@ -6470,6 +6822,9 @@ function updateLangBadges() {
   if (jb) jb.textContent = j.trim() ? 'זוהתה שפה: ' + names[detectLang(j)] : '';
   $('resumeInput').setAttribute('dir', r.trim() ? dirFor(detectLang(r)) : 'rtl');
   $('jobInput').setAttribute('dir', j.trim() ? dirFor(detectLang(j)) : 'rtl');
+  // every path that fills the resume box (paste, file, translation) ends here,
+  // so the structure panel is refreshed in one place
+  renderStructurePanel();
 }
 
 function bindUi() {
@@ -6563,6 +6918,7 @@ function bindUi() {
 
   $('resumeInput').addEventListener('input', updateLangBadges);
   $('jobInput').addEventListener('input', updateLangBadges);
+  bindStructurePanel();
 
   var mc = $('btnMetricsClose');
   if (mc) mc.addEventListener('click', function () { hide('metricsNotice'); });
@@ -6597,6 +6953,7 @@ function resetPanel(which) {
   if (isResume) {
     APP.resumeRaw = '';
     APP.emphasis = null;              // the bold belonged to a file that is gone
+    clearStructOverrides();           // they described lines that are gone too
     uninstallFileTemplate();
     if (typeof renderTemplatePicker === 'function') renderTemplatePicker();
   } else {
@@ -7069,6 +7426,7 @@ var TT_UI_HE = null;
 var TT_UI_STRINGS = [
   ['.tt-brandsub', 'Resume tailoring for one job, with nothing invented'],
   ['#btnAbout', 'About'],
+  ['#structureCard .tt-card-title', '<span class="tt-tag">Structure</span>What counts as a tailorable point'],
   ['#btnSettings', '⚙️ Settings'],
   ['#stageRail .tt-step[data-stage="1"] b', 'Input'],
   ['#stageRail .tt-step[data-stage="2"] b', 'Job analysis'],
@@ -7186,6 +7544,7 @@ function applyUiLang(lang) {
   if (typeof renderAbout === 'function' && !$('aboutModal').classList.contains('tt-hidden')) renderAbout();
   else if (typeof renderAbout === 'function') renderAbout();
   if (typeof renderInterviewSheet === 'function' && APP.finalText) renderInterviewSheet();
+  if (typeof renderStructurePanel === 'function') renderStructurePanel();
 }
 
 /* Reports a selector that stopped matching, once, to the console only. A
