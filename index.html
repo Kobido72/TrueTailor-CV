@@ -3,10 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- =====================================================================
+     CONTENT SECURITY POLICY
+
+     What this is for. The resume in memory and the API key in localStorage
+     are worth stealing, and the only way either of them leaves this machine
+     is over the network. This policy tells the browser which network
+     destinations are legitimate. If hostile code ever runs on this page,
+     from a compromised CDN or anything else, it can still run, but when it
+     tries to POST the resume to an address that is not Google, the BROWSER
+     refuses. That is a wall the page's own JavaScript cannot climb, and it
+     is the single reason this header is here.
+
+     Why it is written the way it is. There is deliberately NO default-src.
+     A default-src becomes the fallback for every resource type not listed
+     below, including ones nobody thought about, and a policy that breaks the
+     app in a way the author never tested is worse than no policy at all.
+     Only resource types that were actually audited in this file are
+     restricted; everything else behaves exactly as it did before.
+
+     Audited before writing this: no <form> anywhere, no <img> anywhere, no
+     external url() in the CSS (the three url(#...) are internal SVG paint
+     references and touch no network), no <base>, no <object>, no <embed>,
+     no eval and no new Function in this file's own code. That is why
+     form-action, base-uri, object-src and img-src can be locked down with
+     no risk at all.
+
+     'unsafe-inline' and 'unsafe-eval' are in script-src on purpose. All of
+     this app's JavaScript is one inline block, and pdf.js and the Tailwind
+     runtime may compile at load time. Removing either would break the app,
+     which is the one outcome not on the table. They weaken the EXECUTION
+     control and change nothing about connect-src, which is where the actual
+     protection lives.
+
+     TO DISABLE: delete this one meta tag. Nothing else depends on it.
+
+     TEST AFTER ANY CHANGE, with the browser console open, watching for a
+     line containing "Content Security Policy":
+       1. the page renders styled, in the right fonts
+       2. uploading a .docx works          (jszip + mammoth)
+       3. uploading a .pdf works           (pdf.js AND its worker)
+       4. "בדוק חיבור" succeeds            (the Gemini call)
+       5. downloading the .docx works      (blob download)
+       6. "הדפס או שמור כ־PDF" opens
+     ===================================================================== -->
+<meta http-equiv="Content-Security-Policy" content="
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' data: https://fonts.gstatic.com;
+  connect-src 'self' blob: data: https://generativelanguage.googleapis.com https://cdnjs.cloudflare.com;
+  worker-src 'self' blob: https://cdnjs.cloudflare.com;
+  img-src 'self' data: blob:;
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none'">
+
+<!-- Sends the origin but never the path to third parties. Deliberately not
+     'no-referrer': a Google API key can optionally be restricted to a
+     referring domain, and no-referrer would silently break such a key. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>TrueTailor CV — התאמת קורות חיים למשרה</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700&family=Heebo:wght@500;700;800;900&display=swap" rel="stylesheet">
+<!-- =====================================================================
+     SUBRESOURCE INTEGRITY, NOT YET APPLIED. READ BEFORE EDITING.
+
+     The three cdnjs scripts below are loaded with no integrity attribute,
+     which means whoever controls those responses controls this whole page:
+     the resume text sitting in memory, and the API key sitting in
+     localStorage. That is the single largest exposure this file has, and it
+     has nothing to do with the code in it.
+
+     The fix is one attribute per script. It is NOT applied here on purpose,
+     because an integrity attribute holding a placeholder does not fail
+     quietly: the browser refuses to run the script and the app dies. The
+     hashes have to be real before the attributes go on.
+
+     To generate them, run this for each of the three URLs:
+
+       curl -s <THE URL BELOW> | openssl dgst -sha384 -binary | openssl base64 -A
+
+     then add to that script tag:
+
+       integrity="sha384-<the output>" crossorigin="anonymous"
+
+     Test each one immediately after adding it: a wrong hash shows up as the
+     library being undefined, which this app reports as "הספרייה לא נטענה".
+
+     TAILWIND IS DIFFERENT AND MUST NOT GET AN INTEGRITY ATTRIBUTE.
+     cdn.tailwindcss.com is a rolling build that changes without notice, so
+     any hash pinned to it will break the styling the first time they ship an
+     update. It is also a prototyping tool that is not meant for production.
+     The real fix there is to compile Tailwind once into a static stylesheet
+     and drop the CDN entirely.
+
+     pdf.js also loads a worker at runtime, and that URL needs the same
+     treatment. It is set in code, search for GlobalWorkerOptions.workerSrc.
+     ===================================================================== -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -883,7 +978,15 @@
       <button id="btnGetKey" class="tt-btn tt-btn-ok">🔑 קבל מפתח API בחינם</button>
       <button id="btnHowKey" class="tt-btn">איך עושים את זה?</button>
     </div>
-    <p id="keyStatus" class="text-sm mt-2 text-slate-500">המפתח נשמר מקומית בדפדפן שלך (localStorage) ולא נשלח לשום מקום מלבד Google.</p>
+    <!-- Off means the key lives in sessionStorage and dies with the tab. On is
+         the default and is what the app always did. The wording says what
+         happens rather than naming a storage API, because the person who needs
+         this setting is the person on a shared computer, not a developer. -->
+    <label class="flex items-center gap-2 mt-3 text-sm text-slate-600 cursor-pointer select-none">
+      <input id="keyPersistToggle" type="checkbox" checked class="w-4 h-4 accent-emerald-600">
+      <span>זכור את המפתח במחשב הזה</span>
+    </label>
+    <p id="keyStatus" class="text-sm mt-2 text-slate-500">המפתח נשמר בדפדפן שלך בלבד ולא נשלח לשום מקום מלבד Google. אם תסירו את הסימון למעלה, הוא יימחק עם סגירת הלשונית.</p>
   </section>
 
   <!-- HOW TO GET A KEY MODAL -->
@@ -2105,14 +2208,62 @@ var TT_DEFAULT_TIMEOUT = 40000;
 var TT_LAST_MODEL = '';
 var TT_LAST_TRUNCATED = false;
 
+/* ---------- where the API key is kept ----------
+   Two places, and which one is used is the candidate's decision rather than
+   ours. localStorage survives closing the browser, which is what almost
+   everybody wants on their own machine and is exactly wrong on a shared or
+   public one: the key sits on that disk until somebody clears it, and any
+   browser extension can read it.
+
+   sessionStorage is the same API with one difference that matters here, that
+   the tab closing takes the key with it.
+
+   The default stays localStorage so nothing changes for anyone already using
+   the app, and a key saved before this option existed is found by getApiKey
+   either way, because both stores are read. */
+var TT_KEY_NAME = 'tt_gemini_key';
+var TT_KEY_PERSIST_FLAG = 'tt_key_persist';
+
+function keyPersists() {
+  try { return localStorage.getItem(TT_KEY_PERSIST_FLAG) !== '0'; } catch (e) { return true; }
+}
+
+function setKeyPersistence(on) {
+  try {
+    localStorage.setItem(TT_KEY_PERSIST_FLAG, on ? '1' : '0');
+  } catch (e) {}
+  // move whatever key is already held into the store the candidate just chose,
+  // so flipping the switch does not silently log them out or silently leave a
+  // copy behind in the store they just rejected
+  var current = getApiKey();
+  try { localStorage.removeItem(TT_KEY_NAME); } catch (e) {}
+  try { sessionStorage.removeItem(TT_KEY_NAME); } catch (e) {}
+  if (current) saveApiKey(current);
+}
+
 function getApiKey() {
   if (APP.apiKey) return APP.apiKey;
-  try { APP.apiKey = localStorage.getItem('tt_gemini_key') || ''; } catch (e) { APP.apiKey = ''; }
+  var found = '';
+  try { found = sessionStorage.getItem(TT_KEY_NAME) || ''; } catch (e) {}
+  if (!found) { try { found = localStorage.getItem(TT_KEY_NAME) || ''; } catch (e) {} }
+  APP.apiKey = found;
   return APP.apiKey;
 }
+
 function saveApiKey(key) {
   APP.apiKey = String(key || '').trim();
-  try { localStorage.setItem('tt_gemini_key', APP.apiKey); } catch (e) {}
+  var store = keyPersists() ? 'local' : 'session';
+  try {
+    if (store === 'local') {
+      localStorage.setItem(TT_KEY_NAME, APP.apiKey);
+      try { sessionStorage.removeItem(TT_KEY_NAME); } catch (e2) {}
+    } else {
+      sessionStorage.setItem(TT_KEY_NAME, APP.apiKey);
+      /* The point of not persisting is that nothing is left on the disk, so a
+         key written there by an earlier visit has to go now. */
+      try { localStorage.removeItem(TT_KEY_NAME); } catch (e2) {}
+    }
+  } catch (e) {}
   return APP.apiKey;
 }
 
@@ -7887,11 +8038,26 @@ function bindUi() {
     $('settingsCard').classList.toggle('tt-hidden');
   });
 
+  /* The toggle reflects what is actually stored, so a candidate who turned it
+     off last visit does not come back to a ticked box that lies to them. */
+  var persistBox = $('keyPersistToggle');
+  if (persistBox) {
+    persistBox.checked = keyPersists();
+    persistBox.addEventListener('change', function () {
+      setKeyPersistence(persistBox.checked);
+      setKeyStatus(persistBox.checked
+        ? 'המפתח יישמר במחשב הזה עד שתמחק אותו.'
+        : 'המפתח יישמר רק עד סגירת הלשונית, ולא יישאר על המחשב.', 'ok');
+    });
+  }
+
   $('btnSaveKey').addEventListener('click', function () {
     var v = $('apiKeyInput').value.trim();
     if (!v) { setKeyStatus('לא הוזן מפתח.', 'err'); return; }
     saveApiKey(v);
-    setKeyStatus('✅ המפתח נשמר. עכשיו לחץ "בדוק חיבור".', 'ok');
+    setKeyStatus(keyPersists()
+      ? '✅ המפתח נשמר. עכשיו לחץ "בדוק חיבור".'
+      : '✅ המפתח נשמר לסשן הזה בלבד. עכשיו לחץ "בדוק חיבור".', 'ok');
     hide('onboardBanner');
     discoverModels();     // background refresh, never blocks anything
 
@@ -8693,6 +8859,7 @@ var TT_UI_STRINGS = [
   ['#onboardBanner p:nth-of-type(2)', 'Tailoring a resume needs a Google Gemini key. It is free and takes a minute.'],
   ['#btnOnboardOpen', 'Open the key panel'],
   ['#settingsCard .tt-card-title', 'Google Gemini API key'],
+  ['#keyPersistToggle + span', 'Remember the key on this computer'],
   ['#btnSaveKey', 'Save'],
   ['#btnTestKey', 'Test connection'],
   ['#btnGetKey', '🔑 Get a free API key'],
