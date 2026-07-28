@@ -1179,6 +1179,13 @@
   <!-- STEP 1 + 2 -->
   <section id="analysisCard" class="tt-hidden tt-card mb-4">
     <h2 class="tt-card-title mb-3"><span class="tt-tag">שלב 1 ו־2</span>פירוק המשרה והשוואה דרישה מול דרישה</h2>
+    <!-- The verdict, before the detail. A candidate reading a requirement by
+         requirement table has to hold twenty rows in their head before they can
+         answer the only question they came with, which is whether this is worth
+         applying to at all. That answer exists the moment stage 2 finishes and
+         it belongs at the top, in a colour that can be read from across the
+         room. Filled by renderMatchVerdict(). -->
+    <div id="matchVerdict" class="mb-4"></div>
     <div class="grid md:grid-cols-2 gap-4">
       <div class="md:order-1">
         <h3 class="text-sm font-semibold text-slate-600 mb-2">מה המשרה מבקשת</h3>
@@ -4445,6 +4452,121 @@ function coverageScore() {
   return { pct: Math.round(((counts.direct + counts.equivalent) / c.length) * 100), weighted: Math.round(score * 100 / weight), counts: counts };
 }
 
+/* ---------------- how good a fit is this, actually ----------------
+   Everything needed to answer that is already on screen by the time stage 2
+   ends; what was missing was anybody saying it out loud. A candidate was left
+   to read twenty rows of a comparison table and infer the verdict themselves,
+   which is exactly the judgement they came here to get help with, and the
+   inference people make unaided is almost always too generous: they see four
+   green rows and stop reading before the two red ones that decide the outcome.
+
+   Three inputs, because a fit can fail in three different ways and any one of
+   them is enough:
+
+     1. WEIGHTED COVERAGE. What share of the posting's weight the resume already
+        proves. coverageScore() already computes it.
+     2. THE MUST HAVES. Coverage alone hides these: a resume can prove eight
+        pleasant extras and miss the two things without which no interview
+        happens, and still score respectably. They are counted separately and
+        they can pull the verdict down on their own.
+     3. THE ROLE ITSELF. A posting for a role in another field can still share
+        vocabulary, and shared vocabulary is what a coverage number measures.
+        When no requirement at all lands as direct, the resume is not a weak
+        candidate for this job, it is a candidate for a different one.
+
+   The bands are deliberately pessimistic at the bottom. Telling somebody their
+   fit is poor costs them a few minutes of disappointment; letting them spend an
+   afternoon tailoring a resume for a job that was never going to call costs
+   them the afternoon and the confidence. */
+function matchVerdict() {
+  var cov = APP.coverage || [];
+  if (!cov.length) return null;
+
+  var sc = coverageScore();
+  var musts = 0, mustsProved = 0, direct = 0;
+
+  cov.forEach(function (c) {
+    if (!c) return;
+    var strong = c.status === 'direct' || c.status === 'equivalent';
+    if (c.status === 'direct') direct++;
+    var req = reqById(c.req_id);
+    if (req && req.must_have) { musts++; if (strong) mustsProved++; }
+  });
+
+  var mustShare = musts ? mustsProved / musts : 1;
+
+  /* The must haves get the heavier hand because that is how a screener reads:
+     the optional list is a tiebreaker, the required list is a gate. */
+  var score = Math.round(sc.weighted * 0.55 + mustShare * 100 * 0.45);
+
+  var band, reason = '';
+  if (!direct && musts && mustsProved === 0) {
+    band = 'low';
+    reason = 'אף דרישה מהותית לא נמצאה בקורות החיים באופן ישיר, וגם לא בניסוח מקביל. ' +
+             'זה בדרך כלל הסימן שהמשרה ושורות הניסיון מדברות על שני תפקידים שונים.';
+  } else if (score < 40 || (musts >= 2 && mustShare < 0.34)) {
+    band = 'low';
+    reason = musts
+      ? 'מתוך ' + musts + ' דרישות חובה, ' + mustsProved + ' מוכחות בקורות החיים.'
+      : 'רוב הדרישות המשמעותיות של המשרה לא מקבלות כיסוי בקורות החיים.';
+  } else if (score < 68 || mustShare < 0.7) {
+    band = 'mid';
+    reason = musts
+      ? 'מתוך ' + musts + ' דרישות חובה, ' + mustsProved + ' מוכחות. השאר תלוי במה שתוסיף בשאלות.'
+      : 'חלק מהדרישות מקבלות כיסוי חלקי בלבד.';
+  } else {
+    band = 'high';
+    reason = musts
+      ? 'כל ' + mustsProved + ' דרישות החובה שנבדקו מקבלות כיסוי בקורות החיים.'
+      : 'רוב הדרישות מקבלות כיסוי ישיר או מקביל.';
+  }
+
+  return { band: band, score: score, reason: reason, musts: musts, mustsProved: mustsProved, direct: direct };
+}
+
+var TT_VERDICT_STYLE = {
+  low:  { wrap: 'border-red-400 bg-red-50', dot: 'bg-red-500', text: 'text-red-900',
+          label: 'רמת תאימות נמוכה' },
+  mid:  { wrap: 'border-amber-400 bg-amber-50', dot: 'bg-amber-500', text: 'text-amber-900',
+          label: 'רמת תאימות בינונית' },
+  high: { wrap: 'border-emerald-400 bg-emerald-50', dot: 'bg-emerald-500', text: 'text-emerald-900',
+          label: 'רמת תאימות גבוהה' }
+};
+
+function renderMatchVerdict() {
+  var el = $('matchVerdict');
+  if (!el) return;
+  var v = matchVerdict();
+  if (!v) { el.innerHTML = ''; return; }
+  var s = TT_VERDICT_STYLE[v.band];
+
+  /* Said plainly and once. The low band gets the sentence the whole feature
+     exists for: tailoring cannot fix this, and the honest advice is to spend
+     the effort elsewhere. It stops short of blocking anything, because the
+     document does not know everything about the person reading it. */
+  var advice =
+    v.band === 'low'
+      ? '<p class="text-sm mt-2"><b>התאמה כאן כנראה לא תעזור.</b> האפליקציה יכולה לנסח מחדש את מה שכתוב, ' +
+        'אבל היא לא ממציאה ניסיון שאינו קיים. כשהפער הוא בתפקיד עצמו ולא בניסוח, קורות חיים מותאמים לא ישנו את התוצאה. ' +
+        'עדיף להשקיע את הזמן במשרה קרובה יותר לניסיון שלך.</p>' +
+        '<p class="text-xs mt-1 opacity-80">אם יש לך ניסיון רלוונטי שלא מופיע בקובץ, אפשר להמשיך בכל זאת: ' +
+        'השאלות בשלב 3 הן המקום להוסיף אותו.</p>'
+      : v.band === 'mid'
+      ? '<p class="text-sm mt-2">יש בסיס אמיתי לעבוד איתו. התשובות שתיתן בשלב 3 הן מה שיקבע כמה מהפערים ייסגרו.</p>'
+      : '<p class="text-sm mt-2">קורות החיים כבר מכילים את מה שהמשרה מחפשת. העבודה כאן היא בעיקר ניסוח, כדי שהדברים ייאמרו בשפה שהמשרה משתמשת בה.</p>';
+
+  el.innerHTML =
+    '<div class="rounded-xl border-2 ' + s.wrap + ' p-3">' +
+      '<div class="flex items-center gap-2 flex-wrap">' +
+        '<span class="inline-block w-3 h-3 rounded-full ' + s.dot + '"></span>' +
+        '<span class="font-bold text-lg ' + s.text + '">' + s.label + '</span>' +
+        '<span class="text-sm ' + s.text + ' opacity-75">' + v.score + '/100</span>' +
+      '</div>' +
+      '<p class="text-sm mt-1 ' + s.text + '">' + escapeHtml(v.reason) + '</p>' +
+      '<div class="' + s.text + '">' + advice + '</div>' +
+    '</div>';
+}
+
 function renderCoverage() {
   var el = $('gapsOut');
   if (!el) return;
@@ -6666,6 +6788,7 @@ async function runPipeline() {
       if (!APP.signals.requirements.length) throw new Error('לא זוהו דרישות בתיאור המשרה.');
       renderSignals();
       show('analysisCard');
+      renderMatchVerdict();   // the verdict needs the coverage, so it renders with it
 
       setStatus('שלב 2: משווה כל דרישה מול קורות החיים...', true);
       var cov = await stepCoverage();
@@ -7901,6 +8024,22 @@ function exportPdf(text, tplKey) {
   var area = $('printArea');
   area.innerHTML = buildPrintHtml(text, tplKey);
   area.classList.remove('tt-hidden');
+  /* ---------- the destination matters more than anything in this file ----------
+     This hands the document to the browser's print dialog, and what comes out
+     the other side is decided by the printer chosen in that dialog, not here.
+     Chrome's own "Save as PDF" writes real text: selectable, copyable, readable
+     by an ATS. Windows' "Microsoft Print to PDF" RASTERISES the page into an
+     image of a resume, and every automated system that opens it finds nothing
+     at all inside.
+
+     The two sit next to each other in the same list with almost the same name,
+     and nothing in the dialog says one of them destroys the file's usefulness.
+     A candidate who picks the wrong one gets a document that looks perfect,
+     passes their own eyes, and is silently unreadable to the machine that
+     decides whether a person ever sees it. Saying so here, in the two seconds
+     before the dialog opens, is the only place this can be caught. */
+  previewNote('בחלון ההדפסה בחר יעד "שמור כ־PDF" / "Save as PDF". אל תבחר "Microsoft Print to PDF" — ' +
+              'הוא הופך את הקובץ לתמונה, והטקסט מפסיק להיות ניתן לסימון או לקריאה על ידי מערכות ATS.', 'warn');
   window.print();
   setTimeout(function () { area.classList.add('tt-hidden'); area.innerHTML = ''; }, 500);
 }
