@@ -228,6 +228,39 @@
   .tt-tplbtn .tt-tplthumb { pointer-events:none; }
 
   @media print {
+    /* ---------- this block has to come first ----------
+       A PDF that leaves this app as a picture of a resume is a resume no ATS
+       can read, and an unreadable resume is the one failure this whole app
+       exists to prevent. That was happening, and the cause was one line of
+       decoration nowhere near the document.
+
+       .tt-top, the sticky header, carries backdrop-filter. Any element with
+       backdrop-filter puts the page on a compositing path, and Chrome's print
+       pipeline answers that by RASTERIZING THE ENTIRE PAGE, the document text
+       along with it. The text stops being text and becomes pixels, so it
+       cannot be selected, copied, or parsed by a machine.
+
+       visibility:hidden, which is how the rest of the interface is kept out of
+       the printout further down, does not fix it. A hidden element keeps its
+       box and keeps its compositing layer, so the raster path is still taken.
+       The element has to leave rendering altogether.
+
+       The blanket reset underneath is a guard rather than a fix. The header was
+       styled long after the print path was written and nobody connected the two,
+       which is exactly how this will happen again the next time something in the
+       interface is given a frosted panel. Neutralising the property everywhere
+       at print time means the next glassy element cannot quietly turn every
+       exported resume back into an image.
+
+       If a PDF ever comes out unselectable again, look here first, and look for
+       a new backdrop-filter, filter, or mix-blend-mode in the interface. */
+    .tt-top, .tt-console { display: none !important; }
+    *, *::before, *::after {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      mix-blend-mode: normal !important;
+    }
+
     body * { visibility: hidden !important; }
     /* colours come from the inline template styles, so they are not forced here */
     /* the page is forced white, its contents are not: a template may put a
@@ -898,6 +931,12 @@
         <div class="tt-topctl-row">
           <button id="btnAbout" class="tt-btn tt-btn-ghost tt-btn-sm">אודות</button>
           <button id="btnSettings" class="tt-btn tt-btn-ghost tt-btn-sm">⚙️ הגדרות</button>
+          <!-- Starting over used to mean reloading the page, which is not
+               something anyone thinks to do and which reads as giving up rather
+               than as a feature. The API key is deliberately NOT cleared: it is
+               the one thing here that costs real effort to obtain, and wiping
+               it would punish the candidate for wanting a clean sheet. -->
+          <button id="btnStartOver" class="tt-btn tt-btn-ghost tt-btn-sm" title="מנקה הכל ומתחיל מחדש, המפתח נשמר">↺ התחל מחדש</button>
         </div>
         <div class="tt-langsw" id="langSwitch" role="group" aria-label="שפת הממשק / Interface language">
           <button id="btnUiHe" class="tt-langbtn" data-uilang="he" title="עברית" aria-label="עברית">
@@ -6742,15 +6781,65 @@ function chooseDomainMode(mode) {
   if (choice) choice.classList.add('tt-hidden');
   var el = $('domainOut');
   if (el) {
-    el.innerHTML = APP.domainMode === 'broad'
+    el.innerHTML = (APP.domainMode === 'broad'
       ? '<p><b>נבחר: הרחבה למינוח חוצה תעשיות.</b> השאלות מתמקדות במה שהמערכות שלך באמת עשו, ' +
         'והשכתוב יוביל בתיאור הכללי בשפת המודעה, עם השם המקורי בסוגריים אחריו. ' +
         'טבלת ההשוואה למעלה נשארת כפי שחושבה, לפי ההשוואה הצרה.</p>'
-      : '<p><b>נבחר: להישאר בתחום שלי.</b> השאלות והניסוח נשארים בשפה המקצועית של קורות החיים.</p>';
+      : '<p><b>נבחר: להישאר בתחום שלי.</b> השאלות והניסוח נשארים בשפה המקצועית של קורות החיים.</p>') +
+      /* The choice was a one way door: the buttons were hidden the moment one
+         was pressed and nothing brought them back, so a candidate who read the
+         two descriptions, picked, and then realised they had picked wrong had
+         no move left but to reload the page and lose the whole run. The way
+         back belongs right next to the sentence that tells them what they
+         chose. */
+      '<p class="mt-2"><button id="btnDomainBack" class="text-sm underline text-sky-800 hover:text-sky-900">' +
+      '↩ חזור לשתי האפשרויות</button></p>';
+    var back = $('btnDomainBack');
+    if (back) back.addEventListener('click', reopenDomainChoice);
   }
   startQuestions().catch(function (e) {
     showError('ההרצה נעצרה בגלל שגיאה: ' + ((e && e.message) || ''));
   });
+}
+
+/* Going back has a real cost and the candidate has to be told it before it is
+   paid, not after. The questions already asked were CHOSEN under the mode being
+   abandoned, so they cannot simply carry over: a narrow run asks about the
+   candidate's own vocabulary, a broad one asks what their systems actually did,
+   and mixing the two produces a conversation that answers neither. Stage 3
+   restarts.
+
+   Anything already typed is what makes this expensive, so the warning names the
+   number and the choice is theirs. With nothing answered yet there is nothing to
+   lose and nothing to ask about. */
+function reopenDomainChoice() {
+  var answered = ((APP.chat && APP.chat.qa) || []).filter(function (p) { return !p.skipped; }).length;
+  if (answered) {
+    var ok = confirm('שינוי הבחירה יתחיל את שלב 3 מחדש, כי השאלות נבחרו לפי הבחירה הקודמת.\n\n' +
+      answered + ' תשובות שכבר ענית יימחקו. להמשיך?');
+    if (!ok) return;
+  }
+
+  APP.domainMode = '';
+  APP.chat = {
+    history: [], turns: [], qa: [], lang: APP.chat.lang, langSeq: APP.chat.langSeq || 0,
+    asked: 0, max: 8, done: false, pendingQuestion: '', pendingReqId: '', pendingReqIds: [],
+    lastTurnMessage: ''
+  };
+  APP.queue = [];
+  if (typeof showChatRetry === 'function') showChatRetry(false);
+  hide('chatCard');
+  if (typeof renderChatLog === 'function') renderChatLog();
+  if (typeof renderChatProgress === 'function') renderChatProgress();
+
+  var gap = (typeof domainGapReport === 'function') ? domainGapReport() : null;
+  if (gap) renderDomainGate(gap);
+  else {
+    var choice = $('domainChoice');
+    if (choice) choice.classList.remove('tt-hidden');
+    show('domainCard');
+  }
+  setStatus('הבחירה נפתחה מחדש. בחר שוב כדי להתחיל את שלב 3.');
 }
 
 /* The one way into stage 3, so the gate cannot be skipped by the "continue
@@ -8148,6 +8237,9 @@ function bindUi() {
   $('btnResetResume').addEventListener('click', function () { resetPanel('resume'); });
   $('btnResetJob').addEventListener('click', function () { resetPanel('job'); });
 
+  var startOver = $('btnStartOver');
+  if (startOver) startOver.addEventListener('click', startOverAll);
+
   bindStageUi();
 }
 
@@ -8185,6 +8277,52 @@ function resetPanel(which) {
   updateLangBadges();
   showNotice('');
   setStatus(isResume ? 'תיבת קורות החיים נוקתה.' : 'תיבת המשרה נוקתה.');
+}
+
+/* Back to an empty app without a page reload, and without losing the API key.
+
+   resetPanel already empties one input and calls resetRun, so almost everything
+   needed is here already; what was missing was a single control that does both
+   panels plus the things that live outside a run, and a way to reach it that is
+   not "reload the page and hope". The template read out of the uploaded file
+   goes too, because that file is gone.
+
+   The confirmation is only asked when there is something to lose. Pressing this
+   on an already empty app should just work. */
+function startOverAll() {
+  var hasWork = !!(($('resumeInput') && $('resumeInput').value.trim()) ||
+                   ($('jobInput') && $('jobInput').value.trim()) ||
+                   (APP.chat && APP.chat.qa && APP.chat.qa.length) ||
+                   (APP.changes && APP.changes.length) ||
+                   APP.finalText);
+  if (hasWork && !confirm('להתחיל מחדש?\n\nקורות החיים, המשרה, השאלות והשינויים יימחקו.\nמפתח ה־API יישמר.')) return;
+
+  resetPanel('resume');
+  resetPanel('job');
+
+  /* resetRun clears the run. These belong to the session around it and would
+     otherwise survive into a document they have nothing to do with. */
+  if (typeof uninstallFileTemplate === 'function') uninstallFileTemplate();
+  APP.emphasis = null;
+  APP.fitStep = 0;
+  APP.fitPages = 1;
+  APP.resumeRaw = '';
+  APP.jobRaw = '';
+  resetRun();
+
+  ['previewCard', 'reviewCard', 'chatCard', 'domainCard', 'analysisCard',
+   'answersCard', 'resultCard', 'interviewCard', 'noRelationCard']
+    .forEach(function (id) { if ($(id)) hide(id); });
+  var page = $('previewPage');
+  if (page) page.innerHTML = '';
+  if (typeof previewNote === 'function') previewNote('');
+  if (typeof renderTemplatePicker === 'function') renderTemplatePicker();
+  if (typeof renderStructurePanel === 'function') renderStructurePanel();
+
+  clearError();
+  showNotice('');
+  setStatus('הכל נוקה. אפשר להתחיל התאמה חדשה.');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function resetRun() {
@@ -8842,6 +8980,7 @@ var TT_UI_HE = null;
 var TT_UI_STRINGS = [
   ['.tt-brandsub', 'Resume tailoring for one job, with nothing invented'],
   ['#btnAbout', 'About'],
+  ['#btnStartOver', '↺ Start over'],
   ['#structureCard .tt-card-title', '<span class="tt-tag">Structure</span>What counts as a tailorable point'],
   ['#btnSettings', '⚙️ Settings'],
   ['#stageRail .tt-step[data-stage="1"] b', 'Input'],
