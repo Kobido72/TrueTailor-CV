@@ -261,12 +261,36 @@
       mix-blend-mode: normal !important;
     }
 
-    body * { visibility: hidden !important; }
+    /* ---------- why display:none and not visibility:hidden ----------
+       Measured, not guessed: with the interface merely made invisible the body
+       was 6294px tall, and Chrome printed SIX pages, one with the resume on it
+       and five blank. visibility:hidden takes the pixels away and leaves the
+       boxes, and the printer paginates boxes.
+
+       Hiding the two direct children of <body> instead removes the layout
+       outright, so the printed height is the height of the document and nothing
+       else. It is written as two explicit rules rather than body > *:not(...)
+       because #printArea is a sibling of the app wrapper, not a child of it,
+       and getting that relationship wrong prints an empty file. */
+    body > div:not(#printArea) { display: none !important; }
+    #printArea { display: block !important; }
+
+    /* inset:0 gave the element a bottom edge, which pinned it to exactly one
+       page and left anything past that edge to overflow out of a box the
+       printer had already decided the size of. A resume is as long as it is;
+       only the top left corner should be fixed. */
+    #printArea {
+      position: static !important;
+      inset: auto !important;
+      height: auto !important;
+      padding: 0; margin: 0;
+    }
+
+    body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
     /* colours come from the inline template styles, so they are not forced here */
     /* the page is forced white, its contents are not: a template may put a
        coloured band behind a section heading and that has to survive printing */
     #printArea { background: #fff !important; }
-    #printArea, #printArea * { visibility: visible !important; }
     /* Killing text-decoration on every descendant was aimed at link underlines
        and took the candidate's own underlining with it: a line that was
        underlined in the uploaded docx came out flat in the PDF while the same
@@ -274,7 +298,6 @@
        loses its underline here. */
     #printArea a { text-decoration: none !important; }
     #printArea * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    #printArea { position: absolute; inset: 0; padding: 0; margin: 0; }
     .tt-noprint { display: none !important; }
     @page { margin: 0; }
   }
@@ -2057,9 +2080,20 @@ function carryEmphasis(oldText, newText) {
    of every line and no longer matched the document it was made from. The
    marker is already parsed and already carried through the rebuild; it just
    was not being drawn. */
+/* What actually gets written into the exported file. The marker read out of the
+   source is a record of what that file used; it is not automatically fit to put
+   in front of a line that a recruiter and a parser both have to read.
+
+   Numbered items keep their number, because the number carries meaning. Every
+   other marker is normalised to a single round bullet: the private use glyphs
+   because they are unreadable outside the font they came from, and the boxes,
+   arrows and guillemets because a resume that uses four different marks looks
+   like four documents pasted together. */
 function bulletGlyph(marker) {
   var m = String(marker == null ? '' : marker).trim();
-  return m || '•';
+  if (!m) return '•';
+  if (/^\d+[.)]$/.test(m)) return m;
+  return '•';
 }
 
 // the bold only shorthands, kept because most of what is remembered is bold
@@ -2622,7 +2656,22 @@ function labelledSectionOpener(rawLine) {
   return strictSectionWord(parts.label.trim());
 }
 
-var BULLET_RE = /^(\s*(?:[-–—•▪●·*+]|\d+[.)])\s+)/;
+/* A bullet is whatever the file that produced this line used as one, and the
+   old list of eight characters was written for text people typed by hand. It
+   missed the ones that matter most in practice.
+
+   Word writes its bullets in Symbol and Wingdings, and those fonts map their
+   glyphs into the Unicode PRIVATE USE AREA. When such a file is exported to PDF
+   and read back, the bullet arrives as U+F0B7 or U+F0A7, characters that mean
+   "whatever this font says" and that render as a box, a question mark, or a
+   stray letter in any other font. That is where the unreadable marks at the
+   start of every line came from: unrecognised as bullets, they were kept as
+   ordinary text and carried into the output verbatim.
+
+   The range is safe to treat as a bullet because of WHERE it is matched: at the
+   very start of a line, followed by whitespace. A private use glyph in that one
+   position is a list marker and nothing else. */
+var BULLET_RE = /^(\s*(?:[-\u2013\u2014\u2022\u25AA\u25CF\u25CB\u25E6\u2023\u2043\u00B7*+\u00A7\u00BB\u203A\u25B8\u25B9\uE000-\uF8FF]|\d+[.)])\s+)/;
 var YEAR_RE = /(19|20)\d{2}/;
 
 function lineType(raw) {
@@ -3662,6 +3711,36 @@ function stateLineBrief(doc, cat) {
 function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
   var answers = answerBlock(qa, reqTextMap(signals));
 
+  /* Did the candidate actually tell us anything? A run where every question was
+     skipped is not a run with nothing to do, but it used to behave like one.
+
+     The reason is visible once you read this prompt the way the model does: the
+     answer rules come near the top, the answers themselves are handed over as a
+     block, and rule F says in as many words that a skipped question means you
+     were given nothing and must not guess. Face a wall of "(skipped)" after all
+     that, and the reasonable reading is that the task has no input, so the
+     experience section came back empty and the candidate got a document
+     identical to the one they uploaded.
+
+     That reading is wrong, and the fix is to say so rather than to hope. The
+     work that needs an answer is exactly one thing: adding a fact the resume did
+     not already contain. Everything else this stage does runs on the posting and
+     the file alone, both of which are present. */
+  var answered = (qa || []).filter(function (p) { return p && !p.skipped && String(p.a || '').trim(); }).length;
+
+  var noAnswerBlock = answered ? null : ttPromptJoin([
+    'THE CANDIDATE ANSWERED NO QUESTIONS. READ THIS BEFORE YOU DECIDE THERE IS NOTHING TO DO.',
+    'There is no new information to add. That removes ONE of your jobs. It removes none of the others, and returning an empty array here is a failure, not caution.',
+    'Everything below needs only the posting and the resume, both of which you have in full:',
+    '  the vocabulary swap in D3. Facts the resume already proves, restated in the words the posting uses. This alone is usually several lines in this section.',
+    '  the permitted terms in D4 that this section does not use yet. Every one was already cleared by the coverage map and needs no confirmation from anybody.',
+    '  the state into action rewrite in D6, on the lines you are rewriting anyway.',
+    '  the ordering in I to K. Which line opens a block is decided entirely by the posting.',
+    '  the drop proposals in L to P, and the whole role proposal in Q. What a bullet fails to serve is a fact about the posting, not something a candidate has to confirm.',
+    'What you must NOT do is invent. No number, no system, no scope, no seniority that is not already written in the line you are rewriting. Rule 3 of the hard rules is fully in force and rule F still stands.',
+    'The test for this response: every line in this section that proves something the posting asks for should now say so in the vocabulary of the posting. If that is already true of a line, leave it alone. If it is not, that line is your work.'
+  ]);
+
   return ttPromptJoin([
     'Rewrite the ' + cat + ' section of a resume so it proves what this job screens for.',
     '',
@@ -3669,6 +3748,8 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     '',
     ANSWER_RULES,
     '',
+    noAnswerBlock,
+    noAnswerBlock ? '' : null,
     domainModeBlock() || null,
     domainModeBlock() ? '' : null,
     'ADDITIONAL RULES FOR THIS TASK:',
@@ -7571,7 +7652,16 @@ function docxParagraph(text, opts) {
     '<w:spacing w:before="' + (opts.spaceBefore || 0) + '" w:after="' + (opts.spaceAfter == null ? tpl.bodyAfter : opts.spaceAfter) +
     '" w:line="' + (opts.line || 264) + '" w:lineRule="auto"/>' +
     (opts.indent ? '<w:ind w:start="' + opts.indent + '" w:hanging="180"/>' : '') +
-    '<w:jc w:val="' + (opts.center ? 'center' : (rtl ? 'right' : 'left')) + '"/>' +
+    /* Full justification for body text, so both edges of the paragraph are
+       flush and a wrapped bullet does not leave a ragged edge halfway across
+       the page. It is applied only where it can do something: justification
+       affects lines that WRAP, so a heading or a job title, which never wraps,
+       renders identically either way and is left on its natural edge. The last
+       line of a justified paragraph falls back to the reading edge on its own,
+       which is why this stays correct in Hebrew and English alike. */
+    '<w:jc w:val="' + (opts.center ? 'center'
+                     : opts.justify ? 'both'
+                     : (rtl ? 'right' : 'left')) + '"/>' +
     '</w:pPr>';
   if (!String(text).trim()) return '<w:p>' + pPr + '</w:p>';
 
@@ -7673,7 +7763,7 @@ function buildDocxXml(text, tplKey) {
     var runs = emphasisRuns(l.text, l.cat);
     if (isBullet) runs = [{ text: glyph, bold: false }].concat(runs);
     body += docxParagraph(glyph + l.text, {
-      tpl: tpl, fallbackLang: docLang, size: tpl.bodySize, indent: isBullet ? 240 : 0, runs: runs
+      tpl: tpl, fallbackLang: docLang, size: tpl.bodySize, indent: isBullet ? 240 : 0, runs: runs, justify: true
     });
   }
 
@@ -7682,7 +7772,24 @@ function buildDocxXml(text, tplKey) {
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
     '<w:body>' + body +
     '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>' +
-    '<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/>' +
+    /* ---------- these margins are not decorative ----------
+       The two page limit is enforced by measuring the PREVIEW and then shrinking
+       the template until it fits. That measurement is only worth anything if the
+       Word file has the same page geometry as the thing that was measured, and
+       it did not.
+
+       Word was set to 1134 twips, which is 20mm on every side, leaving a text
+       column of 170mm. The preview and the print sheet both use 14mm padding,
+       leaving 182mm. So Word's column was 6.6% narrower and its text height 12mm
+       shorter: every line had less room to fit in, more lines wrapped, and a
+       document the preview had just certified as two pages arrived as three.
+       Nothing was wrong with the fit calculation. It was measuring a different
+       page.
+
+       794 twips is 14mm, so all three now describe one page. If this is ever
+       changed, .tt-page padding and the padding in buildPrintHtml have to change
+       with it or the limit stops being enforceable. */
+    '<w:pgMar w:top="794" w:right="794" w:bottom="794" w:left="794"/>' +
     '<w:bidi w:val="' + (rtlDoc ? '1' : '0') + '"/>' +
     '</w:sectPr></w:body></w:document>';
 }
@@ -7780,7 +7887,9 @@ function buildPrintHtml(text, tplKey) {
       continue;
     }
     var bulletPad = l.type === 'bullet' ? 'padding-inline-start:12pt;text-indent:-9pt;' : '';
-    html += '<p' + attrs(l) + 'font-size:' + pt(tpl.bodySize) + ';margin:0 0 ' + twip(tpl.bodyAfter) + ';' + bulletPad +
+    /* matches the Word export: body text is justified so both edges are flush,
+       and a line that never wraps is unaffected either way */
+    html += '<p' + attrs(l) + 'font-size:' + pt(tpl.bodySize) + ';text-align:justify;margin:0 0 ' + twip(tpl.bodyAfter) + ';' + bulletPad +
             'white-space:pre-wrap">' + (l.type === 'bullet' ? escapeHtml(bulletGlyph(l.marker)) + ' ' : '') +
             runsToHtml(emphasisRuns(l.text, l.cat)) + '</p>';
   }
@@ -8797,7 +8906,14 @@ function fitPageToLimit(page, tplKey) {
   applyTemplateVars(page, templateByKey(tplKey));
   var mm = pageMm(page);
   if (!mm) { APP.fitPages = 1; return; }
-  var limit = 297 * mm * TT_FIT_MAX_PAGES;
+  /* Aim slightly inside the line rather than at it. The page geometry now
+     matches across the preview, the PDF and the Word file, but the engines that
+     fill that page do not: Word hyphenates and breaks lines by its own rules, so
+     a document measured to land exactly on the last millimetre of page two in
+     Chrome can still tip over in Word. Three percent of headroom costs a barely
+     visible amount of space and removes an entire class of "it said two pages
+     and gave me three". */
+  var limit = 297 * mm * TT_FIT_MAX_PAGES * 0.97;
 
   for (var i = 0; i < TT_FIT_STEPS.length; i++) {
     APP.fitStep = i;
