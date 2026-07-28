@@ -861,7 +861,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v34.5</span>
+        <span class="tt-ver" id="verBadge">v35.3</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1431,7 +1431,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v34.5';
+var TT_VERSION = 'v35.3';
 
 var APP = {
   apiKey: '',
@@ -1588,13 +1588,45 @@ var TT_HEBREW_RE = new RegExp('[' + TT_HEBREW_CLASS + ']', 'g');
 // use after a Hebrew or Latin keyword instead of \b
 var TT_WORD_END = '(?![' + TT_HEBREW_CLASS + 'a-zA-Z0-9])';
 
+/* ---------- which language, and therefore which way the page runs ----------
+   This used to count exactly two things: Hebrew letters and Latin letters. Any
+   text made of neither scored zero on both and came back "neutral", and every
+   caller resolves neutral by falling back to Hebrew.
+
+   For a resume written in Russian that is not a rounding error, it is the whole
+   document laid out backwards: every paragraph right aligned, every line marked
+   right to left in the Word file, and a candidate looking at a document they
+   cannot send anywhere. Cyrillic reads left to right exactly as Latin does.
+
+   The fix is to recognise the script rather than to widen the fallback, because
+   the fallback is right for what it was written for: a line with no letters at
+   all, "2019 - 2023", belongs to whatever the surrounding document is, and in a
+   Hebrew document that is Hebrew.
+
+   'ru' is returned as its own value rather than folded into 'en'. Direction and
+   alignment only ever ask whether the answer is 'he', so they get left to right
+   for free. What would have broken is everything that NAMES the language to the
+   model: a Russian answer announced as English is a Russian answer that comes
+   back translated into English and pasted into a Russian resume. */
+var TT_CYRILLIC_RE = /[\u0400-\u04FF\u0500-\u052F]/g;
+
 function detectLang(text) {
   var s = String(text || '');
   var hebrewChars = (s.match(TT_HEBREW_RE) || []).length;
   var latinChars = (s.match(/[A-Za-z]/g) || []).length;
-  if (hebrewChars === 0 && latinChars === 0) return 'neutral';
+  var cyrillicChars = (s.match(TT_CYRILLIC_RE) || []).length;
+  if (!hebrewChars && !latinChars && !cyrillicChars) return 'neutral';
+  if (cyrillicChars > hebrewChars && cyrillicChars > latinChars) return 'ru';
   return hebrewChars > latinChars ? 'he' : 'en';
 }
+
+/* The one place that turns a detected language into a name the model will
+   understand. Kept in a single function so a fourth script is one line here
+   rather than eight scattered ternaries, which is what this replaced. */
+function langName(lang) {
+  return lang === 'he' ? 'Hebrew' : lang === 'ru' ? 'Russian' : 'English';
+}
+
 function dirFor(lang) { return lang === 'he' ? 'rtl' : 'ltr'; }
 function alignFor(lang) { return lang === 'he' ? 'text-right' : 'text-left'; }
 
@@ -2545,19 +2577,26 @@ async function testApiKey() {
 
 var SECTION_DEFS = [
   { cat: 'summary', words: ['תקציר מקצועי', 'סיכום מקצועי', 'תקציר', 'סיכום', 'פרופיל אישי', 'פרופיל', 'אודות', 'על עצמי',
-      'professional summary', 'career summary', 'summary', 'profile', 'about me', 'about', 'objective', 'overview'] },
+      'professional summary', 'career summary', 'summary', 'profile', 'about me', 'about', 'objective', 'overview',
+      'краткое резюме', 'профессиональный профиль', 'о себе', 'профиль', 'резюме', 'цель'] },
   { cat: 'experience', words: ['ניסיון תעסוקתי', 'ניסיון מקצועי', 'ניסיון עבודה', 'ניסיון', 'תעסוקה', 'היסטוריה תעסוקתית', 'תפקידים',
-      'work experience', 'professional experience', 'employment history', 'employment', 'experience', 'career history', 'work history'] },
+      'work experience', 'professional experience', 'employment history', 'employment', 'experience', 'career history', 'work history',
+      'опыт работы', 'профессиональный опыт', 'трудовой опыт', 'места работы', 'опыт'] },
   { cat: 'skills', words: ['כישורים טכניים', 'כישורים', 'מיומנויות', 'יכולות', 'תחומי ידע', 'תחומי מומחיות', 'מומחיות', 'כלים וטכנולוגיות', 'טכנולוגיות', 'כלים',
       'technical skills', 'core competencies', 'competencies', 'key skills', 'skills', 'skill set', 'skillset',
-      'technologies', 'tech stack', 'tools', 'expertise', 'proficiencies', 'strengths'] },
+      'technologies', 'tech stack', 'tools', 'expertise', 'proficiencies', 'strengths',
+      'ключевые навыки', 'профессиональные навыки', 'технические навыки', 'навыки', 'умения', 'технологии', 'инструменты'] },
   { cat: 'education', words: ['השכלה אקדמית', 'השכלה', 'לימודים', 'תארים',
-      'education', 'academic background', 'academic', 'degrees'] },
-  { cat: 'languages', words: ['שפות', 'ידיעת שפות', 'languages', 'language skills'] },
+      'education', 'academic background', 'academic', 'degrees',
+      'образование', 'высшее образование', 'учеба'] },
+  { cat: 'languages', words: ['שפות', 'ידיעת שפות', 'languages', 'language skills',
+      'языки', 'владение языками'] },
   { cat: 'military', words: ['שירות צבאי', 'שירות לאומי', 'צה"ל', 'צבא',
-      'military service', 'military', 'army service', 'national service'] },
+      'military service', 'military', 'army service', 'national service',
+      'военная служба', 'служба в армии'] },
   { cat: 'other', words: ['הסמכות', 'תעודות', 'קורסים', 'הכשרות', 'פרויקטים', 'התנדבות', 'פרסומים', 'המלצות', 'תחביבים', 'פעילות נוספת',
-      'certifications', 'certificates', 'courses', 'training', 'projects', 'volunteering', 'publications', 'references', 'interests', 'awards'] }
+      'certifications', 'certificates', 'courses', 'training', 'projects', 'volunteering', 'publications', 'references', 'interests', 'awards',
+      'сертификаты', 'курсы', 'проекты', 'достижения', 'рекомендации', 'дополнительная информация'] }
 ];
 
 function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
@@ -3433,11 +3472,19 @@ function promptSignals(jobText) {
     '',
     'Return JSON only, exactly this shape:',
     '{"role_title":"","seniority":"","domain":"",' +
-      '"requirements":[{"id":"R1","text":"","kind":"hard_skill","must_have":true,"weight":85,"keywords":[""]}],' +
+      '"requirements":[{"id":"R1","text":"","kind":"hard_skill","must_have":true,"weight":85,"keywords":[""],"names_tool":""}],' +
       '"success_signals":[{"signal":"","why":""}],' +
       '"screening_questions":[""]}',
     '',
     'requirements: one entry per distinct thing the job asks for, ids R1, R2, R3 in order of appearance.',
+    '',
+    'names_tool: THE NAME of the specific product, system, platform, certification or licence this requirement is about, exactly as the posting writes it. Empty string when the requirement is not about a named thing.',
+    '  "\u05d9\u05d9\u05e9\u05d5\u05dd \u05de\u05e2\u05e8\u05db\u05ea Priority"          -> names_tool: "Priority"',
+    '  "\u05e0\u05d9\u05e1\u05d9\u05d5\u05df \u05d1-SAP MM"                 -> names_tool: "SAP MM"',
+    '  "\u05ea\u05e2\u05d5\u05d3\u05ea PMP"                    -> names_tool: "PMP"',
+    '  "\u05e0\u05d9\u05e1\u05d9\u05d5\u05df \u05d1\u05de\u05e2\u05e8\u05db\u05d5\u05ea ERP"           -> names_tool: "" because ERP is a class of system, not one product',
+    '  "\u05e0\u05d9\u05d4\u05d5\u05dc \u05e6\u05d5\u05d5\u05ea"                    -> names_tool: "" because nothing is named',
+    '  This field decides whether experience with a DIFFERENT product can stand in for this requirement. Getting it wrong in either direction misleads the candidate about their real chances, so name only what the posting actually names.',
     '  A normal posting yields 12 to 30 of them. If you produced fewer than 12 you did not read carefully enough, go back over the posting.',
     '  kind is one of: hard_skill, tool, soft_skill, responsibility, domain, certification, education.',
     '  must_have is true only when the posting marks it as required, mandatory, a must, or lists it under requirements rather than under advantages.',
@@ -3478,6 +3525,15 @@ function promptCoverage(surgeonText, signals, uiLang) {
     '',
     'How to do this properly:',
     ' - "equivalent" is the most valuable status and it is the one that gets missed. Before you write "missing", read the resume once more and ask what this person did that would make this specific reviewer nod. Someone who ran an MES is not an SAP person, but they did run a global production system under regulation, and that transfers.',
+    '',
+    ' - THE ONE PLACE WHERE "equivalent" IS FORBIDDEN, AND IT OVERRIDES EVERYTHING ABOVE.',
+    '   A requirement carrying a non empty "names_tool" is about a SPECIFIC NAMED PRODUCT, system, platform, certification or licence. Priority. SAP MM. A PMP certificate.',
+    '   If that exact name does not appear in the resume, the status is NEVER "equivalent". There is no equivalent to a named product: the candidate has used it or they have not, and no adjacent experience puts that word into their document. A screener filtering for "Priority" and finding nothing does not care how good the argument was.',
+    '   Use "partial" when the resume shows genuinely adjacent work, implementing or supporting a DIFFERENT product of the same class, and say what that adjacent work is in shared_properties.',
+    '   Use "missing" when there is not even that.',
+    '   Set ask_user true on these almost always. Whether the candidate has touched this specific system is the single most useful thing that can still be learned about this application, and it is a question only they can answer.',
+    '   Marking such a requirement "equivalent" told a candidate with no Priority experience at all that they were a strong fit for a Priority implementation role. That is the most damaging thing this app can do to somebody, because they act on it.',
+    '   The rule is about the NAME, not about the difficulty. A capability with no product name in it, managing suppliers, leading a team, working to a regulated standard, stays fully eligible for "equivalent" and that is where the status earns its keep.',
     ' - evidence_ids must be real ids from the resume below, and the line must actually support the claim. Never cite a line that does not.',
     ' - shared_properties applies to equivalent and partial only. List the concrete things that genuinely transfer, as nouns, not adjectives. "regulated manufacturing environment", "multi site rollout", "integration with ERP level processes". Not "strong background", not "relevant experience".',
     ' - phrasing_hint is how an existing line could be re-worded in the vocabulary of the posting WITHOUT claiming the missing thing. Never put the name of a tool the candidate did not use inside phrasing_hint.',
@@ -3583,7 +3639,7 @@ function chatSystemInstruction(surgeonText, signals, coverage, queue, max) {
    must not be tidied, shortened or improved, only said in the other language.
    Everything is sent in one call, in order, so the panel flips at once. */
 function promptTranslateQuestions(list, targetLang) {
-  var name = targetLang === 'he' ? 'Hebrew' : 'English';
+  var name = langName(targetLang);
   return [
     'Rewrite each clarifying question below in ' + name + '.',
     'These are questions an interviewer asks a job candidate. Keep the exact meaning and exactly what is being asked.',
@@ -3603,7 +3659,7 @@ function promptTranslateQuestions(list, targetLang) {
 function promptAnswerSpell(text, lang) {
   return [
     'Proofread one short answer a job candidate just typed into a form. Spelling and typing mistakes only.',
-    'The answer is written in ' + (lang === 'he' ? 'Hebrew' : 'English') + '. Judge it as that language.',
+    'The answer is written in ' + langName(lang) + '. Judge it as that language.',
     'Report a word ONLY when it is misspelled, mistyped, or is not a word in that language.',
     'Never report a word because of style, tone, grammar, register or word choice.',
     'Never report a name, a company, a product, a tool, a standard or a technical term, in any language.',
@@ -3618,9 +3674,9 @@ function promptAnswerSpell(text, lang) {
 }
 
 function chatTurnInstruction(questionLang, isFirst) {
-  var langName = questionLang === 'en' ? 'English' : 'Hebrew';
+  var qLangName = langName(questionLang === 'en' ? 'en' : questionLang === 'ru' ? 'ru' : 'he');
   return (isFirst ? 'Ask your first question, about the first item in the queue.' : 'Ask the next question, or set done to true if the queue is exhausted.') +
-    ' Write the question in ' + langName + '.' +
+    ' Write the question in ' + qLangName + '.' +
     ' The question language is a display choice by the user and says nothing about the resume language: the resume lines keep their own language regardless.';
 }
 
@@ -3659,9 +3715,9 @@ function answerBlock(qa, reqText) {
        never produce. There is nothing in the wrong language left to copy. */
     var body = p.skipped ? '(skipped, the candidate gave no information)' : (p.aForCv || p.a);
     var lang = p.skipped ? ''
-      : p.aForCv ? ' [the candidate typed this in ' + (p.aLangFrom === 'he' ? 'Hebrew' : 'English') +
+      : p.aForCv ? ' [the candidate typed this in ' + langName(p.aLangFrom) +
                    '; it is given here already translated into the language of the resume, use this wording]'
-      : ' [answer written in ' + (detectLang(p.a) === 'he' ? 'Hebrew' : 'English') + ']';
+      : ' [answer written in ' + langName(detectLang(p.a)) + ']';
     return 'A' + (i + 1) + ' about ' + about + lang +
       '\n   Q: ' + p.q +
       '\n   A: ' + body;
@@ -3922,7 +3978,7 @@ function promptSkillPlan(groups, signals, coverage, qa, uiLang) {
    machine wrote the document, and this app exists to produce a resume that a
    person wrote. */
 function promptTranslateAnswer(text, targetLang, question) {
-  var name = targetLang === 'he' ? 'Hebrew' : 'English';
+  var name = langName(targetLang);
   return [
     'Put one fact a job candidate just gave you into ' + name + '.',
     '',
@@ -3947,7 +4003,7 @@ function promptTranslateAnswer(text, targetLang, question) {
 
 /* ---- translation, an explicit separate step ---- */
 function promptTranslate(text, targetLang) {
-  var name = targetLang === 'he' ? 'Hebrew' : 'English';
+  var name = langName(targetLang);
   return [
     'Translate the following resume text into ' + name + '.',
     'Translate only. Do not improve, shorten, expand or reorder anything. Keep every line on its own line and keep the bullet markers.',
@@ -4197,7 +4253,12 @@ function allKeywords() {
   var ctx = jobKeywordContext();
   var out = [], seen = {};
   ((APP.signals && APP.signals.requirements) || []).forEach(function (r) {
-    r.keywords.forEach(function (k) {
+    /* keywords is a field the model is asked for, not one it is guaranteed to
+       return. A single requirement that came back without it used to throw
+       here, and because this runs inside the queue build, the whole of stage 3
+       died on a posting that was otherwise perfectly normal. Every other reader
+       of this field already guarded it; this one did not. */
+    (Array.isArray(r && r.keywords) ? r.keywords : []).forEach(function (k) {
       var n = normalizeToken(k);
       if (!n || seen[n]) return;
       seen[n] = 1;
@@ -4437,100 +4498,276 @@ var COVER_STYLE = {
   missing:    { label: 'חסר',         cls: 'bg-red-100 text-red-800 border-red-300' }
 };
 
+/* One number, one definition of what a covered requirement is worth.
+
+   This function and the verdict used to disagree, and they disagreed on screen:
+   the same card showed "requirement coverage 88%" directly above "compatibility
+   LOW, 25 out of 100", computed from the same coverage rows. Both were honest
+   about their own arithmetic and the pair was indefensible, because a candidate
+   cannot be expected to know that one of them was counting an "equivalent" as
+   0.85 of a proof while the other had just been corrected to stop doing exactly
+   that.
+
+   The scale now comes from requirementValue in both places, and a must have
+   counts double here as it does there, so the percentage on the bar and the
+   score in the verdict are the same measurement reported twice. When they move,
+   they move together. */
 function coverageScore() {
-  var c = APP.coverage || [];
-  if (!c.length) return { pct: 0, weighted: 0, counts: {} };
+  var cov = APP.coverage || [];
   var counts = { direct: 0, equivalent: 0, partial: 0, missing: 0 };
-  var score = 0, weight = 0;
-  c.forEach(function (x) {
-    counts[x.status]++;
-    var r = reqById(x.req_id);
-    var w = r && r.must_have ? 2 : 1;
-    var v = x.status === 'direct' ? 1 : x.status === 'equivalent' ? 0.85 : x.status === 'partial' ? 0.4 : 0;
-    score += v * w; weight += w;
+  var got = 0, total = 0;
+  cov.forEach(function (x) {
+    if (!x) return;
+    if (counts[x.status] !== undefined) counts[x.status]++;
+    var req = reqById(x.req_id);
+    var w = (req && req.weight) || 50;
+    if (req && req.must_have) w *= 2;
+    got += requirementValue(x, req) * w;
+    total += w;
   });
-  return { pct: Math.round(((counts.direct + counts.equivalent) / c.length) * 100), weighted: Math.round(score * 100 / weight), counts: counts };
+  return {
+    counts: counts,
+    weighted: total ? Math.round(got * 100 / total) : 0,
+    total: cov.length
+  };
 }
 
 /* ---------------- how good a fit is this, actually ----------------
-   Everything needed to answer that is already on screen by the time stage 2
-   ends; what was missing was anybody saying it out loud. A candidate was left
-   to read twenty rows of a comparison table and infer the verdict themselves,
-   which is exactly the judgement they came here to get help with, and the
-   inference people make unaided is almost always too generous: they see four
-   green rows and stop reading before the two red ones that decide the outcome.
+   The first version of this got a "Priority implementer" posting wrong in the
+   worst possible direction: it told a candidate with no Priority experience at
+   all that their fit was HIGH, 94 out of 100. Three things combined to produce
+   that, and all three are fixed here.
 
-   Three inputs, because a fit can fail in three different ways and any one of
-   them is enough:
+   It counted "equivalent" as a proved must have. It is not. equivalent means
+   the resume never names the thing and argues from transferable properties
+   instead, and a screener searching for "Priority" who finds nothing does not
+   care how the argument was constructed.
 
-     1. WEIGHTED COVERAGE. What share of the posting's weight the resume already
-        proves. coverageScore() already computes it.
-     2. THE MUST HAVES. Coverage alone hides these: a resume can prove eight
-        pleasant extras and miss the two things without which no interview
-        happens, and still score respectably. They are counted separately and
-        they can pull the verdict down on their own.
-     3. THE ROLE ITSELF. A posting for a role in another field can still share
-        vocabulary, and shared vocabulary is what a coverage number measures.
-        When no requirement at all lands as direct, the resume is not a weak
-        candidate for this job, it is a candidate for a different one.
+   It let equivalent be worth 0.85 out of 1, nearly as much as direct.
 
-   The bands are deliberately pessimistic at the bottom. Telling somebody their
-   fit is poor costs them a few minutes of disappointment; letting them spend an
-   afternoon tailoring a resume for a job that was never going to call costs
-   them the afternoon and the confidence. */
+   And it ignored the difference between kinds of requirement entirely, which is
+   the real error underneath the other two. Two rules, and they are opposite:
+
+     A NAMED PRODUCT has no substitute. Priority, SAP MM, a PMP certificate.
+     You have used it or you have not, and no amount of adjacent experience puts
+     the word in the document.
+
+     A CAPABILITY is transferable and that transfer is this whole app's reason
+     to exist. Running suppliers is running suppliers whichever industry it
+     happened in.
+
+   So the penalty is not flat. It scales with two things that are measured from
+   this specific posting and this specific resume:
+
+     HOW CENTRAL the named product is. Measured as the share of the posting's
+     total weight carried by requirements naming it. A posting whose entire
+     subject is one system puts most of its weight there, and missing it is
+     fatal. A posting that mentions a system once in a list of nice to haves
+     puts little weight there, and missing it is survivable.
+
+     HOW MUCH VOCABULARY IS ACTUALLY SHARED. equivalent is not one thing. An
+     equivalent finding whose keywords appear all over the resume is a real
+     transfer. One whose keywords appear nowhere is an argument, and it is worth
+     a fraction of the other. */
+
+/* Which of a requirement's own keywords can actually be found in the resume.
+   This is the closest thing available to what an ATS keyword filter does, and
+   it runs locally on text that is already loaded. */
+function keywordHitRate(req) {
+  var words = (req && Array.isArray(req.keywords)) ? req.keywords.filter(Boolean) : [];
+  if (!words.length) return null;
+  var hay = String(APP.resumeRaw || '').toLowerCase();
+  if (!hay) return null;
+  var hits = 0;
+  words.forEach(function (w) {
+    var t = String(w).toLowerCase().trim();
+    if (t && hay.indexOf(t) !== -1) hits++;
+  });
+  return hits / words.length;
+}
+
+/* Every named product the posting asks for, with the share of the posting's
+   weight it carries and whether the resume names it anywhere. */
+function namedToolReport() {
+  var reqs = (APP.signals && APP.signals.requirements) || [];
+  var cov = APP.coverage || [];
+  var byReq = {};
+  cov.forEach(function (c) { if (c && c.req_id) byReq[c.req_id] = c; });
+
+  var total = 0;
+  reqs.forEach(function (r) { total += (r.weight || 0); });
+  if (!total) return [];
+
+  var tools = {};
+  reqs.forEach(function (r) {
+    var name = String((r && r.names_tool) || '').trim();
+    if (!name) return;
+    var key = name.toLowerCase();
+    if (!tools[key]) tools[key] = { name: name, weight: 0, direct: false, must: false, reqIds: [] };
+    tools[key].weight += (r.weight || 0);
+    tools[key].reqIds.push(r.id);
+    if (r.must_have) tools[key].must = true;
+    var c = byReq[r.id];
+    if (c && c.status === 'direct') tools[key].direct = true;
+  });
+
+  /* The resume naming the product anywhere counts, even where stage 2 did not
+     tie it to this particular requirement. The question here is only whether
+     the candidate has touched the thing at all. */
+  var hay = String(APP.resumeRaw || '').toLowerCase();
+  return Object.keys(tools).map(function (k) {
+    var t = tools[k];
+    t.share = t.weight / total;
+    t.inResume = t.direct || (hay && hay.indexOf(k) !== -1);
+    return t;
+  }).sort(function (a, b) { return b.share - a.share; });
+}
+
+/* What one coverage row is worth, between 0 and 1. */
+function requirementValue(c, req) {
+  if (!c) return 0;
+  if (c.status === 'direct') return 1;
+  if (c.status === 'partial') return 0.35;
+  if (c.status !== 'equivalent') return 0;
+
+  /* An equivalent finding on a NAMED PRODUCT is close to worthless: the word
+     the screener searches for is still not in the document. It is not zero,
+     because adjacent experience does get a person through a human read
+     sometimes, but it can never look like having the thing. */
+  var kw = keywordHitRate(req);
+  if (req && String(req.names_tool || '').trim()) return 0.15;
+
+  /* On a capability, equivalent is real, and how real is measured rather than
+     assumed: 0.30 when none of the requirement's vocabulary is anywhere in the
+     resume, up to 0.70 when all of it is. */
+  return kw == null ? 0.45 : 0.30 + 0.40 * kw;
+}
+
 function matchVerdict() {
   var cov = APP.coverage || [];
   if (!cov.length) return null;
 
-  var sc = coverageScore();
-  var musts = 0, mustsProved = 0, direct = 0;
+  /* How many coverage rows can actually be tied back to a requirement. When the
+     answer is none, every number below is computed from defaults: no row counts
+     as a must have, so the must have share is a perfect 1 out of 1 by vacuum,
+     and a handful of "direct" rows pointing at requirements that do not exist
+     produce a confident 100 out of 100 in green.
+
+     That is the worst failure this card has, worse than being wrong about a
+     real posting, because it happens exactly when something upstream has gone
+     wrong and the candidate has the least reason to suspect the answer. A
+     verdict with nothing behind it is not shown at all. */
+  var resolved = 0;
+  cov.forEach(function (c) { if (c && reqById(c.req_id)) resolved++; });
+  if (!resolved) return null;
+
+  var musts = 0, mustsProved = 0, direct = 0, score = 0, weight = 0;
+  var missingMusts = [];
+  var kwSum = 0, kwCount = 0;
 
   cov.forEach(function (c) {
     if (!c) return;
-    var strong = c.status === 'direct' || c.status === 'equivalent';
     if (c.status === 'direct') direct++;
     var req = reqById(c.req_id);
-    if (req && req.must_have) { musts++; if (strong) mustsProved++; }
+    var w = (req && req.weight) || 50;
+    if (req && req.must_have) w *= 2;      // a must have is a gate, not a tiebreaker
+    score += requirementValue(c, req) * w;
+    weight += w;
+
+    var kw = keywordHitRate(req);
+    if (kw != null) { kwSum += kw; kwCount++; }
+
+    if (req && req.must_have) {
+      musts++;
+      /* PROVED means direct. Nothing else. This one line is the bug that told a
+         candidate with no Priority experience that they were a strong fit. */
+      if (c.status === 'direct') mustsProved++;
+      else missingMusts.push({ text: req.text, status: c.status, tool: String(req.names_tool || '').trim() });
+    }
   });
 
+  var pct = weight ? Math.round(score * 100 / weight) : 0;
   var mustShare = musts ? mustsProved / musts : 1;
+  var kwOverlap = kwCount ? kwSum / kwCount : null;
 
-  /* The must haves get the heavier hand because that is how a screener reads:
-     the optional list is a tiebreaker, the required list is a gate. */
-  var score = Math.round(sc.weighted * 0.55 + mustShare * 100 * 0.45);
+  /* A named product that carries a large share of the posting and is nowhere in
+     the resume. This is the "the job IS the system" case and it caps the
+     verdict no matter how well everything else scores. */
+  var tools = namedToolReport();
+  var blocking = tools.filter(function (t) { return !t.inResume && t.must && t.share >= 0.25; });
+  var heaviest = blocking.length ? blocking[0] : null;
 
-  var band, reason = '';
-  if (!direct && musts && mustsProved === 0) {
+  var band, reason, detail = '';
+
+  /* The ordinary bands first, from the score and the must have share. */
+  if (!direct && musts && (kwOverlap == null || kwOverlap < 0.5)) {
     band = 'low';
-    reason = 'אף דרישה מהותית לא נמצאה בקורות החיים באופן ישיר, וגם לא בניסוח מקביל. ' +
-             'זה בדרך כלל הסימן שהמשרה ושורות הניסיון מדברות על שני תפקידים שונים.';
-  } else if (score < 40 || (musts >= 2 && mustShare < 0.34)) {
+    reason = 'אף דרישה לא נמצאה בקורות החיים באופן ישיר, וגם אוצר המילים של המשרה כמעט לא מופיע.';
+    detail = 'כשאין ולו התאמה ישירה אחת ואין חפיפה לשונית, בדרך כלל מדובר בשני תפקידים שונים ולא בפער ניסוח.';
+  } else if (pct < 42 || (musts >= 2 && mustShare < 0.34 && (kwOverlap == null || kwOverlap < 0.6))) {
+    /* The must have share gets the same treatment as the direct hit rule above,
+       and for the same reason. Unproved must haves are bad news whatever else is
+       true, but "unproved" covers both the candidate from another field and the
+       candidate whose experience is real and simply described in other words.
+       Strong shared vocabulary is what separates them. */
     band = 'low';
-    reason = musts
-      ? 'מתוך ' + musts + ' דרישות חובה, ' + mustsProved + ' מוכחות בקורות החיים.'
-      : 'רוב הדרישות המשמעותיות של המשרה לא מקבלות כיסוי בקורות החיים.';
-  } else if (score < 68 || mustShare < 0.7) {
+    reason = musts ? mustsProved + ' מתוך ' + musts + ' דרישות החובה מוכחות בקורות החיים.'
+                   : 'רוב מה שהמשרה מחפשת לא מקבל כיסוי בקורות החיים.';
+  } else if (pct < 70 || mustShare < 0.7) {
     band = 'mid';
-    reason = musts
-      ? 'מתוך ' + musts + ' דרישות חובה, ' + mustsProved + ' מוכחות. השאר תלוי במה שתוסיף בשאלות.'
-      : 'חלק מהדרישות מקבלות כיסוי חלקי בלבד.';
+    reason = musts ? mustsProved + ' מתוך ' + musts + ' דרישות החובה מוכחות. השאר מבוסס על ניסיון מקביל או חלקי.'
+                   : 'חלק מהדרישות מקבלות כיסוי חלקי בלבד.';
   } else {
     band = 'high';
-    reason = musts
-      ? 'כל ' + mustsProved + ' דרישות החובה שנבדקו מקבלות כיסוי בקורות החיים.'
-      : 'רוב הדרישות מקבלות כיסוי ישיר או מקביל.';
+    reason = musts ? 'כל ' + musts + ' דרישות החובה מוכחות ישירות בקורות החיים.'
+                   : 'רוב הדרישות מקבלות כיסוי ישיר.';
   }
 
-  return { band: band, score: score, reason: reason, musts: musts, mustsProved: mustsProved, direct: direct };
+  /* THEN the named product rule, as a CEILING rather than an assignment.
+
+     It used to assign the band outright, and across a matrix of unrelated
+     professions that produced an indefensible result: an accountancy posting
+     naming a licence the candidate did not hold came out AMBER at a score of
+     zero, because a missing tool holding a third of the posting's weight set
+     the band to mid and nothing was allowed to argue with it. A rule that can
+     only ever make the verdict WORSE cannot make it better by accident.
+
+     What a missing named product means is a limit, not a value: it puts a lid
+     on how good this can be. Everything below that lid is still decided by the
+     ordinary measurement. */
+  if (heaviest) {
+    var cap = heaviest.share >= 0.4 ? 'low' : 'mid';
+    var order = { low: 0, mid: 1, high: 2 };
+    if (order[band] > order[cap]) {
+      band = cap;
+      reason = cap === 'low'
+        ? 'המשרה בנויה סביב ' + heaviest.name + ', וזה לא מופיע בקורות החיים.'
+        : heaviest.name + ' לא מופיע בקורות החיים, אבל זה לא כל המשרה.';
+      detail = 'הדרישות שנוגעות ל' + heaviest.name + ' נושאות ' + Math.round(heaviest.share * 100) +
+               '% מהמשקל של המשרה' +
+               (cap === 'low' ? '. זה לא פער בניסוח, זה התפקיד עצמו.'
+                              : ', ויתר הדרישות הן שיקבעו.');
+    } else if (band === cap && cap === 'low') {
+      /* Already low on its own merits. Still name the product, because "you are
+         missing the one thing the posting is about" is more useful to act on
+         than a count of unproved requirements. */
+      detail = (detail ? detail + ' ' : '') + heaviest.name + ' לא מופיע בקורות החיים, והדרישות סביבו נושאות ' +
+               Math.round(heaviest.share * 100) + '% ממשקל המשרה.';
+    }
+  }
+
+  return {
+    band: band, score: pct, reason: reason, detail: detail,
+    musts: musts, mustsProved: mustsProved, direct: direct,
+    kwOverlap: kwOverlap, missingMusts: missingMusts.slice(0, 4),
+    tool: heaviest
+  };
 }
 
 var TT_VERDICT_STYLE = {
-  low:  { wrap: 'border-red-400 bg-red-50', dot: 'bg-red-500', text: 'text-red-900',
-          label: 'רמת תאימות נמוכה' },
-  mid:  { wrap: 'border-amber-400 bg-amber-50', dot: 'bg-amber-500', text: 'text-amber-900',
-          label: 'רמת תאימות בינונית' },
-  high: { wrap: 'border-emerald-400 bg-emerald-50', dot: 'bg-emerald-500', text: 'text-emerald-900',
-          label: 'רמת תאימות גבוהה' }
+  low:  { wrap: 'border-red-400 bg-red-50', dot: 'bg-red-500', text: 'text-red-900', label: 'רמת תאימות נמוכה' },
+  mid:  { wrap: 'border-amber-400 bg-amber-50', dot: 'bg-amber-500', text: 'text-amber-900', label: 'רמת תאימות בינונית' },
+  high: { wrap: 'border-emerald-400 bg-emerald-50', dot: 'bg-emerald-500', text: 'text-emerald-900', label: 'רמת תאימות גבוהה' }
 };
 
 function renderMatchVerdict() {
@@ -4540,20 +4777,37 @@ function renderMatchVerdict() {
   if (!v) { el.innerHTML = ''; return; }
   var s = TT_VERDICT_STYLE[v.band];
 
-  /* Said plainly and once. The low band gets the sentence the whole feature
-     exists for: tailoring cannot fix this, and the honest advice is to spend
-     the effort elsewhere. It stops short of blocking anything, because the
-     document does not know everything about the person reading it. */
   var advice =
     v.band === 'low'
-      ? '<p class="text-sm mt-2"><b>התאמה כאן כנראה לא תעזור.</b> האפליקציה יכולה לנסח מחדש את מה שכתוב, ' +
-        'אבל היא לא ממציאה ניסיון שאינו קיים. כשהפער הוא בתפקיד עצמו ולא בניסוח, קורות חיים מותאמים לא ישנו את התוצאה. ' +
-        'עדיף להשקיע את הזמן במשרה קרובה יותר לניסיון שלך.</p>' +
-        '<p class="text-xs mt-1 opacity-80">אם יש לך ניסיון רלוונטי שלא מופיע בקובץ, אפשר להמשיך בכל זאת: ' +
-        'השאלות בשלב 3 הן המקום להוסיף אותו.</p>'
+      ? '<p class="text-sm mt-2"><b>התאמה כאן כנראה לא תעזור.</b> האפליקציה מנסחת מחדש את מה שכתוב, ' +
+        'היא לא ממציאה ניסיון שאינו קיים. כשהפער הוא בתפקיד עצמו ולא בניסוח, קורות חיים מותאמים לא ישנו את התוצאה. ' +
+        'עדיף להשקיע את הזמן במשרה קרובה יותר לניסיון שלך.</p>'
       : v.band === 'mid'
-      ? '<p class="text-sm mt-2">יש בסיס אמיתי לעבוד איתו. התשובות שתיתן בשלב 3 הן מה שיקבע כמה מהפערים ייסגרו.</p>'
-      : '<p class="text-sm mt-2">קורות החיים כבר מכילים את מה שהמשרה מחפשת. העבודה כאן היא בעיקר ניסוח, כדי שהדברים ייאמרו בשפה שהמשרה משתמשת בה.</p>';
+      ? '<p class="text-sm mt-2">יש בסיס אמיתי לעבוד איתו, אבל הוא לא מלא. התשובות בשלב 3 יקבעו כמה מהפערים ייסגרו, ' +
+        'ומה שאין לך לא ייכנס לקובץ.</p>'
+      : '<p class="text-sm mt-2">קורות החיים כבר מכילים את מה שהמשרה מחפשת. העבודה כאן היא בעיקר ניסוח, ' +
+        'כדי שהדברים ייאמרו בשפה שהמשרה משתמשת בה.</p>';
+
+  /* The numbers the verdict was computed from, shown rather than summarised.
+     A candidate who is being told their fit is poor is owed the evidence, and
+     the two figures below are the ones a screener effectively uses: how many
+     gates they pass, and how much of the posting's own vocabulary is anywhere
+     in their document. */
+  var facts = '<div class="flex flex-wrap gap-3 mt-2 text-xs ' + s.text + ' opacity-90">' +
+    (v.musts ? '<span>דרישות חובה מוכחות: <b>' + v.mustsProved + '/' + v.musts + '</b></span>' : '') +
+    (v.kwOverlap != null ? '<span>חפיפת מילות מפתch: <b>' + Math.round(v.kwOverlap * 100) + '%</b></span>' : '') +
+    '<span>התאמות ישירות: <b>' + v.direct + '</b></span>' +
+    '</div>';
+
+  var gaps = v.missingMusts.length
+    ? '<div class="mt-2 text-xs ' + s.text + '"><b>דרישות חובה שאינן מוכחות:</b><ul class="list-disc pr-4 mt-1">' +
+      v.missingMusts.map(function (m) {
+        var note = m.status === 'equivalent' ? ' — נמצא ניסיון מקביל בלבד, לא הדבר עצמו'
+                 : m.status === 'partial' ? ' — כיסוי חלקי'
+                 : ' — לא נמצא כלל';
+        return '<li>' + escapeHtml(m.text) + escapeHtml(note) + '</li>';
+      }).join('') + '</ul></div>'
+    : '';
 
   el.innerHTML =
     '<div class="rounded-xl border-2 ' + s.wrap + ' p-3">' +
@@ -4563,6 +4817,8 @@ function renderMatchVerdict() {
         '<span class="text-sm ' + s.text + ' opacity-75">' + v.score + '/100</span>' +
       '</div>' +
       '<p class="text-sm mt-1 ' + s.text + '">' + escapeHtml(v.reason) + '</p>' +
+      (v.detail ? '<p class="text-sm mt-1 ' + s.text + ' opacity-85">' + escapeHtml(v.detail) + '</p>' : '') +
+      facts + gaps +
       '<div class="' + s.text + '">' + advice + '</div>' +
     '</div>';
 }
@@ -4657,11 +4913,33 @@ function buildQueue() {
      false: that verdict was reached while reading the resume strictly. */
   var broad = APP.domainMode === 'broad';
   APP.coverage.forEach(function (c) {
+    if (!c) return;                       // a null row must not take the queue down with it
     var r = reqById(c.req_id);
     if (!r || c.status === 'direct') return;
     var wantedByBroad = broad && c.status === 'equivalent';
-    if (!c.ask_user && c.status !== 'partial' && !wantedByBroad) return;
-    var base = c.status === 'missing' ? 3 : c.status === 'partial' ? 2 : (wantedByBroad ? 3 : 1);
+
+    /* A gap on a SPECIFIC NAMED PRODUCT outranks everything else in this queue,
+       and it used to sit at the bottom of it.
+
+       An "equivalent" scored base 1, the lowest value here, and was only let
+       into the queue at all if stage 2 happened to set ask_user. So on a
+       posting whose whole subject was one system, the app could decide that
+       system was already covered by adjacent experience and never raise it,
+       spending its questions on softer requirements instead. The one thing
+       nobody but the candidate could resolve was the one thing left unasked.
+
+       It is also the question with the highest possible value. The answer is
+       short, the candidate always knows it, and it moves the requirement
+       between the two states that decide the whole application: they have
+       touched this system, or they have not. */
+    var namesTool = !!String((r.names_tool || '')).trim();
+    var toolGap = namesTool && c.status !== 'partial';
+
+    if (!c.ask_user && c.status !== 'partial' && !wantedByBroad && !toolGap) return;
+    var base = toolGap ? 4
+             : c.status === 'missing' ? 3
+             : c.status === 'partial' ? 2
+             : (wantedByBroad ? 3 : 1);
     /* Significance belongs here too. Six questions is all the patience anyone
        has, and spending one of them on something the posting mentioned once at
        the bottom, while the thing named in the role title goes unasked, is the
@@ -4854,7 +5132,13 @@ var TT_TOPIC_STOP = /^(and|the|for|with|from|של|את|עם|על|לפי|כדי|�
 
 function topicKeyWords(text) {
   return String(text || '')
-    .replace(/[^\wא-ת\s]/g, ' ')
+    /* \w in a JS regex is Latin letters and digits only, so every Cyrillic
+       character was being replaced with a space and a Russian requirement
+       reduced to an empty word list. Empty lists cluster with nothing, so every
+       Russian requirement became its own topic and the question budget rose to
+       one question per requirement, which is the behaviour this whole clustering
+       step exists to prevent. */
+    .replace(/[^\wא-ת\u0400-\u04FF\u0500-\u052F\s]/g, ' ')
     .split(/\s+/)
     .filter(function (w) { return w.length > 2 && !TT_TOPIC_STOP.test(w); })
     .map(function (w) { return w.toLowerCase(); });
@@ -6858,20 +7142,44 @@ async function startQuestions() {
      and almost none of the posting's vocabulary anywhere in the resume. */
 var TT_RELEVANCE_MIN_PCT = 12;
 
+/* This gate and the compatibility verdict answer two different questions, and
+   letting them blur was making one of them useless.
+
+   The VERDICT judges how good a match is. It says so in red and leaves the
+   decision where it belongs, because the candidate knows things about
+   themselves that their file does not say.
+
+   This GATE catches a pair that cannot be compared at all: the wrong file
+   uploaded, something pasted into the posting box that is not a posting. There
+   is nothing to tailor there and running on costs the person time and API calls
+   for a document that was never going to be produced.
+
+   The change is which statuses count as proof. "proven" counted direct AND
+   equivalent, so one weak transferable argument, the kind now valued at 0.15,
+   was enough to satisfy the gate and it effectively never fired. Proof is
+   direct. An equivalent still counts for something, so it moves into the same
+   bucket as partial, where two of them together still open the gate.
+
+   This fires more often than it did, which is the point, but only when all
+   three of these fail at once, and the third is the real safety net: a
+   candidate with genuine cross industry experience carries the posting's
+   vocabulary well past twelve percent, and a candidate who pasted the wrong
+   thing carries almost none of it. */
 function relevanceVerdict() {
-  var proven = 0, partial = 0;
+  var direct = 0, soft = 0;
   (APP.coverage || []).forEach(function (c) {
-    if (c.status === 'direct' || c.status === 'equivalent') proven++;
-    else if (c.status === 'partial') partial++;
+    if (!c) return;
+    if (c.status === 'direct') direct++;
+    else if (c.status === 'equivalent' || c.status === 'partial') soft++;
   });
   var kw = keywordBaseReport(APP.resumeRaw || '');
   return {
-    proven: proven,
-    partial: partial,
+    proven: direct,
+    partial: soft,
     pct: kw.pct,
     reqHit: kw.reqHit,
     reqTotal: kw.reqTotal,
-    related: proven > 0 || partial >= 2 || kw.pct >= TT_RELEVANCE_MIN_PCT
+    related: direct > 0 || soft >= 2 || kw.pct >= TT_RELEVANCE_MIN_PCT
   };
 }
 
