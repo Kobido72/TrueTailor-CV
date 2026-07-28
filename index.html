@@ -710,7 +710,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v33</span>
+        <span class="tt-ver" id="verBadge">v34</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1062,7 +1062,7 @@
         </div>
       </div>
     </div>
-    <p class="text-xs text-slate-500 mb-2">כל שאלה נגזרת מדרישה מסוימת שעדיין לא מוכחת. הבורר מחליף את שפת כל השאלות, גם אלה שכבר על המסך, ולא רק את הבאות. שורות קורות החיים נשארות בשפת המקור שלהן, ואפשר לענות בכל שפה: התשובה מתורגמת לשפת קורות החיים לפני שהיא נכנסת אליהם.</p>
+    <p class="text-xs text-slate-500 mb-2">כל שאלה נגזרת מדרישה שעדיין לא מוכחת, ולעיתים מכמה דרישות קרובות יחד, כדי שמספר השאלות יישאר קטן בלי לוותר על דיוק. הבורר מחליף את שפת כל השאלות, גם אלה שכבר על המסך, ולא רק את הבאות. שורות קורות החיים נשארות בשפת המקור שלהן, ואפשר לענות בכל שפה: התשובה מתורגמת לשפת קורות החיים לפני שהיא נכנסת אליהם.</p>
     <!-- how many questions there are, and which one this is. The number is a
          ceiling: the conversation ends early when nothing is left worth
          asking, and saying so is more honest than a bar that stalls at 4/6. -->
@@ -1072,7 +1072,7 @@
         <div class="tt-qtrack"><div class="tt-qfill" id="qFill"></div></div>
         <div class="tt-qpips" id="qPips"></div>
       </div>
-      <div class="tt-sub mt-1.5" id="qHint">המספר הוא תקרה. אם כל הפערים ייסגרו קודם, השיחה תסתיים מוקדם יותר.</div>
+      <div class="tt-sub mt-1.5" id="qHint">המספר הוא תקרה, לא מכסה. שאלה אחת יכולה לכסות כמה דרישות קרובות, ואם כל הפערים ייסגרו קודם השיחה תסתיים מוקדם יותר.</div>
     </div>
 
     <div id="queueOut" class="mb-2"></div>
@@ -1259,7 +1259,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v33.0';
+var TT_VERSION = 'v34.0';
 
 var APP = {
   apiKey: '',
@@ -1291,7 +1291,7 @@ var APP = {
     max: 8,
     done: false,
     pendingQuestion: '',
-    pendingReqId: '',
+    pendingReqId: '', pendingReqIds: [],
     lastTurnMessage: ''   // lets the retry button repeat a turn that failed
   },
   changes: [],          // every proposed change, each approved on its own
@@ -1307,6 +1307,11 @@ var APP = {
   spell: { state: 'idle', fixes: [], forText: '', error: '', promise: null },
   finalText: '',
   template: 'classic',
+  /* Which step of TT_FIT_STEPS the document is currently rendered at. Zero is
+     the template as designed. It is recomputed on every preview render and read
+     by both exports, so what is on screen is what downloads. */
+  fitStep: 0,
+  fitPages: 1,
   previewDirty: false,
   metricsNoticeShown: false,
   pipelineRunning: false,   // guards the start button, not reset between runs
@@ -3263,17 +3268,30 @@ function chatSystemInstruction(surgeonText, signals, coverage, queue, max) {
     '',
     'YOU HAVE A PRIORITY QUEUE. Work it in order. It was computed from a requirement by requirement comparison and it tells you exactly what is unproven.',
     'Each item carries a "weight", 0 to 100, measured from the posting itself: how much this job actually turns on that item. The queue is already sorted by it. Do not reorder it and do not skip down the list because something further down is easier to ask about.',
-    'Each question must be about ONE named item from that queue. A question that could have been asked about any job is a wasted question.',
     'Say which requirement you are asking about inside the question itself, in natural language, so the candidate understands why you are asking.',
     '',
+    'YOUR BUDGET FOR THIS ENTIRE CONVERSATION IS ' + max + ' QUESTIONS. THIS IS THE RULE THAT SHAPES EVERY OTHER ONE.',
+    'That number is not a preference and not a round figure. It is the count of distinct SUBJECTS found among the unproven requirements, after grouping the ones that share a subject or point at the same resume lines. One question per subject is what it is for.',
+    'The queue is longer than your budget because several of its items belong to the same subject. You are not expected to ask one question per item. You are expected to COVER the items, and covering a whole subject with one question is the skill being asked of you here.',
+    '',
+    'MERGE BY SUBJECT. THIS IS HOW YOU FIT THE QUEUE INTO THE BUDGET WITHOUT LOSING ANYTHING:',
+    '  Queue items that live in the same subject are ONE question, not two or three. A suggested grouping is given below under SUGGESTED TOPIC CLUSTERS. Use it, or regroup it if you see a better grouping in the queue itself.',
+    '  Cover two or three related items per question wherever they can honestly share one. List every requirement id the question covers in req_ids.',
+    '  A merged question asks for the concrete details of all of them in one natural sentence. Example, for three items about suppliers, procurement and contracts: "ספר לי על העבודה מול הספקים: מול כמה ספקים עבדת, מה היה חלקך בתהליך הרכש, ומי היה אחראי על ההתקשרויות עצמן?"',
+    '  That is one question, it reads like something a person would ask, and it returns the material of three.',
+    '  Never merge items that have nothing to do with each other. Two unrelated demands stapled together with "וגם" is a bad question and the candidate will answer only the first half.',
+    '',
+    'SPEND THE BUDGET FROM THE TOP. If the budget runs out before the queue does, the items left unasked must be the ones at the BOTTOM of the queue, never the top. A must have requirement is never the thing you ran out of room for.',
+    '',
     'Rules for your questions:',
-    '  Ask exactly one question per turn. Never two.',
+    '  Ask exactly one question per turn. A merged question is still one question: one question mark, one thing to answer, even when it names three details.',
     '  Open questions only. Never hint at the answer you want and never suggest a claim the candidate could simply agree to.',
     '  Never ask the candidate to confirm something you made up.',
     '  For a missing tool or system, do not ask "do you know X". Ask what they used instead and what that system did, so a transferable description can be written from the answer.',
-    '  Ask for the concrete detail: which system, which scale, which environment, which standard, how many, over what period.',
-    '  Build on the answers already given. Never repeat a question that was answered or skipped.',
-    '  Ask at most ' + max + ' questions in total. Set done to true only when the queue is exhausted or the remaining items cannot be helped by asking.',
+    '  Ask for the concrete detail: which system, which scale, which environment, which standard, how many, over what period. A merged question asks for two or three of these at once.',
+    '  Keep it to three requested details at the very most. A question that asks for five things is a form, and it gets answered like one: badly, or not at all.',
+    '  Build on the answers already given. Never repeat a question that was answered or skipped, and never ask about a requirement an earlier answer already covered even though you never asked about it directly.',
+    '  Ask at most ' + max + ' questions in total. Set done to true as soon as the significant items are covered. Finishing early is a good outcome, not a failure.',
     '',
     /* Broad mode changes what a good question is, not how many there are. An
        item that came back "equivalent" is one the candidate genuinely did in
@@ -3289,7 +3307,8 @@ function chatSystemInstruction(surgeonText, signals, coverage, queue, max) {
       : null),
     HARD_RULES,
     '',
-    'Return JSON only, every turn: {"question":"","req_id":"the id this question is about","done":false,"targets":["line ids this question is about"]}',
+    'Return JSON only, every turn: {"question":"","req_id":"the main id this question is about","req_ids":["every id this question covers"],"done":false,"targets":["line ids this question is about"]}',
+    'req_ids is how a merged question is recorded. A question covering three requirements lists all three of them. req_id stays whichever of them matters most.',
     'When you are finished, return {"question":"","done":true,"targets":[]}.',
     '',
     'THE JOB, BROKEN DOWN:',
@@ -3300,6 +3319,11 @@ function chatSystemInstruction(surgeonText, signals, coverage, queue, max) {
     '',
     'PRIORITY QUEUE, WORK IT IN THIS ORDER:',
     JSON.stringify(queue),
+    '',
+    'SUGGESTED TOPIC CLUSTERS. Each one is a set of queue items found to share a subject, grouped by comparing the requirements against each other AND against the resume lines the coverage pass tied them to. Your question budget was derived from the number of these, so covering one cluster per question is exactly what fits.',
+    '"resume_lines" on a cluster lists the resume lines that already say something about that subject. A cluster WITH resume lines needs a narrow factual question about scale or detail, because the material is already there and only the specifics are missing. A cluster with NO resume lines needs an open question, because nothing is there yet and you must not suggest what should be.',
+    'Regroup a cluster if the queue tells you something better. This is an analysis, not an instruction.',
+    JSON.stringify(clusterQueue(queue, 14)),
     '',
     'RESUME (editable sections only):',
     surgeonText
@@ -3373,7 +3397,14 @@ function chatTurnInstruction(questionLang, isFirst) {
 function answerBlock(qa, reqText) {
   if (!qa || !qa.length) return '(no answers were given)';
   return qa.map(function (p, i) {
-    var about = p.reqId ? (p.reqId + (reqText && reqText[p.reqId] ? ' ' + reqText[p.reqId] : '')) : 'general';
+    /* One answer can now serve several requirements, because one question was
+       allowed to cover several. Handing over only the first of them would send
+       the writing stage looking for a single line to strengthen when the answer
+       has material for three. */
+    var ids = (p.reqIds && p.reqIds.length) ? p.reqIds : (p.reqId ? [p.reqId] : []);
+    var about = ids.length
+      ? ids.map(function (id) { return id + (reqText && reqText[id] ? ' ' + reqText[id] : ''); }).join(' | ')
+      : 'general';
     /* An answer typed in the other language was already translated into the
        language of the resume before it got here, and only the translation is
        handed over. The original wording is deliberately NOT included: every
@@ -3501,6 +3532,20 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     '   M5. Its block has other bullets that survive. Never empty a job, and never reduce one to a single line. A role with one bullet reads as a role the candidate is hiding something about.',
     'N. When you are unsure, do not propose the drop. A weak line that stays costs one line of space. A strong line proposed for removal costs the candidate something they cannot get back if they click through quickly.',
     'O. Aim for nothing at all, and at most three. This array being empty is the normal, correct outcome for most resumes. It is not a quota.',
+    '',
+    'A WHOLE ROLE THAT DOES NOT BELONG ON THIS RESUME AT ALL:',
+    'Q. Separately from the bullet level drop above, an entire past job is sometimes doing nothing for this application. A summer in hospitality on an application for a systems engineering role is the clear case: it serves no requirement, it proves no transferable property, and it is spending several lines of a two page document on a story nobody reading this posting cares about.',
+    'Q1. You may PROPOSE such a role for removal in the "drop_roles" array. As with everything else here you are proposing: it is shown to the candidate switched off, with your reason, and it leaves the resume only if they personally turn it on.',
+    'Q2. A role qualifies only when ALL of these are true, and this is stricter than the bullet rule because removing a job is the largest change this app can make:',
+    '    Q2a. It is not the current role and not the most recent one.',
+    '    Q2b. NOT ONE of its bullets serves ANY requirement in the coverage map, directly, equivalently or partially. One line that can be tied to one requirement disqualifies the whole role.',
+    '    Q2c. Nothing in it is transferable to this posting in any way: not the scale, not the sector, not the kind of user, not the methodology, not the regulated environment, not the management of people. If you can write a single honest sentence connecting this job to this posting, the role stays.',
+    '    Q2d. It carries no leadership, no headcount and no quantified result that would read well anywhere.',
+    '    Q2e. It is not the only thing standing between two other roles in time. Removing it must not open a visible multi year hole in the timeline. Count the dates: if taking it out leaves a gap of more than about a year between the role before it and the role after it, it stays, whatever else is true about it.',
+    'Q3. At most ONE role, ever, in a single run. If two roles both qualify, propose the weaker one and leave the other alone.',
+    'Q4. When in any doubt at all, propose nothing. An irrelevant job costs a few lines. A hole in an employment history costs interviews, and the candidate cannot see the consequence at the moment they click.',
+    'Q5. "why" is two short sentences in Hebrew addressed to the candidate: what the role does not serve here, and the plain reminder that removing it shortens the timeline. Never describe the work itself as unimportant, worthless or beneath them. It was a real job and the only claim being made is that it does not help THIS application.',
+    '    Good: "התפקיד הזה לא נוגע באף אחת מדרישות המשרה, ולא נמצאה בו נקודת השקה לתחום. הסרתו תפנה מקום לתפקידים הרלוונטיים, אך תקצר את רצף התעסוקה."',
     'P. "why" here is one short sentence in Hebrew, addressed to the candidate, saying plainly what the line does not serve. "לא נמצאה בו זיקה לאף דרישה במשרה, והוא מתאר עבודה שוטפת שאינה קשורה לתפקיד הזה." Never insult the work and never call the candidate\'s experience worthless.',
     '',
     'Return JSON only, and keep every "why" to one short sentence so the answer has room to finish:',
@@ -3508,8 +3553,10 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     ' "added":[{"afterId":"L12","text":"a new bullet","why":"","req_ids":[""],"from_answers":["A3"]}],',
     ' "order":[{"blockId":"B1","ids":["L14","L12","L13"],"order_why":"","req_ids":["R4"]}],',
     ' "drop":[{"id":"L31","why":"one short sentence in Hebrew, what this line does not serve"}],',
+    ' "drop_roles":[{"blockId":"B4","why":"two short sentences in Hebrew, why this whole role does nothing for this posting"}],',
     ' "used_answers":[{"answer":"A1","used":true,"where":["L12"],"note":"one short sentence, why it could not be used when used is false"}]}',
     'drop is almost always an empty array. Read rules L to P again before you put anything into it.',
+    'drop_roles is empty on nearly every resume. Read rules Q to Q5 again before you put anything into it, and remember Q2e: check the dates for the hole it would leave.',
     'from_answers lists the answer tags a line was built from. Leave it empty for a line you rewrote from the resume alone.',
     'used_answers must have one entry per answer you were given, including the skipped ones.',
     '',
@@ -4282,6 +4329,234 @@ function buildQueue() {
   return items;
 }
 
+/* ---------------- how many questions this posting is worth ----------------
+   The cap used to be the length of the queue, floored at six and ceilinged at
+   sixteen. A posting that broke into twelve unproven requirements therefore
+   produced twelve questions, and a candidate who was still typing at question
+   nine had long stopped writing useful answers. The last four questions in
+   that run were not adding accuracy, they were spending the attention that the
+   first four needed.
+
+   Two things fix it without giving anything up, and neither is "ask less".
+
+   First, not every queue item is worth a question. The queue is sorted by
+   weight, a number measured from the posting itself, and an item the posting
+   mentioned once in a closing paragraph is not what the application turns on.
+   Only the items that carry real weight enter the budget.
+
+   Second, and this is where nearly all the reduction comes from: questions are
+   merged by topic. Three requirements that all live in the same subject are one
+   conversation, not three, and one well aimed question about that subject
+   returns more usable material than three narrow ones, because the candidate
+   answers it as a story instead of as a form field. So the budget is roughly
+   half the count of significant items, and the prompt is told to cover two or
+   three related items per question.
+
+   The result is typically three to five questions where it used to be eight to
+   twelve, aimed at the same requirements. The ceiling stays flexible rather
+   than fixed, because a posting with fourteen genuinely distinct demands should
+   not get the same three questions as a posting with four. */
+/* Which gaps are worth a question at all.
+
+   The bar used to be a constant, forty out of a hundred, and a constant is
+   wrong here for a reason that shows up on real postings: weight is measured
+   relative to the posting it came from, so a tightly written posting whose
+   heaviest requirement scores 48 would have had almost everything filtered out,
+   while a sprawling one where half the items score 70 would have kept nearly
+   all of them. The same number meant two different things.
+
+   So the bar is read off this posting's own distribution. A third of whatever
+   the top requirement scores is the line, with a small absolute floor so a
+   posting that scores flat does not admit literally everything. */
+function significanceBar(queue) {
+  var top = 0;
+  (queue || []).forEach(function (q) { if ((q.weight || 0) > top) top = q.weight || 0; });
+  return Math.max(12, Math.round(top * 0.34));
+}
+
+function significantQueueItems(queue) {
+  var bar = significanceBar(queue);
+  return (queue || []).filter(function (q) {
+    if (q.must_have) return true;                       // a must have always earns a question
+    if (q.status === 'red_flag' || q.status === 'missing_proof') return true;
+    return (q.weight || 0) >= bar;
+  });
+}
+
+/* How many questions this posting is worth.
+
+   There is no target number here and no arithmetic on the count. Two things
+   decide it, in order, and both are measured from this posting.
+
+   First the significant gaps are clustered by subject, so twelve requirements
+   that are really three conversations become three. That is where most of the
+   reduction comes from and it costs nothing, because a subject covered by one
+   question is covered.
+
+   Then, and only for the postings where the subjects really are that many, the
+   subjects are ranked by weight and the budget stops once the questions on the
+   table account for most of the weight the posting carries. A posting does not
+   weigh its requirements equally: when the top six subjects hold four fifths of
+   everything at stake, the seventh through twelfth are not what the application
+   is decided on, and spending the candidate's patience there costs more than it
+   returns. Every must have subject is asked about regardless of where the line
+   falls, because a must have is not something that can be traded for brevity.
+
+   So a narrow posting produces two or three questions, a posting with a few
+   dominant demands produces four to six, and a genuinely broad one produces
+   more. None of those numbers is written down anywhere. */
+var TT_WEIGHT_COVERAGE = 0.8;
+
+function questionBudget(queue) {
+  var significant = significantQueueItems(queue);
+  if (!significant.length) return Math.max(1, Math.min(3, (queue || []).length));
+
+  var subjects = clusterQueue(significant, 18);
+  if (!subjects.length) return 2;
+
+  var ranked = subjects.slice().sort(function (a, b) { return (b.weight || 0) - (a.weight || 0); });
+  var total = 0;
+  ranked.forEach(function (s) { total += (s.weight || 0); });
+
+  var acc = 0, n = 0;
+  for (var i = 0; i < ranked.length; i++) {
+    acc += (ranked[i].weight || 0);
+    n++;
+    if (total && acc >= total * TT_WEIGHT_COVERAGE) break;
+  }
+
+  // a must have subject is never the one that got cut for length
+  var musts = ranked.filter(function (s) { return s.must_have; }).length;
+  n = Math.max(n, musts);
+
+  /* The upper bound is a guard against a pathological posting, not a design
+     target. Past a dozen questions nobody is still writing usable answers
+     whatever the posting says. The lower bound never exceeds the number of
+     subjects that actually exist: a resume with one open gap gets one question,
+     and padding that to two would mean asking about something already proved. */
+  var floor = Math.min(2, ranked.length);
+  return Math.max(floor, Math.min(12, n));
+}
+
+/* ---------------- grouping the gaps by subject ----------------
+   This decides how many questions get asked, so it has to be an analysis
+   rather than a guess. It looks at three things, and the second and third are
+   the ones that make it an analysis of the requirement AGAINST THIS RESUME
+   rather than a comparison of two strings:
+
+     1. the words of the two requirements
+     2. the resume lines the coverage pass cited as evidence for each of them.
+        Two requirements that both point at the same bullet are, as far as this
+        candidate is concerned, one subject. One question about that bullet
+        answers for both, and asking twice would visibly ask the same thing
+        twice.
+     3. the shared_properties the coverage pass extracted. Two requirements that
+        transfer through the same property of the candidate's experience are
+        again one conversation.
+
+   Word overlap alone was what this did before and it was too blunt: it merged
+   things that happened to share vocabulary and separated things that are
+   obviously the same subject in different words. */
+var TT_TOPIC_STOP = /^(and|the|for|with|from|של|את|עם|על|לפי|כדי|בין|תוך|מול|וגם|או|ה|ב|ל|מ)$/i;
+
+function topicKeyWords(text) {
+  return String(text || '')
+    .replace(/[^\wא-ת\s]/g, ' ')
+    .split(/\s+/)
+    .filter(function (w) { return w.length > 2 && !TT_TOPIC_STOP.test(w); })
+    .map(function (w) { return w.toLowerCase(); });
+}
+
+function coverageByReqId(id) {
+  var list = APP.coverage || [];
+  for (var i = 0; i < list.length; i++) if (list[i] && list[i].req_id === id) return list[i];
+  return null;
+}
+
+/* Everything known about one queue item that is worth comparing against
+   another: its own words, the resume lines it already touches, and the
+   properties it transfers through. */
+function topicProfile(item) {
+  var cov = item.req_id ? coverageByReqId(item.req_id) : null;
+  var props = [];
+  if (cov && Array.isArray(cov.shared_properties)) {
+    cov.shared_properties.forEach(function (p) { props = props.concat(topicKeyWords(p)); });
+  }
+  return {
+    item: item,
+    words: topicKeyWords(item.requirement),
+    lines: (cov && Array.isArray(cov.evidence_ids)) ? cov.evidence_ids.filter(Boolean) : [],
+    props: props
+  };
+}
+
+function shareAny(a, b) {
+  for (var i = 0; i < a.length; i++) if (b.indexOf(a[i]) !== -1) return true;
+  return false;
+}
+
+/* Ratio rather than a count, measured against the shorter of the two, so a
+   three word requirement is not punished for being short. */
+function wordOverlapRatio(a, b) {
+  if (!a.length || !b.length) return 0;
+  var hits = 0;
+  for (var i = 0; i < a.length; i++) if (b.indexOf(a[i]) !== -1) hits++;
+  return hits / Math.min(a.length, b.length);
+}
+
+function topicSimilarity(p, q) {
+  var score = wordOverlapRatio(p.words, q.words);
+  if (shareAny(p.lines, q.lines)) score += 0.55;   // same resume line: same subject for this candidate
+  if (shareAny(p.props, q.props)) score += 0.30;   // transfers through the same property
+  return score;
+}
+
+/* Three is where a merged question stops being a question. The prompt asks for
+   at most three requested details in one sentence and this is the same limit
+   seen from the other side. */
+var TT_TOPIC_THRESHOLD = 0.42;
+var TT_TOPIC_MAX_MEMBERS = 3;
+
+function clusterQueue(queue, limit) {
+  var profiles = (queue || []).slice(0, limit || 14).map(topicProfile);
+  var clusters = [];
+
+  profiles.forEach(function (p) {
+    var best = null, bestScore = 0;
+    clusters.forEach(function (c) {
+      if (c.members.length >= TT_TOPIC_MAX_MEMBERS) return;
+      /* Scored against every member, not against a merged bag of words, so a
+         cluster cannot drift: joining requires being close to something already
+         in it rather than close to the average of it. */
+      var worst = Infinity;
+      c.members.forEach(function (m) {
+        var s = topicSimilarity(p, m);
+        if (s < worst) worst = s;
+      });
+      if (worst > bestScore) { bestScore = worst; best = c; }
+    });
+    if (best && bestScore >= TT_TOPIC_THRESHOLD) { best.members.push(p); return; }
+    clusters.push({ members: [p] });
+  });
+
+  return clusters.map(function (c) {
+    var items = c.members.map(function (m) { return m.item; });
+    return {
+      req_ids: items.map(function (m) { return m.req_id; }).filter(Boolean),
+      topic: items.map(function (m) { return m.requirement; }),
+      must_have: items.some(function (m) { return m.must_have; }),
+      /* Which resume lines this subject already has something to work with.
+         A question about a subject with evidence behind it can be narrow and
+         factual; one with nothing behind it has to be open. */
+      resume_lines: c.members.reduce(function (acc, m) {
+        m.lines.forEach(function (id) { if (acc.indexOf(id) === -1) acc.push(id); });
+        return acc;
+      }, []),
+      weight: Math.max.apply(null, items.map(function (m) { return m.weight || 0; }))
+    };
+  }).filter(function (c) { return c.req_ids.length; });
+}
+
 /* ---------------- stage 3: the conversation ----------------
    APP.chat.history is a real Gemini contents[] array. It is passed in full on
    every turn, so question N genuinely knows everything asked and answered
@@ -4349,9 +4624,24 @@ async function askNextQuestion(userMessage) {
   APP.chat.asked++;
   APP.chat.pendingQuestion = String(obj.question).trim();
   APP.chat.pendingReqId = reqById(obj.req_id) ? String(obj.req_id) : '';
+  /* A merged question answers for more than one requirement, and if only the
+     primary id travelled onward then the other two would look unasked to every
+     stage downstream: the writing stage would not know the answer was meant to
+     serve them, and the queue panel would show them still open. Both ids
+     survive, deduplicated, with the primary one first. */
+  var covered = Array.isArray(obj.req_ids) ? obj.req_ids : [];
+  var seenReq = {}, reqIds = [];
+  [obj.req_id].concat(covered).forEach(function (id) {
+    var key = String(id || '').trim();
+    if (!key || seenReq[key] || !reqById(key)) return;
+    seenReq[key] = 1;
+    reqIds.push(key);
+  });
+  APP.chat.pendingReqIds = reqIds;
+  if (!APP.chat.pendingReqId && reqIds.length) APP.chat.pendingReqId = reqIds[0];
   APP.chat.turns.push({
     role: 'model', text: APP.chat.pendingQuestion,
-    lang: APP.chat.lang, reqId: APP.chat.pendingReqId
+    lang: APP.chat.lang, reqId: APP.chat.pendingReqId, reqIds: reqIds
   });
   renderChat();
 }
@@ -4369,11 +4659,13 @@ async function submitAnswer(skipped) {
   });
   var entry = {
     q: APP.chat.pendingQuestion, a: text, skipped: !!skipped, reqId: APP.chat.pendingReqId,
+    reqIds: (APP.chat.pendingReqIds || []).slice(),
     aForCv: '', aLangFrom: '', translateNote: ''
   };
   APP.chat.qa.push(entry);
   APP.chat.pendingQuestion = '';
   APP.chat.pendingReqId = '';
+  APP.chat.pendingReqIds = [];
   box.value = '';
   clearAnswerSpell();
   renderChat();
@@ -4983,6 +5275,125 @@ function collectDropChanges(cat, obj) {
   }
 }
 
+/* ---------- removing an entire role, and the much tighter fence around it ----------
+   This is the largest change the app can make to a document, and it is the only
+   one whose damage is invisible at the moment of the click: a candidate who
+   removes a job sees a shorter, tidier resume and does not see the two year
+   hole they just opened in their own timeline. A recruiter sees the hole first.
+
+   So the prompt proposes and this decides, and this checks four things the
+   prompt cannot be trusted with because they are facts about the document
+   rather than judgements about it:
+
+     it is not the newest role, and not one that is still running
+     not one line of it is cited as evidence for any requirement
+     not one line of it was rewritten in this same run
+     taking it out does not leave a visible gap between its neighbours
+
+   Any one of those failing throws the proposal away before the candidate ever
+   sees it. */
+var TT_MAX_ROLE_DROPS = 1;
+var TT_MAX_GAP_YEARS = 1;
+
+/* Every line id any coverage entry cited as evidence. A role holding one of
+   these proves something this posting asks for, whatever the model concluded
+   about it a moment later. */
+function evidenceLineIds() {
+  var out = {};
+  (APP.coverage || []).forEach(function (c) {
+    if (!c || !Array.isArray(c.evidence_ids)) return;
+    c.evidence_ids.forEach(function (id) { if (id) out[id] = 1; });
+  });
+  return out;
+}
+
+/* The years named in a role header, low to high. Used only to measure the hole
+   a removal would leave, so a header with no year at all returns nothing and
+   the role is refused for lack of evidence rather than allowed for lack of
+   objection. */
+function headerYears(text) {
+  var found = String(text || '').match(/(19|20)\d{2}/g) || [];
+  var nums = found.map(Number).sort(function (a, b) { return a - b; });
+  if (TT_PRESENT_RE.test(String(text || ''))) nums.push(new Date().getFullYear());
+  return nums;
+}
+
+/* Would removing this block open a gap? Measured against the roles either side
+   of it in the document, which in a reverse chronological resume are the role
+   after it in time and the role before it. */
+function removalLeavesGap(doc, blockId) {
+  var exp = (doc.blocks || []).filter(function (b) { return b.cat === 'experience'; });
+  var idx = -1;
+  for (var i = 0; i < exp.length; i++) if (exp[i].id === blockId) idx = i;
+  if (idx < 1) return true;                        // newest role, or not found: refuse
+  var before = roleHeaderForBlock(doc, exp[idx - 1].id);   // the newer neighbour
+  var after  = idx + 1 < exp.length ? roleHeaderForBlock(doc, exp[idx + 1].id) : null;
+  if (!after) return false;                        // oldest role on the page, nothing below it to strand
+  var newer = headerYears(before && before.text);
+  var older = headerYears(after && after.text);
+  if (!newer.length || !older.length) return true; // cannot measure it, so do not risk it
+  var gap = Math.min.apply(null, newer) - Math.max.apply(null, older);
+  return gap > TT_MAX_GAP_YEARS;
+}
+
+function collectRoleDropChanges(cat, obj) {
+  if (cat !== 'experience') return;
+  var proposals = Array.isArray(obj.drop_roles) ? obj.drop_roles : [];
+  if (!proposals.length) return;
+  if (APP.changes.some(function (c) { return c.kind === 'role_drop'; })) return;
+
+  var doc = APP.doc;
+  var exp = (doc.blocks || []).filter(function (b) { return b.cat === 'experience'; });
+  var evidence = evidenceLineIds();
+  var taken = 0;
+
+  for (var i = 0; i < proposals.length && taken < TT_MAX_ROLE_DROPS; i++) {
+    var it = proposals[i];
+    if (!it || !it.blockId) continue;
+
+    var idx = -1;
+    for (var b = 0; b < exp.length; b++) if (exp[b].id === it.blockId) idx = b;
+    if (idx <= 0) continue;                                    // never the most recent role
+
+    var block = exp[idx];
+    var head = roleHeaderForBlock(doc, block.id);
+    if (!head) continue;                                       // no role header, no safe removal
+    if (TT_PRESENT_RE.test(head.text)) continue;               // still there
+
+    // one cited line, one quantified line, or one line this run rewrote, and it stays
+    var blocked = false;
+    for (var n = 0; n < block.lineIds.length; n++) {
+      var id = block.lineIds[n];
+      var line = lineById(doc, id);
+      if (evidence[id]) { blocked = true; break; }
+      if (line && lineHasNumber(line.text)) { blocked = true; break; }
+      if (APP.changes.some(function (c) {
+        return (c.kind === 'line' || c.kind === 'add') && c.lineId === id;
+      })) { blocked = true; break; }
+    }
+    if (blocked) continue;
+    if (removalLeavesGap(doc, block.id)) continue;
+
+    var body = block.lineIds.map(function (id) {
+      var l = lineById(doc, id);
+      return l ? l.text : '';
+    }).filter(Boolean);
+
+    taken++;
+    APP.changes.push({
+      id: uid('c'), kind: 'role_drop', cat: cat, blockId: block.id,
+      roleLineId: head.id,
+      lineIds: block.lineIds.slice(),
+      before: head.text + (body.length ? '\n' + body.join('\n') : ''),
+      after: '', lang: head.lang,
+      why: String(it.why || '').trim() ||
+           'לא נמצאה בתפקיד הזה זיקה לאף אחת מדרישות המשרה. הסרתו תפנה מקום לתפקידים הרלוונטיים, אך תקצר את רצף התעסוקה.',
+      reqIds: [],
+      status: 'rejected'
+    });
+  }
+}
+
 function collectLineChanges(cat, obj) {
   var lines = Array.isArray(obj.lines) ? obj.lines : [];
   for (var i = 0; i < lines.length; i++) {
@@ -5042,8 +5453,11 @@ function collectLineChanges(cat, obj) {
   }
   collectOrderChanges(cat, obj);
   /* After the rewrites, deliberately: the check that refuses to drop a line the
-     same response also rewrote needs those changes to already be on the list. */
+     same response also rewrote needs those changes to already be on the list.
+     The whole role check needs the same thing and one more besides, so it runs
+     last of all. */
   collectDropChanges(cat, obj);
+  collectRoleDropChanges(cat, obj);
 }
 
 /* One card per block whose order changed. The card shows the lines as they
@@ -5183,6 +5597,14 @@ function compileApproved() {
     } else if (ch.kind === 'add') APP.added.push({ afterId: ch.lineId, text: ch.after });
     else if (ch.kind === 'line_order' && ch.order) APP.orderPlan[ch.blockId] = ch.order;
     else if (ch.kind === 'line_drop') APP.dropped[ch.lineId] = 1;
+    else if (ch.kind === 'role_drop') {
+      /* The role header goes with its bullets. Leaving the header behind would
+         produce the worst possible outcome of this feature: a company and a
+         date range sitting on the page with nothing under them, which reads as
+         a job the candidate is hiding something about. */
+      if (ch.roleLineId) APP.dropped[ch.roleLineId] = 1;
+      (ch.lineIds || []).forEach(function (id) { APP.dropped[id] = 1; });
+    }
   });
 
   if (APP.skillModel) {
@@ -6012,7 +6434,7 @@ async function startQuestions() {
   hide('noRelationCard');
   setStage(3);
   APP.queue = buildQueue();
-  APP.chat.max = Math.max(6, Math.min(16, APP.queue.length));
+  APP.chat.max = questionBudget(APP.queue);
   APP.chat.lang = docLanguage(APP.doc) === 'en' ? 'en' : 'he';
   APP.chat.qa = [];
   updateLangButtons();
@@ -6197,8 +6619,15 @@ function renderQueue() {
     missing_proof: { label: 'חסרה הוכחה', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
     weak_point:    { label: 'נקודה חלשה', cls: 'bg-amber-100 text-amber-900 border-amber-300' }
   };
-  var html = '<div class="text-xs text-slate-500 mb-1">השאלות ייגזרו מהפערים האלה, לפי סדר. גם דרישות שלא הוכחו וגם נקודות חלשות שנמצאו בקורות החיים:</div><div>';
-  APP.queue.slice(0, APP.chat.max).forEach(function (q) {
+  /* Everything that will be covered, not one chip per question. Since a single
+     question now covers two or three of these, slicing this list to the
+     question budget hid gaps that are in fact being addressed and made the
+     shorter conversation look like a shallower one. */
+  var shown = significantQueueItems(APP.queue).slice(0, 14);
+  if (!shown.length) shown = APP.queue.slice(0, 6);
+  var html = '<div class="text-xs text-slate-500 mb-1">' + shown.length +
+    ' פערים ייבדקו בשיחה, בסדר הזה. שאלה אחת יכולה לכסות כמה מהם יחד, ולכן יהיו פחות שאלות מפערים:</div><div>';
+  shown.forEach(function (q) {
     var st = COVER_STYLE[q.status] || QUEUE_STYLE[q.status] || { cls: 'bg-slate-100 text-slate-700', label: q.status };
     html += '<span class="inline-block rounded-full px-2 py-0.5 text-xs mb-1 me-1 ' + st.cls + '" title="' + escapeHtml(st.label) + '">' +
             escapeHtml(q.requirement.slice(0, 40)) + '</span>';
@@ -6417,7 +6846,65 @@ var TT_TEMPLATES = {
   }
 };
 
-function currentTemplate() { return TT_TEMPLATES[APP.template] || TT_TEMPLATES.classic; }
+/* ---------------- fitting the document onto two pages ----------------
+   A resume is read in one sitting or not at all, and the third page is where
+   the reading stops. The app used to draw a dashed line at 297mm and leave the
+   candidate to solve it, which is the one thing a candidate cannot do: they
+   cannot see how much a point of font size buys them without exporting the
+   file and looking.
+
+   So it is measured and solved here. The order of the steps below is the whole
+   design and it is deliberate. Spacing goes first, because nobody has ever
+   noticed a heading sitting two points closer to the text above it. Font size
+   goes second and only in small steps. Removing content is LAST and is never
+   done automatically: if the document still does not fit at the floor, the
+   candidate is told so and pointed at the removal proposals, which they
+   approve one by one. Shrinking is reversible and costs nothing. Deleting a
+   line the candidate wrote is neither.
+
+   The floor matters as much as the ceiling. Below about 9.5pt a resume stops
+   being read and starts being scanned, and a document that fits on two pages
+   because nobody can read it has solved the wrong problem. */
+var TT_FIT_STEPS = [
+  { font: 1.00, space: 1.00 },
+  { font: 1.00, space: 0.86 },
+  { font: 1.00, space: 0.72 },
+  { font: 0.97, space: 0.72 },
+  { font: 0.94, space: 0.66 },
+  { font: 0.91, space: 0.62 },
+  { font: 0.88, space: 0.58 },
+  { font: 0.85, space: 0.55 }
+];
+var TT_FIT_MAX_PAGES = 2;
+var TT_BODY_FLOOR = 19;    // half points, so 9.5pt. Nothing goes under this.
+
+/* A template with every size and every gap scaled by one step. Sizes are in
+   half points throughout the file, in the preview, in the docx and in the
+   print sheet alike, so scaling here reaches all three from one place and they
+   cannot drift apart. */
+function scaleTemplate(tpl, step) {
+  if (!tpl) return tpl;
+  if (!step || (step.font === 1 && step.space === 1)) return tpl;
+  var out = {};
+  for (var k in tpl) if (Object.prototype.hasOwnProperty.call(tpl, k)) out[k] = tpl[k];
+  var f = step.font, sp = step.space;
+  out.bodySize = Math.max(TT_BODY_FLOOR, Math.round(tpl.bodySize * f));
+  out.roleSize = Math.max(out.bodySize, Math.round(tpl.roleSize * f));
+  out.headSize = Math.max(out.bodySize, Math.round(tpl.headSize * f));
+  // the name is the one thing allowed to stay large: it is one line and it is
+  // the first thing read, so it gives back almost no space and costs presence
+  out.nameSize = Math.max(out.headSize + 4, Math.round(tpl.nameSize * Math.max(f, 0.9)));
+  out.headBefore = Math.round(tpl.headBefore * sp);
+  out.headAfter  = Math.round(tpl.headAfter * sp);
+  out.bodyAfter  = Math.round(tpl.bodyAfter * sp);
+  return out;
+}
+
+function templateByKey(key) {
+  return scaleTemplate(TT_TEMPLATES[key] || TT_TEMPLATES.classic, TT_FIT_STEPS[APP.fitStep || 0]);
+}
+
+function currentTemplate() { return templateByKey(APP.template); }
 
 /* Headings are only upper cased where the template asks for it, and never in
    Hebrew, which has no case and would just get mangled. */
@@ -6895,7 +7382,7 @@ function lastHeaderLine(doc, i) {
 }
 
 function buildDocxXml(text, tplKey) {
-  var tpl = TT_TEMPLATES[tplKey] || currentTemplate();
+  var tpl = templateByKey(tplKey || APP.template);
   var doc = parseResume(text);
   var docLang = docLanguage(doc);
   if (docLang === 'neutral') docLang = 'he';
@@ -6974,7 +7461,7 @@ async function exportDocx(text, filename, tplKey) {
   zip.folder('_rels').file('.rels', DOCX_RELS);
   var word = zip.folder('word');
   word.file('document.xml', buildDocxXml(text, tplKey));
-  word.file('styles.xml', docxStyles(TT_TEMPLATES[tplKey] || currentTemplate(), docxIsRtl(text)));
+  word.file('styles.xml', docxStyles(templateByKey(tplKey || APP.template), docxIsRtl(text)));
   word.folder('_rels').file('document.xml.rels', DOCX_DOC_RELS);
   var blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   triggerDownload(blob, filename || 'TrueTailor_CV.docx');
@@ -7000,7 +7487,7 @@ function twip(t) { return (t / 20) + 'pt'; }
 function rulePt(tpl) { return ((tpl.ruleSize || 4) / 8) + 'pt'; }
 
 function buildPrintHtml(text, tplKey) {
-  var tpl = TT_TEMPLATES[tplKey] || currentTemplate();
+  var tpl = templateByKey(tplKey || APP.template);
   var doc = parseResume(text);
   var docLang = docLanguage(doc);
   if (docLang === 'neutral') docLang = 'he';
@@ -7293,30 +7780,48 @@ function renderStructurePanel() {
     per.push(escapeHtml(TT_STRUCT_LABELS[cat] ? L(TT_STRUCT_LABELS[cat][0], TT_STRUCT_LABELS[cat][1]) : cat) + ' ' + p);
   });
 
+  /* Plain language, because this is the first panel a first time user meets and
+     the old wording sent them away confused. Two mistakes were being made at
+     once. It used a word ("סעיף", "שלד") that means nothing outside this file,
+     and it said "ישוכתבו מול המשרה" about a number that never looks at the
+     posting at all, so every candidate who pasted a second posting and saw the
+     same two numbers reasonably concluded the panel was broken. It is not: the
+     split is a property of THEIR FILE, it is computed before stage 1 runs, and
+     the honest thing is to say so in the panel rather than let them find out. */
   sum.innerHTML = L(
-    '<p class="mb-1">מתוך הקובץ שלך, <b>' + points + '</b> שורות ישוכתבו מול המשרה. ' +
-    '<b>' + spine + '</b> שורות זוהו כשלד המסמך, כלומר שמות חברות, תפקידים ותאריכים, ' +
-    'והן יעברו לקובץ הסופי מילה במילה בלי שאף מודל יגע בהן.</p>' +
-    (per.length ? '<p class="text-xs text-slate-500 mb-1">שורות לשכתוב לפי מקטע: ' + per.join(' · ') + '</p>' : '') +
+    '<p class="mb-2">קראנו את הקובץ שלך וחילקנו אותו לשני סוגי שורות:</p>' +
+    '<p class="mb-1">✏️ <b>' + points + ' שורות תוכן</b> — מה שעשית בפועל: הישגים, תחומי אחריות, כישורים. ' +
+    'אלה השורות שניתן לנסח מחדש כדי שיתאימו למשרה.</p>' +
+    '<p class="mb-2">🔒 <b>' + spine + ' שורות קבועות</b> — שמות חברות, שמות תפקידים ותאריכים. ' +
+    'אלה עוברות לקובץ הסופי מילה במילה, בלי שאף מודל נוגע בהן.</p>' +
+    (per.length ? '<p class="text-xs text-slate-500 mb-1">שורות תוכן בכל חלק: ' + per.join(' · ') + '</p>' : '') +
     (empty.length
       ? '<p class="text-sm text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 mb-1">' +
-        'שים לב: במקטע ' + empty.join(', ') + ' לא נמצאה אף שורה לשכתוב, כלומר המקטע הזה יישאר בדיוק כפי שהוא. ' +
-        'אם יש שם תוכן שאמור להשתנות, פתח את הפירוט וסמן אותו כסעיף.</p>'
+        'שים לב: בחלק ' + empty.join(', ') + ' לא נמצאה אף שורת תוכן, כלומר החלק הזה ייצא בדיוק כפי שנכנס. ' +
+        'אם יש שם משהו שאמור להשתנות, פתח את הפירוט וסמן את השורה כשורת תוכן.</p>'
       : '') +
-    '<p class="text-xs text-slate-500">הסיווג נעשה בדפדפן שלך לפני שנשלח משהו לאנשהו. ' +
-    'שורת הישג שסווגה בטעות כשלד פשוט לא תשוכתב, ולכן שווה לעבור על הפירוט ולהפוך כל שורה שסווגה לא נכון.</p>',
+    '<p class="text-xs text-slate-500 mb-1"><b>למה המספרים לא משתנים כשמדביקים משרה אחרת?</b> ' +
+    'כי הם מתארים את הקובץ שלך, לא את ההתאמה. החלוקה הזו נעשית בדפדפן שלך עוד לפני שהמשרה נקראה. ' +
+    'כמה שורות באמת ישתנו בפועל נקבע בשלב 2, אחרי ההשוואה מול דרישות המשרה, ושם המספר כן שונה בין משרה למשרה.</p>' +
+    '<p class="text-xs text-slate-500">אם שורת הישג סווגה בטעות כשורה קבועה, היא פשוט לא תשופר. ' +
+    'שווה לפתוח את הפירוט ולהעביר כל שורה שסווגה לא נכון.</p>',
 
-    '<p class="mb-1">Out of your file, <b>' + points + '</b> lines will be rewritten against this posting. ' +
-    '<b>' + spine + '</b> were read as the document spine, meaning employers, titles and dates, ' +
-    'and they go into the final file word for word with no model touching them.</p>' +
-    (per.length ? '<p class="text-xs text-slate-500 mb-1">Tailorable lines per section: ' + per.join(' · ') + '</p>' : '') +
+    '<p class="mb-2">We read your file and split it into two kinds of line:</p>' +
+    '<p class="mb-1">✏️ <b>' + points + ' content lines</b> — what you actually did: achievements, responsibilities, skills. ' +
+    'These are the lines that can be rewritten to match the posting.</p>' +
+    '<p class="mb-2">🔒 <b>' + spine + ' fixed lines</b> — employer names, job titles and dates. ' +
+    'These go into the final file word for word, with no model touching them.</p>' +
+    (per.length ? '<p class="text-xs text-slate-500 mb-1">Content lines per section: ' + per.join(' · ') + '</p>' : '') +
     (empty.length
       ? '<p class="text-sm text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 mb-1">' +
-        'Note: no tailorable line was found in ' + empty.join(', ') + ', so that section will come out exactly as it went in. ' +
-        'If there is content there that should change, open the detail and mark it as a point.</p>'
+        'Note: no content line was found in ' + empty.join(', ') + ', so that section will come out exactly as it went in. ' +
+        'If something there should change, open the detail and mark the line as content.</p>'
       : '') +
-    '<p class="text-xs text-slate-500">The classification runs in your browser before anything is sent anywhere. ' +
-    'An achievement line read as spine simply never gets rewritten, so it is worth reading the detail and flipping anything that was read the wrong way.</p>'
+    '<p class="text-xs text-slate-500 mb-1"><b>Why do these numbers not change when you paste a different posting?</b> ' +
+    'Because they describe your file, not the match. This split runs in your browser before the posting has even been read. ' +
+    'How many lines actually change is decided in stage 2, after the comparison against the requirements, and that number does differ from posting to posting.</p>' +
+    '<p class="text-xs text-slate-500">If an achievement line was read as a fixed line, it simply never gets improved. ' +
+    'It is worth opening the detail and flipping anything that was read the wrong way.</p>'
   );
 
   var html = '';
@@ -7539,7 +8044,7 @@ function resetRun() {
   APP.previewDirty = false; APP.synthesisRunning = false;
   if (typeof setStage === 'function') setStage(1);
   APP.chat = { history: [], turns: [], qa: [], lang: APP.chat.lang, langSeq: APP.chat.langSeq || 0,
-               asked: 0, max: 8, done: false, pendingQuestion: '', pendingReqId: '',
+               asked: 0, max: 8, done: false, pendingQuestion: '', pendingReqId: '', pendingReqIds: [],
                lastTurnMessage: '' };
   if (typeof showChatRetry === 'function') showChatRetry(false);
   if (typeof clearAnswerSpell === 'function') clearAnswerSpell();
@@ -7591,6 +8096,7 @@ var CHANGE_LABEL = {
   add:          'שורה חדשה',
   line_order:   'סדר הסעיפים',
   line_drop:    'הסרת סעיף לא רלוונטי',
+  role_drop:    'הסרת תפקיד שלם',
   skill_rename: 'שינוי שם כישור',
   skill_drop:   'מחיקת כישור',
   skill_add:    'הוספת כישור',
@@ -7602,11 +8108,18 @@ var CHANGE_TONE = {
   add:          'bg-emerald-100 text-emerald-800',
   line_order:   'bg-violet-100 text-violet-800',
   line_drop:    'bg-red-100 text-red-800',
+  role_drop:    'bg-red-200 text-red-900',
   skill_rename: 'bg-sky-100 text-sky-800',
   skill_drop:   'bg-red-100 text-red-800',
   skill_add:    'bg-emerald-100 text-emerald-800',
   skill_order:  'bg-violet-100 text-violet-800'
 };
+
+/* The two changes that TAKE something away. They share every behaviour that
+   matters: they arrive switched off, "אשר הכל" never turns them on, they
+   cannot be edited into something else, and their buttons say what they do
+   rather than "אשר" and "דחה". */
+function isRemoval(kind) { return kind === 'line_drop' || kind === 'role_drop'; }
 
 var REVIEW_GROUPS = [
   { cat: 'summary',    title: 'תקציר' },
@@ -7661,12 +8174,19 @@ function renderReview() {
   if (sum) {
     var drops = APP.changes.filter(function (x) { return x.kind === 'line_drop'; });
     var dropsOn = drops.filter(function (x) { return x.status === 'approved'; }).length;
+    var roleDrops = APP.changes.filter(function (x) { return x.kind === 'role_drop'; });
+    var roleOn = roleDrops.filter(function (x) { return x.status === 'approved'; }).length;
     sum.innerHTML = '<b>' + c.approved + '</b> מאושרים, <b>' + c.rejected + '</b> נדחו, מתוך ' + c.total + ' הצעות. ' +
       '<span style="color:var(--c-mute)">מחיקות והוספות מגיעות כבויות בכוונה, הן משנות את מה שקורות החיים טוענים.</span>' +
       (drops.length
         ? '<br><span class="text-red-800">' + drops.length + ' סעיפים מתפקידים קודמים סומנו כלא רלוונטיים למשרה הזו' +
           (dropsOn ? ', ומתוכם ' + dropsOn + ' יוסרו בפועל' : ', ואף אחד מהם לא יוסר עד שתאשר') +
           '. "אשר הכל" לא מסיר אותם.</span>'
+        : '') +
+      (roleDrops.length
+        ? '<br><span class="text-red-900 font-semibold">' + roleDrops.length + ' תפקיד שלם סומן כלא רלוונטי למשרה הזו' +
+          (roleOn ? ' ויוסר בפועל.' : ', והוא יישאר בקורות החיים עד שתאשר במפורש.') +
+          ' זו ההצעה הכי משמעותית ברשימה, שווה לקרוא את הכרטיס עצמו.</span>'
         : '');
   }
   var foot = $('reviewFootMsg');
@@ -7736,6 +8256,22 @@ function renderChangeCard(ch) {
            '<div class="text-xs text-slate-500 mt-1">' +
              'הסעיף הזה יישאר בקורות החיים אלא אם תאשר את ההסרה. הוא לא נמחק מהקובץ המקורי שלך בשום מקרה.' +
            '</div>';
+  } else if (ch.kind === 'role_drop') {
+    /* The whole role, every line of it, shown intact and struck through. The
+       candidate is being asked to delete a job from their own history and the
+       one thing they must not have to do is imagine what that looks like. The
+       warning about the timeline is stated plainly and separately from the
+       model's reasoning, because it is a consequence rather than an opinion. */
+    body = '<div class="rounded p-2 bg-red-50 border border-red-300 line-through text-slate-600 whitespace-pre-line">' +
+             escapeHtml(ch.before) + '</div>' +
+           '<div class="text-xs text-slate-600 mt-2"><b>הטענה:</b> ' + escapeHtml(ch.why) + '</div>' +
+           '<div class="text-xs text-red-900 bg-red-50 border border-red-200 rounded px-2 py-1 mt-2">' +
+             '<b>לפני שמאשרים:</b> הסרת תפקיד שלם מקצרת את רצף התעסוקה שלך. בדקנו שההסרה לא פותחת פער של יותר משנה בין התפקידים ' +
+             'שמסביבו, אבל רק אתה יודע איך התפקיד הזה נשמע בראיון. אם הוא מסביר מעבר בין תחומים, השאר אותו.' +
+           '</div>' +
+           '<div class="text-xs text-slate-500 mt-1">' +
+             'התפקיד יישאר בקורות החיים אלא אם תאשר את ההסרה, והוא לא נמחק מהקובץ המקורי שלך בשום מקרה.' +
+           '</div>';
   } else if (ch.kind === 'add' || ch.kind === 'skill_add') {
     body = '<div class="tt-ins rounded p-1">' + escapeHtml(ch.after) + '</div>';
   } else if (ch.kind === 'skill_drop') {
@@ -7757,7 +8293,7 @@ function renderChangeCard(ch) {
   /* An approved removal is not a green tick. It is a line about to leave the
      document, and the card says so in the colour of the thing that is about to
      happen rather than in the colour of "you agreed". */
-  var shell = ch.kind === 'line_drop'
+  var shell = isRemoval(ch.kind)
     ? (on ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white')
     : (on ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-slate-50 opacity-70');
   return '<div class="tt-change rounded-lg border p-3 ' + shell + '" data-id="' + ch.id + '">' +
@@ -7767,11 +8303,11 @@ function renderChangeCard(ch) {
         fromAnswers +
       '</span>' +
       '<div class="flex gap-1 shrink-0">' +
-        '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (on ? (ch.kind === 'line_drop' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white') : 'border border-slate-300 hover:bg-white') + '" data-act="approve">' +
-          (ch.kind === 'line_drop' ? 'הסר' : 'אשר') + '</button>' +
+        '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (on ? (isRemoval(ch.kind) ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white') : 'border border-slate-300 hover:bg-white') + '" data-act="approve">' +
+          (isRemoval(ch.kind) ? 'הסר' : 'אשר') + '</button>' +
         '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (!on ? 'bg-slate-700 text-white' : 'border border-slate-300 hover:bg-white') + '" data-act="reject">' +
-          (ch.kind === 'line_drop' ? 'השאר' : 'דחה') + '</button>' +
-        (ch.kind === 'skill_order' || ch.kind === 'skill_drop' || ch.kind === 'line_order' || ch.kind === 'line_drop' ? '' :
+          (isRemoval(ch.kind) ? 'השאר' : 'דחה') + '</button>' +
+        (ch.kind === 'skill_order' || ch.kind === 'skill_drop' || ch.kind === 'line_order' || isRemoval(ch.kind) ? '' :
           '<button class="tt-ch-act text-xs px-2 py-1 rounded border border-slate-300 hover:bg-white" data-act="edit">ערוך</button>') +
       '</div>' +
     '</div>' +
@@ -7828,7 +8364,7 @@ function wireReviewCards() {
          passes over it and a bulk reject still cancels it. */
       APP.changes.forEach(function (c) {
         if (c.cat !== cat) return;
-        if (act === 'approve' && c.kind === 'line_drop') return;
+        if (act === 'approve' && isRemoval(c.kind)) return;
         c.status = act === 'approve' ? 'approved' : 'rejected';
       });
       renderReview();
@@ -7840,7 +8376,7 @@ function bindReviewUi() {
   var all = $('btnApproveAll');
   if (all) all.addEventListener('click', function () {
     // same rule as the per section bulk button: removals are never bulk approved
-    APP.changes.forEach(function (c) { if (c.kind !== 'line_drop') c.status = 'approved'; });
+    APP.changes.forEach(function (c) { if (!isRemoval(c.kind)) c.status = 'approved'; });
     renderReview();
   });
   var none = $('btnRejectAll');
@@ -7937,6 +8473,58 @@ function renderTemplatePicker() {
    ever said so. The rule is drawn from the same 297mm the print stylesheet
    uses, measured in real pixels off the element rather than guessed, so it
    moves when the template, the font size or the text changes. */
+/* One millimetre in this document's real pixels, measured off the element
+   rather than assumed, so it stays correct at any browser zoom. */
+function pageMm(page) {
+  var probe = document.createElement('div');
+  probe.style.cssText = 'position:absolute;visibility:hidden;height:100mm;';
+  page.appendChild(probe);
+  var mm = probe.getBoundingClientRect().height / 100;
+  page.removeChild(probe);
+  return (mm && isFinite(mm)) ? mm : 0;
+}
+
+/* Walk the steps until the document fits, or until the floor is reached. The
+   loop is bounded by the length of TT_FIT_STEPS and each pass is one style
+   recalculation on one element, so this is cheap enough to run on every
+   render. */
+function fitPageToLimit(page, tplKey) {
+  APP.fitStep = 0;
+  applyTemplateVars(page, templateByKey(tplKey));
+  var mm = pageMm(page);
+  if (!mm) { APP.fitPages = 1; return; }
+  var limit = 297 * mm * TT_FIT_MAX_PAGES;
+
+  for (var i = 0; i < TT_FIT_STEPS.length; i++) {
+    APP.fitStep = i;
+    applyTemplateVars(page, templateByKey(tplKey));
+    if (page.scrollHeight <= limit + 1) break;
+  }
+  APP.fitPages = Math.max(1, page.scrollHeight / (297 * mm));
+}
+
+/* What the shrinking did, said plainly, because a candidate who sees their
+   font quietly change and is told nothing will assume the app is broken. The
+   third case is the important one: it does not shrink further and it does not
+   delete anything, it names the amount of overflow and points at the only
+   honest remedy, which the candidate controls. */
+function fitNotice() {
+  var step = TT_FIT_STEPS[APP.fitStep || 0];
+  var over = APP.fitPages > TT_FIT_MAX_PAGES + 0.02;
+  if (over) {
+    previewNote('קורות החיים עדיין נמשכים על כ־' + APP.fitPages.toFixed(1) + ' עמודים גם אחרי הקטנת הגופן והמרווחים למינימום הקריא. ' +
+      'הקטנה נוספת תפגע בקריאוּת, ולכן היא נעצרת כאן. כדי לרדת לשני עמודים צריך להסיר תוכן: חזור לשלב 5 ואשר את הסעיפים או התפקידים שסומנו כלא רלוונטיים למשרה.', 'warn');
+    return;
+  }
+  if (!step || (step.font === 1 && step.space === 1)) return;
+  if (step.font === 1) {
+    previewNote('כדי להיכנס לשני עמודים, המרווחים בין הסעיפים הוקטנו. גודל הגופן לא השתנה.', 'ok');
+    return;
+  }
+  previewNote('כדי להיכנס לשני עמודים, הגופן הוקטן ב־' + Math.round((1 - step.font) * 100) + '% והמרווחים צומצמו. ' +
+    'גודל הטקסט לא יורד מתחת ל־9.5 נקודות, כדי שהמסמך יישאר קריא. ההקטנה חלה גם על קובץ ה־Word וגם על ה־PDF.', 'ok');
+}
+
 function drawPageCuts(page) {
   if (!page) return;
   var old = page.querySelectorAll('.tt-pagecut');
@@ -7972,7 +8560,7 @@ function renderPreview() {
   var doc = parseResume(APP.finalText);
   var docLang = docLanguage(doc);
   var pageDir = dirFor(docLang === 'neutral' ? 'he' : docLang);
-  var tpl = TT_TEMPLATES[APP.template] || TT_TEMPLATES.classic;
+  var tpl = currentTemplate();
 
   page.className = 'tt-page tt-tpl-' + APP.template;
   applyTemplateVars(page, tpl);
@@ -8027,7 +8615,13 @@ function renderPreview() {
   renderFinalStruct();
 
   page.classList.add('is-editable');
+  /* Order matters here. The fit can only be measured once the content is in the
+     element, and the page cuts have to be drawn from the sizes the fit settled
+     on, otherwise the dashed rule marks a page break that the downloaded file
+     does not have. */
+  fitPageToLimit(page, APP.template);
   drawPageCuts(page);
+  fitNotice();
 
   var blocks = page.querySelectorAll('[contenteditable="true"]');
   for (var b = 0; b < blocks.length; b++) {
