@@ -303,7 +303,7 @@
   }
 
   /* =====================================================================
-     TrueTailor design layer  (v28)  —  "lit studio, white paper"
+     TrueTailor design layer  —  "lit studio, white paper"
 
      The shell used to be midnight. It read as a tool you had been shut inside
      rather than one you were working at, and an hour of answering questions
@@ -719,7 +719,7 @@
   .tt-prep-tag { display: inline-block; font-size: .68rem; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-inline-start: 6px; }
   .tt-prep-empty { font-size: .82rem; color: #64748b; }
 
-  /* ---- language switch and about, v31 ----
+  /* ---- language switch and about ----
      Class based, like everything else that has to survive the Tailwind CDN
      injecting its sheet after this block. */
   /* Two rows now: about and settings on top, the flags underneath them. The
@@ -861,7 +861,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v35.3</span>
+        <span class="tt-ver" id="verBadge">v35.4</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1431,7 +1431,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v35.3';
+var TT_VERSION = 'v35.4';
 
 var APP = {
   apiKey: '',
@@ -2522,7 +2522,7 @@ async function callGeminiVision(base64Data, mimeType, prompt, opts) {
 }
 
 /* =========================================================================
-   Pulling a posting from a job board URL was removed in v25.5.
+   Pulling a posting from a job board URL was removed.
 
    It is kept here as a note rather than as code, because the reasoning is the
    part worth keeping. The browser cannot read a third party page: the same
@@ -9512,7 +9512,7 @@ function renderPreview() {
   renderInterviewSheet();
 }
 
-/* ================= interface language, v31 =================
+/* ================= interface language =================
    Two things this switch deliberately does NOT touch.
 
    The prompts. Every call site passes 'he' as uiLang literally, and
