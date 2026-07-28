@@ -8831,6 +8831,14 @@ function renderAbout() {
     ? 'The app was built to take some of the stress out of looking for work. It reads your resume against the job description and helps you bring the experience and the skills that fit that job to the front, so your profile stands up to both a recruiter and a screening system (ATS).'
     : 'האפליקציה נוצרה כדי להוריד את הסטרס מתהליך חיפוש העבודה. בעזרת בינה מלאכותית, המערכת מנתחת את קורות החיים שלך מול תיאור המשרה, ומסייעת לך להבליט את הניסיון והכישורים המתאימים ביותר, כך שהפרופיל שלך יבלוט מול מגייסים ומערכות סינון (ATS).') + '</p></div>';
 
+  h += '<div class="tt-about-sec"><h4>🔑 ' + (en ? 'Why the app asks for an API key' : 'למה האפליקציה מבקשת מפתח API') + '</h4><p>' + (en
+    ? 'The app has no AI engine of its own. It uses Google Gemini, and to reach it you need a personal key: something like an entry card issued in your own name. The key is free, it takes about a minute to create on Google\'s own page, and it is stored only in your browser.'
+    : 'לאפליקציה אין מנוע בינה מלאכותית משלה. היא משתמשת ב־Gemini של גוגל, וכדי לפנות אליו צריך מפתח אישי, משהו כמו כרטיס כניסה על השם שלכם. המפתח ניתן בחינם, נוצר בדקה בדף הרשמי של גוגל, ונשמר רק בדפדפן שלכם.') + '</p><p>' + (en
+    ? 'Why not build a key into the app? Two reasons. Your resume goes straight from your browser to Google without passing through any server in between, and nobody ends up paying for somebody else\'s usage.'
+    : 'למה אין מפתח מובנה באפליקציה? משתי סיבות. כך קורות החיים שלכם עוברים ישירות מהדפדפן שלכם לגוגל, בלי לעבור דרך שום שרת אמצעי, וכך אף אחד לא משלם על השימוש של מישהו אחר.') + '</p><p>' + (en
+    ? 'The "Get a free API key" button on the main screen opens Google\'s page and walks you through it step by step.'
+    : 'הכפתור "קבל מפתח API בחינם" במסך הראשי פותח את הדף של גוגל ומלווה אתכם שלב אחר שלב.') + '</p></div>';
+
   h += '<div class="tt-about-sec"><h4>🔒 ' + (en ? 'Privacy and your data' : 'פרטיות וביטחון המידע') + '</h4><p>' + (en
     ? 'A resume is personal, so here is exactly what happens to it.'
     : 'קורות החיים שלך מכילים מידע אישי ורגיש, ולכן כתוב כאן בדיוק מה קורה איתו.') + '</p><ul>';
@@ -8853,8 +8861,8 @@ function renderAbout() {
     : 'האפליקציה מציעה המלצות, ניתוחים ושיפורים מבוססי AI. מומלץ תמיד לעבור על התוצאות, לוודא שהן מדויקות, ולבצע התאמות אישיות במידת הצורך לפני השליחה למגייס.') + '</p></div>';
 
   h += '<div class="tt-about-sec"><h4>' + (en ? 'Who is behind it' : 'מי עומד מאחורי האפליקציה') + '</h4><p>' + (en
-    ? 'Built with care by Kobi Doanis. The aim is to help your professional path and to make tailoring a resume to a job faster, sharper and more effective.'
-    : 'האפליקציה פותחה באהבה על ידי קובי דואניס. המטרה שלי היא לעזור לדרככם המקצועית ולהפוך את תהליך התאמת קורות החיים למשרה למהיר, חכם ואפקטיבי יותר.') + '</p><p>' + (en
+    ? 'Built with care by Kobi Doanis. The aim is to help you tailor your resume to the job as well and as honestly as possible, and to make that process faster, sharper and more effective.'
+    : 'האפליקציה פותחה באהבה על ידי קובי דואניס. המטרה שלי היא לעזור לכם להתאים את קורות החיים למשרה בצורה הטובה והאמינה ביותר, ולהפוך את התהליך למהיר, חכם ואפקטיבי יותר.') + '</p><p>' + (en
     ? 'Ideas for improvement? Found a bug? I would be glad to hear from you, through the feedback button below or at ' + mail + '.'
     : 'רעיונות לשיפור? מצאתם תקלה? אשמח מאוד לשמוע מכם, בכפתור המשוב למטה או במייל ' + mail + '.') + '</p></div>';
 
