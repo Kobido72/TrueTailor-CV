@@ -201,7 +201,12 @@
   .tt-pv-head    { font-size:var(--tt-head); font-weight:700; color:var(--tt-headcolor);
                    letter-spacing:var(--tt-track); margin:var(--tt-headbefore) 0 var(--tt-headafter);
                    border-bottom:var(--tt-rule); background:var(--tt-headshade); padding:var(--tt-headpad); }
-  .tt-pv-role    { font-size:var(--tt-role); font-weight:700; color:var(--tt-rolecolor); margin:5pt 0 1pt; }
+  .tt-pv-role    { font-size:var(--tt-role); font-weight:700; color:var(--tt-rolecolor); margin:6pt 0 0; }
+  /* The employer and the date range. Regular weight, grey, never larger than
+     the body: the third render path in this file, and it carried the same flaw
+     as the other two until now, drawing an employer exactly like a job title. */
+  .tt-pv-org     { font-size:var(--tt-org);  font-weight:400; color:var(--tt-orgcolor);  margin:0 0 2pt; }
+  .tt-pv-date    { font-size:var(--tt-date); font-weight:400; color:var(--tt-datecolor); margin:0 0 2pt; }
   .tt-pv-body    { font-size:var(--tt-body); margin:0 0 var(--tt-bodyafter); white-space:pre-wrap; }
   .tt-pv-bulletrow { display:flex; gap:5pt; align-items:baseline; margin:0 0 var(--tt-bodyafter); }
   .tt-pv-dot     { font-size:var(--tt-body); line-height:1.32; }
@@ -1352,6 +1357,7 @@
     </div>
 
     <div id="templatePicker" class="flex flex-wrap gap-3 mb-3"></div>
+    <div id="accentPicker" class="mb-3"></div>
 
     <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
       <label class="inline-flex items-center gap-2 cursor-pointer">
@@ -1452,6 +1458,7 @@ var APP = {
      never what the candidate is said to have done. */
   domainMode: '',
   domainGap: null,      // the report the gate was computed from, kept for the render
+  accent: 'navy',       // the one accent colour, applied to name, headings and rule
   world: null,          // stage 1b: what occupation each side belongs to
   route: '',            // stop | work | polish. what this run is actually for
   skillModel: null,     // parsed skills section: groups + items
@@ -2786,7 +2793,16 @@ function lineType(raw) {
    document, which is the failure being fixed here.
    ===================================================================== */
 
-var TT_STRUCT_CATEGORIES = { experience: true, other: true };
+/* Which sections have entries with a header of their own. Education belongs
+   here for the same reason experience does: a degree, an institution and a year
+   range are the same three part spine as a title, an employer and a date range,
+   and leaving education out meant the page changed typographic rules halfway
+   down. A resume has to read as one document.
+
+   Summary and skills stay out on purpose. A summary is a paragraph and a skills
+   line is a list; neither has an entry header, and inviting the spine detector
+   into them is how a skill ends up set in bold as though it were a job. */
+var TT_STRUCT_CATEGORIES = { experience: true, education: true, other: true };
 var TT_STRUCT_RUN_MAX = 4;          // company + title + location + dates
 var TT_HEAD_WORD_MAX = 12;          // a header is short, a bullet is not
 var TT_HEAD_CHAR_MAX = 110;
@@ -8280,65 +8296,112 @@ function renderFinalStruct() {
    are generated from the same template definition so they cannot drift.
    ========================================================================= */
 
-var TT_TEMPLATE_ORDER = ['classic', 'executive', 'band', 'showcase'];
+/* Declared here so the order of the file does not matter, and FILLED once
+   TT_LAYOUT_ORDER exists further down. Assigning it here from a list defined
+   eighty lines lower read fine and threw at load: var is hoisted, its value is
+   not, so TT_LAYOUT_ORDER.slice() ran against undefined and killed the whole
+   script before anything else in the app was defined.
 
-var TT_TEMPLATES = {
+   Kept under the old name because installTemplate and uninstallFileTemplate
+   push and splice it when a template is read out of an uploaded file. It holds
+   LAYOUT keys, plus 'original' when a file template is installed. */
+var TT_TEMPLATE_ORDER = [];
+
+/* ============================================================
+   Layout and accent, kept apart on purpose
+   ============================================================
+   Every guide on the subject repeats the same rule: ONE accent colour, and
+   only in three places, the name, the section headings and a thin rule. Job
+   titles, company names, dates and bullets stay black. That is both what an
+   ATS needs and the reason the old templates read as gaudy: they painted the
+   job titles, which is colour on the body of the document.
+
+   Because the accent is a single value used in three places, it is not part of
+   the structure at all. So the two are separate choices and every combination
+   is available, instead of one flat list that has to carry every pairing.
+
+   composeTemplate() flattens a layout and an accent back into exactly the
+   object shape the print sheet, the Word export and the thumbnails already
+   read, so nothing downstream of here had to change.
+   ============================================================ */
+
+var TT_ACCENTS = {
+  navy:     { name: '\u05db\u05d7\u05d5\u05dc \u05e2\u05de\u05d5\u05e7', ink: '1F3864', rule: '1F3864', tint: 'EAEEF6' },
+  teal:     { name: '\u05d8\u05d5\u05e8\u05e7\u05d9\u05d6 \u05db\u05d4\u05d4', ink: '11555F', rule: '11555F', tint: 'E6F0F1' },
+  wine:     { name: '\u05d1\u05d5\u05e8\u05d3\u05d5', ink: '6B2436', rule: '6B2436', tint: 'F3E9EB' },
+  olive:    { name: '\u05d6\u05d9\u05ea', ink: '3F4A22', rule: '3F4A22', tint: 'EDEFE4' },
+  charcoal: { name: '\u05e4\u05d7\u05dd', ink: '2B2B2B', rule: '6E6E6E', tint: 'EFEFEF' },
+  black:    { name: '\u05e9\u05d7\u05d5\u05e8 \u05d1\u05dc\u05d1\u05d3', ink: '111111', rule: '999999', tint: 'EFEFEF' }
+};
+var TT_ACCENT_ORDER = ['navy', 'teal', 'wine', 'olive', 'charcoal', 'black'];
+
+/* Sizes are half points, which is what Word wants: 21 is 10.5pt.
+   Nothing here goes below 20, because ten points is the floor at which text
+   stays readable once a PDF has been compressed or the page printed. */
+var TT_LAYOUTS = {
   classic: {
-    name: 'קלאסי',
-    note: 'Arial, כותרות מודגשות עם קו מפריד. הבחירה השמרנית.',
-    // single quotes on purpose: this string lands inside a double quoted style attribute
-    css: "Arial, 'Arial Hebrew', sans-serif",
-    docxFont: 'Arial',
-    nameSize: 32, headSize: 24, roleSize: 22, bodySize: 21,   // half points
-    nameColor: '111111', headColor: '111111', roleColor: '111111',
-    headRule: true, ruleColor: '999999', headTrack: 0,
-    headBefore: 200, headAfter: 60, bodyAfter: 40, contactColor: '444444'
+    name: '\u05e7\u05dc\u05d0\u05e1\u05d9',
+    note: '\u05db\u05d5\u05ea\u05e8\u05d5\u05ea \u05de\u05d5\u05d3\u05d2\u05e9\u05d5\u05ea \u05e2\u05dd \u05e7\u05d5 \u05de\u05e4\u05e8\u05d9\u05d3. \u05d4\u05d1\u05d7\u05d9\u05e8\u05d4 \u05d4\u05e9\u05de\u05e8\u05e0\u05d9\u05ea.',
+    css: "Arial, 'Arial Hebrew', sans-serif", docxFont: 'Arial',
+    nameSize: 34, headSize: 24, roleSize: 22, orgSize: 21, dateSize: 21, bodySize: 21,
+    headRule: true, ruleSize: 6, headTrack: 0,
+    headBefore: 220, headAfter: 70, bodyAfter: 40
   },
-  /* The ones built to be looked at rather than tolerated.
-     The eye is caught by contrast, by scale and by white space. None of those
-     need a table, a text box, a second column or a single graphic, which is
-     the whole trick: these look nothing like the quiet three and an ATS still
-     extracts exactly the same characters in exactly the same order. */
-  executive: {
-    name: 'בולט',
-    note: 'שם גדול מאוד, כותרות זעירות ומרווחות על קו עבה, תפקידים בצבע.',
-    css: "Calibri, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif",
-    docxFont: 'Calibri',
-    nameSize: 56, headSize: 19, roleSize: 24, bodySize: 21,
-    nameColor: '0F172A', headColor: '0F172A', roleColor: '1D4ED8',
-    headRule: true, ruleColor: '0F172A', ruleSize: 16, headTrack: 80,
-    headBefore: 340, headAfter: 110, bodyAfter: 55, contactColor: '475569',
-    headUpper: true, nameRule: true, nameTrack: -10
+  business: {
+    name: '\u05e2\u05e1\u05e7\u05d9',
+    note: '\u05e9\u05dd \u05d5\u05db\u05d5\u05ea\u05e8\u05d5\u05ea \u05d1\u05e6\u05d1\u05e2, \u05e7\u05d5 \u05d3\u05e7 \u05de\u05ea\u05d7\u05ea. \u05d1\u05e8\u05d9\u05e8\u05ea \u05d4\u05de\u05d7\u05d3\u05dc \u05d4\u05de\u05e7\u05e6\u05d5\u05e2\u05d9\u05ea.',
+    css: "Calibri, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif", docxFont: 'Calibri',
+    nameSize: 40, headSize: 25, roleSize: 23, orgSize: 21, dateSize: 21, bodySize: 21,
+    headRule: true, ruleSize: 8, headTrack: 0,
+    headBefore: 260, headAfter: 80, bodyAfter: 40
+  },
+  masthead: {
+    name: '\u05db\u05d5\u05ea\u05e8\u05ea \u05e8\u05d0\u05e9\u05d9\u05ea',
+    note: '\u05e9\u05dd \u05d2\u05d3\u05d5\u05dc \u05de\u05e2\u05dc \u05e7\u05d5 \u05e2\u05d1\u05d4, \u05d5\u05de\u05e9\u05dd \u05d5\u05d4\u05dc\u05d0\u05d4 \u05d3\u05e3 \u05e9\u05e7\u05d8.',
+    css: "Calibri, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif", docxFont: 'Calibri',
+    nameSize: 46, headSize: 22, roleSize: 23, orgSize: 21, dateSize: 21, bodySize: 21,
+    headRule: false, ruleSize: 20, headTrack: 24, nameRule: true, nameTrack: -12,
+    headBefore: 280, headAfter: 80, bodyAfter: 40
   },
   band: {
-    name: 'רצועה',
-    note: 'כותרות סעיפים על רצועת רקע כהה בצבע, שם בצבע. הכי נועז.',
-    css: "Calibri, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif",
-    docxFont: 'Calibri',
-    nameSize: 50, headSize: 21, roleSize: 23, bodySize: 21,
-    nameColor: '1E3A8A', headColor: '1E3A8A', roleColor: '0F172A',
-    headRule: false, ruleColor: '1E3A8A', ruleSize: 4, headTrack: 40,
-    headBefore: 300, headAfter: 100, bodyAfter: 55, contactColor: '475569',
-    headUpper: true, headShade: 'DBEAFE', headPad: 60
-  },
-  /* Both of the loud ones at once: the very large name over the thick rule that
-     "בולט" is built around, and the coloured band behind every section heading
-     that "רצועה" is built around. They do not fight because they work on
-     different parts of the page, the header and the headings, and neither of
-     them is a table, a box or a graphic. */
-  showcase: {
-    name: 'בולט ורצועה',
-    note: 'שם ענק על קו עבה, וכותרות זעירות ומרווחות על רצועת רקע בצבע. השילוב של השניים.',
-    css: "Calibri, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif",
-    docxFont: 'Calibri',
-    nameSize: 56, headSize: 20, roleSize: 24, bodySize: 21,
-    nameColor: '1E3A8A', headColor: '1E3A8A', roleColor: '1D4ED8',
-    headRule: false, ruleColor: '0F172A', ruleSize: 16, headTrack: 80,
-    headBefore: 340, headAfter: 110, bodyAfter: 55, contactColor: '475569',
-    headUpper: true, headShade: 'DBEAFE', headPad: 60,
-    nameRule: true, nameTrack: -10
+    name: '\u05e8\u05e6\u05d5\u05e2\u05d4',
+    note: '\u05db\u05d5\u05ea\u05e8\u05d5\u05ea \u05e2\u05dc \u05e8\u05e6\u05d5\u05e2\u05ea \u05e8\u05e7\u05e2 \u05d1\u05d4\u05d9\u05e8\u05d4, \u05d8\u05e7\u05e1\u05d8 \u05e9\u05d7\u05d5\u05e8 \u05d1\u05ea\u05d5\u05db\u05d4.',
+    css: "Calibri, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif", docxFont: 'Calibri',
+    nameSize: 40, headSize: 23, roleSize: 23, orgSize: 21, dateSize: 21, bodySize: 21,
+    headRule: false, ruleSize: 6, headTrack: 16, headShade: true, headPad: 70,
+    /* black text inside a tinted block, which is what the guidance requires:
+       a coloured background with coloured text on it is the one combination
+       that both looks cheap and risks the parse */
+    headInk: '111111',
+    headBefore: 250, headAfter: 80, bodyAfter: 40
   }
 };
+var TT_LAYOUT_ORDER = ['classic', 'business', 'masthead', 'band'];
+TT_TEMPLATE_ORDER = TT_LAYOUT_ORDER.slice();
+
+function accentByKey(key) { return TT_ACCENTS[key] || TT_ACCENTS.navy; }
+
+function composeTemplate(layoutKey, accentKey) {
+  var L = TT_LAYOUTS[layoutKey] || TT_LAYOUTS.classic;
+  var A = accentByKey(accentKey);
+  var out = {};
+  for (var k in L) if (Object.prototype.hasOwnProperty.call(L, k)) out[k] = L[k];
+  out.layoutKey = layoutKey;
+  out.accentKey = accentKey;
+  out.nameColor = A.ink;
+  out.headColor = L.headInk || A.ink;
+  /* The job title is never the accent. This single line is the difference
+     between a document that looks considered and one that looks decorated. */
+  out.roleColor = '111111';
+  out.orgColor = '555555';
+  out.dateColor = '555555';
+  out.contactColor = '555555';
+  out.ruleColor = A.rule;
+  if (L.headShade) out.headShade = A.tint;
+  return out;
+}
+
+var TT_TEMPLATES = {};   // filled below, and by a template read from a file
 
 /* ---------------- fitting the document onto two pages ----------------
    A resume is read in one sitting or not at all, and the third page is where
@@ -8369,13 +8432,10 @@ var TT_FIT_STEPS = [
   { font: 0.88, space: 0.58 },
   { font: 0.85, space: 0.55 }
 ];
+
 var TT_FIT_MAX_PAGES = 2;
 var TT_BODY_FLOOR = 19;    // half points, so 9.5pt. Nothing goes under this.
 
-/* A template with every size and every gap scaled by one step. Sizes are in
-   half points throughout the file, in the preview, in the docx and in the
-   print sheet alike, so scaling here reaches all three from one place and they
-   cannot drift apart. */
 function scaleTemplate(tpl, step) {
   if (!tpl) return tpl;
   if (!step || (step.font === 1 && step.space === 1)) return tpl;
@@ -8384,6 +8444,10 @@ function scaleTemplate(tpl, step) {
   var f = step.font, sp = step.space;
   out.bodySize = Math.max(TT_BODY_FLOOR, Math.round(tpl.bodySize * f));
   out.roleSize = Math.max(out.bodySize, Math.round(tpl.roleSize * f));
+  /* The company and the dates are already the smallest text on the page, so
+     they are pinned to the body floor rather than shrunk past it. */
+  if (tpl.orgSize)  out.orgSize  = Math.max(TT_BODY_FLOOR, Math.round(tpl.orgSize * f));
+  if (tpl.dateSize) out.dateSize = Math.max(TT_BODY_FLOOR, Math.round(tpl.dateSize * f));
   out.headSize = Math.max(out.bodySize, Math.round(tpl.headSize * f));
   // the name is the one thing allowed to stay large: it is one line and it is
   // the first thing read, so it gives back almost no space and costs presence
@@ -8395,8 +8459,17 @@ function scaleTemplate(tpl, step) {
 }
 
 function templateByKey(key) {
-  return scaleTemplate(TT_TEMPLATES[key] || TT_TEMPLATES.classic, TT_FIT_STEPS[APP.fitStep || 0]);
+  /* A template read out of the candidate's own file is a finished flat object:
+     it carries the colours that were in their document and must not be
+     recoloured by the accent picker, because the whole promise of that option
+     is that the output looks like the file they uploaded. */
+  var flat = TT_TEMPLATES[key];
+  var tpl = flat || composeTemplate(key, APP.accent);
+  return scaleTemplate(tpl, TT_FIT_STEPS[APP.fitStep || 0]);
 }
+
+/* Whether the current choice can be recoloured at all. */
+function accentApplies() { return !TT_TEMPLATES[APP.template]; }
 
 function currentTemplate() { return templateByKey(APP.template); }
 
@@ -8553,8 +8626,13 @@ function templateFromDocxXml(xml) {
     nameSize: Math.min(48, Math.max(body + 8, maxSize)),
     headSize: Math.max(body + 2, Math.min(28, Math.round(body * 1.15))),
     roleSize: Math.max(body, body + 1),
+    /* the employer and the dates were not part of this shape before, so a
+       template read out of a file would have fallen back to bodySize and lost
+       the new hierarchy; they are pinned to the body size of that document */
+    orgSize: body, dateSize: body,
     bodySize: body,
     nameColor: accent, headColor: accent, roleColor: '111111',
+    orgColor: '555555', dateColor: '555555',
     headRule: rule, ruleColor: accent === '111111' ? '999999' : accent, headTrack: 0,
     headBefore: 220, headAfter: 70, bodyAfter: 45, contactColor: '444444',
     fromFile: true
@@ -8924,9 +9002,23 @@ function buildDocxXml(text, tplKey) {
 
     var plainOnly = (l.cat === 'military' || l.cat === 'languages');
     if (!plainOnly && l.subtype === 'roleheader') {
-      body += docxParagraph(l.text, {
-        tpl: tpl, fallbackLang: docLang, bold: true, size: tpl.roleSize, color: tpl.roleColor, spaceBefore: 100, spaceAfter: 20
-      });
+      /* Same three way split as the print sheet, so the downloaded Word file
+         and the preview are the same document. An employer set bold at role
+         size was the bug being fixed here. */
+      var drole = spineRole(doc, i);
+      if (drole === 'title') {
+        body += docxParagraph(l.text, {
+          tpl: tpl, fallbackLang: docLang, bold: true, size: tpl.roleSize,
+          color: tpl.roleColor, spaceBefore: 120, spaceAfter: 0
+        });
+      } else {
+        body += docxParagraph(l.text, {
+          tpl: tpl, fallbackLang: docLang, bold: false,
+          size: drole === 'dates' ? (tpl.dateSize || tpl.orgSize || tpl.bodySize) : (tpl.orgSize || tpl.bodySize),
+          color: drole === 'dates' ? (tpl.dateColor || '555555') : (tpl.orgColor || '555555'),
+          spaceBefore: 0, spaceAfter: 20
+        });
+      }
       continue;
     }
     // bullets keep a literal glyph: an ATS reads the character, Word renders it,
@@ -9004,6 +9096,51 @@ function triggerDownload(blob, filename) {
 function pt(halfPoints) { return (halfPoints / 2) + 'pt'; }
 function twip(t) { return (t / 20) + 'pt'; }
 // docx measures a border in eighths of a point, CSS wants points
+/* ============================================================
+   Which part of an entry a spine line actually is
+   ============================================================
+   The parser marks every line of an entry header with one flag, subtype
+   'roleheader', and the renderers read only that flag. So the job title, the
+   employer and the date range were all drawn the same way: bold, at roleSize,
+   in the same near black. In the classic layout roleSize was 22 against a
+   headSize of 24, which is why an employer came out looking exactly like the
+   words "ניסיון תעסוקתי" and the hierarchy of the page collapsed.
+
+   structKind already carries the distinction and was simply never used:
+   'dates' for a date range, 'org' when the line matched an employer word, and
+   'header' for the rest of the block.
+
+   A date line is always a date line. For the other two the parser cannot be
+   relied on to tell an employer from a job title, because a title with no
+   corporate suffix in it looks like anything else. So the FIRST line of each
+   entry gets the emphasis and the lines under it are subordinate. That
+   respects the order the candidate chose: put the title first and the title is
+   emphasised, put the employer first and the employer is. */
+function spineRole(doc, i) {
+  var lines = doc.lines, l = lines[i];
+  if (!l || !l.structKind) return '';
+  if (l.structKind === 'dates') return 'dates';
+
+  /* The line DIRECTLY above decides it, blanks included. Skipping blanks was
+     wrong in both directions at once: "ממוצע ציונים 92" sitting under a date
+     range came out emphasised as though it were a degree, while the degree
+     below it, separated by a real blank line, was demoted to a subtitle. A
+     blank line is how a candidate says "new entry", and the detector has to
+     read it. */
+  var prev = i > 0 ? lines[i - 1] : null;
+  if (!prev) return 'title';
+  if (prev.type === 'blank') return 'title';       // new entry
+  if (prev.isHeading) return 'title';              // first entry of a section
+  if (prev.cat !== l.cat) return 'title';          // section changed
+
+  /* Anything else immediately above and this line is subordinate to it. That
+     includes ordinary content, which is what keeps a certificate body line
+     from promoting the institution under it into the loudest thing in the
+     section. Erring towards subdued is deliberate: a missed emphasis costs one
+     line of quiet, a wrong one costs the hierarchy of the page. */
+  return 'org';
+}
+
 function rulePt(tpl) { return ((tpl.ruleSize || 4) / 8) + 'pt'; }
 
 function buildPrintHtml(text, tplKey) {
@@ -9055,8 +9192,17 @@ function buildPrintHtml(text, tplKey) {
     }
     var plainOnly = (l.cat === 'military' || l.cat === 'languages');
     if (!plainOnly && l.subtype === 'roleheader') {
-      html += '<p' + attrs(l) + 'font-size:' + pt(tpl.roleSize) + ';font-weight:700;color:#' + tpl.roleColor + ';margin:5pt 0 1pt">' +
-              escapeHtml(l.text) + '</p>';
+      var role = spineRole(doc, i);
+      if (role === 'title') {
+        html += '<p' + attrs(l) + 'font-size:' + pt(tpl.roleSize) + ';font-weight:700;color:#' + tpl.roleColor +
+                ';margin:6pt 0 0">' + escapeHtml(l.text) + '</p>';
+      } else {
+        /* employer, location, dates: regular weight, grey, and never larger
+           than the body, so the eye lands on the title and moves on */
+        html += '<p' + attrs(l) + 'font-size:' + pt(role === 'dates' ? (tpl.dateSize || tpl.orgSize || tpl.bodySize) : (tpl.orgSize || tpl.bodySize)) +
+                ';font-weight:400;color:#' + (role === 'dates' ? (tpl.dateColor || '555555') : (tpl.orgColor || '555555')) +
+                ';margin:0 0 2pt">' + escapeHtml(l.text) + '</p>';
+      }
       continue;
     }
     var bulletPad = l.type === 'bullet' ? 'padding-inline-start:12pt;text-indent:-9pt;' : '';
@@ -9105,7 +9251,7 @@ function bindIoUi() {
       updateLangBadges();
       var gotTemplate = await registerTemplateFromFile(f);
       setStatus('הקובץ נטען.' + (gotTemplate ? ' נוסף טמפלט לפי העיצוב של הקובץ שהעלית.' : ''));
-      if (typeof renderTemplatePicker === 'function') renderTemplatePicker();
+      if (typeof renderTemplatePicker === 'function') { renderTemplatePicker(); renderAccentPicker(); }
     } catch (e) { setStatus(''); showError(e.message); }
     ev.target.value = '';
   });
@@ -9566,7 +9712,7 @@ function resetPanel(which) {
     APP.emphasis = null;              // the bold belonged to a file that is gone
     clearStructOverrides();           // they described lines that are gone too
     uninstallFileTemplate();
-    if (typeof renderTemplatePicker === 'function') renderTemplatePicker();
+    if (typeof renderTemplatePicker === 'function') { renderTemplatePicker(); renderAccentPicker(); }
   } else {
     APP.jobRaw = '';
   }
@@ -9614,7 +9760,7 @@ function startOverAll() {
   var page = $('previewPage');
   if (page) page.innerHTML = '';
   if (typeof previewNote === 'function') previewNote('');
-  if (typeof renderTemplatePicker === 'function') renderTemplatePicker();
+  if (typeof renderTemplatePicker === 'function') { renderTemplatePicker(); renderAccentPicker(); }
   if (typeof renderStructurePanel === 'function') renderStructurePanel();
 
   clearError();
@@ -10009,10 +10155,14 @@ function templateVars(tpl) {
     '--tt-name': pt(tpl.nameSize),
     '--tt-head': pt(tpl.headSize),
     '--tt-role': pt(tpl.roleSize),
+    '--tt-org': pt(tpl.orgSize || tpl.bodySize),
+    '--tt-date': pt(tpl.dateSize || tpl.orgSize || tpl.bodySize),
     '--tt-body': pt(tpl.bodySize),
     '--tt-namecolor': '#' + tpl.nameColor,
     '--tt-headcolor': '#' + tpl.headColor,
     '--tt-rolecolor': '#' + tpl.roleColor,
+    '--tt-orgcolor': '#' + (tpl.orgColor || '555555'),
+    '--tt-datecolor': '#' + (tpl.dateColor || '555555'),
     '--tt-contact': '#' + tpl.contactColor,
     '--tt-rule': tpl.headRule ? rulePt(tpl) + ' solid #' + tpl.ruleColor : '0 none',
     '--tt-namerule': tpl.nameRule ? rulePt(tpl) + ' solid #' + tpl.ruleColor : '0 none',
@@ -10031,19 +10181,62 @@ function applyTemplateVars(el, tpl) {
   Object.keys(vars).forEach(function (k) { el.style.setProperty(k, vars[k]); });
 }
 
+/* The accent, chosen apart from the layout. Six swatches, and every one of
+   them was checked for contrast against white before it got in: the lowest is
+   8.4 to 1 where 4.5 is the requirement for text, so all six stay legible in
+   print and in greyscale on somebody's office laser printer. */
+function renderAccentPicker() {
+  var el = $('accentPicker');
+  if (!el) return;
+  if (!accentApplies()) {
+    el.innerHTML = '<div class="text-[11px] text-slate-500">' +
+      'התבנית שנקראה מהקובץ שהעלית שומרת על הצבעים שהיו בו, ולכן אין כאן בחירת גוון.' +
+      '</div>';
+    return;
+  }
+  var html = '<div class="text-xs text-slate-600 mb-1">גוון ההדגשה, לשם ולכותרות הסעיפים:</div>' +
+             '<div class="flex flex-wrap gap-2">';
+  TT_ACCENT_ORDER.forEach(function (key) {
+    var a = TT_ACCENTS[key];
+    var on = (APP.accent || 'navy') === key;
+    html += '<button class="tt-accbtn inline-flex items-center gap-2 rounded-lg border-2 px-2 py-1 ' +
+      (on ? 'border-slate-800 bg-slate-50' : 'border-slate-200 bg-white hover:border-slate-400') +
+      '" data-accent="' + key + '" title="' + escapeHtml(a.name) + '">' +
+      '<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#' + a.ink +
+        ';border:1px solid rgba(0,0,0,.15)"></span>' +
+      '<span class="text-xs">' + escapeHtml(a.name) + '</span></button>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  var btns = el.querySelectorAll('.tt-accbtn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function (ev) {
+      APP.accent = ev.currentTarget.getAttribute('data-accent');
+      renderAccentPicker();
+      renderTemplatePicker();
+  renderAccentPicker();
+      renderPreview();
+    });
+  }
+}
+
 function renderTemplatePicker() {
   var el = $('templatePicker');
   if (!el) return;
   var html = '';
   TT_TEMPLATE_ORDER.forEach(function (key) {
-    var t = TT_TEMPLATES[key];
+    /* A layout has no colours of its own, so the thumbnail is drawn from the
+       layout composed with the accent that is currently chosen. 'original',
+       read out of an uploaded file, is already flat and keeps its own colours. */
+    var t = TT_TEMPLATES[key] || composeTemplate(key, APP.accent);
     if (!t) return;
     var on = APP.template === key;
     // the thumbnail is drawn from the template's own colours, so a template
     // discovered at runtime gets a real thumbnail too
     var nameStyle = 'background:#' + t.nameColor + ';' + (t.nameSize >= 40 ? 'height:9px;' : '');
-    var headStyle = 'background:#' + t.headColor + ';' + (t.headRule ? 'border-bottom:1px solid #' + t.ruleColor + ';padding-bottom:2px;' : '') +
-                    (t.headUpper ? 'width:24%;' : '');
+    var headStyle = t.headShade
+      ? 'background:#' + t.headShade + ';border-inline-start:2px solid #' + t.ruleColor + ';'
+      : 'background:#' + t.headColor + ';' + (t.headRule ? 'border-bottom:1px solid #' + t.ruleColor + ';padding-bottom:2px;' : '');
     html += '<button class="tt-tplbtn text-start rounded-xl border-2 p-2 w-40 ' +
             (on ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-400') + '" data-tpl="' + key + '">' +
       '<div class="tt-tplthumb">' +
@@ -10061,6 +10254,7 @@ function renderTemplatePicker() {
     btns[i].addEventListener('click', function (ev) {
       APP.template = ev.currentTarget.getAttribute('data-tpl');
       renderTemplatePicker();
+      renderAccentPicker();
       renderPreview();
     });
   }
@@ -10202,7 +10396,12 @@ function renderPreview() {
               escapeHtml(headingText(l.text, tpl)) + '</div>';
       return;
     }
-    if (l.subtype === 'roleheader') { html += '<div class="tt-pv-role"' + attrs + '>' + escapeHtml(l.text) + '</div>'; return; }
+    if (l.subtype === 'roleheader') {
+      var pr = spineRole(doc, i);
+      var cls = pr === 'title' ? 'tt-pv-role' : pr === 'dates' ? 'tt-pv-date' : 'tt-pv-org';
+      html += '<div class="' + cls + '"' + attrs + '>' + escapeHtml(l.text) + '</div>';
+      return;
+    }
     // the bold the candidate had in their own file, put back on the words that
     // still carry it: the sub heading of a skills group, and any line that was
     // bold end to end
