@@ -3,6 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- =====================================================================
+     THE ICON
+
+     Both are embedded rather than linked. The whole application is one file
+     that has to work from a disk, from a share and from a web server without
+     anything beside it, and an icon in a second file breaks that the moment
+     somebody copies only the html. Together they cost about 1.3KB.
+
+     Base64 rather than a plain svg data URI on purpose: a raw URI has to have
+     every # in every colour written as %23, and a single missed one truncates
+     the whole address at that point and the icon silently never appears.
+
+     Two shapes for two jobs. The svg has rounded corners and is what a tab, a
+     bookmark and a Windows desktop shortcut use; it is vector, so it stays
+     sharp at every size the system asks for. The png is square and full bleed
+     because macOS and iOS round the corners themselves, and a shape that
+     arrives already rounded comes out rounded twice.
+     ===================================================================== -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzFGMzg2NCIvPjxyZWN0IHg9IjYuNSIgeT0iNCIgd2lkdGg9IjE5IiBoZWlnaHQ9IjI0IiByeD0iMiIgZmlsbD0iI0ZGRkZGRiIvPjxyZWN0IHg9IjkuNSIgeT0iOCIgd2lkdGg9IjEzIiBoZWlnaHQ9IjMuNCIgcng9IjEuMiIgZmlsbD0iIzFGMzg2NCIvPjxyZWN0IHg9IjkuNSIgeT0iMTQuNCIgd2lkdGg9IjEzIiBoZWlnaHQ9IjIuNCIgcng9IjEuMiIgZmlsbD0iIzkzQTNCRSIvPjxyZWN0IHg9IjkuNSIgeT0iMTkiIHdpZHRoPSIxMyIgaGVpZ2h0PSIyLjQiIHJ4PSIxLjIiIGZpbGw9IiM5M0EzQkUiLz48cmVjdCB4PSI5LjUiIHk9IjIzLjYiIHdpZHRoPSI3LjUiIGhlaWdodD0iMi40IiByeD0iMS4yIiBmaWxsPSIjOTNBM0JFIi8+PC9zdmc+">
+<link rel="icon" type="image/png" sizes="180x180" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0BAMAAADP4xsBAAAAGFBMVEX////W3Oa6w9KTo76PnLKBj6hIXYEfOGTCboFAAAABg0lEQVR42u3YPU4CQRjG8RnQfiCxR0ysjSeRmHgC7+AdLDyC8QRqb8EVttUY3V5kp5YsY2/Mvu+8ZGE3/J+SwC/LMB/P4G9cWxk4aGhoaGho6C3RB/+/nD4rNTEahwz66z7r+U5n6gHJlN3bk5p+zB3Wdy39E3Pp9YOSnufPhoWOTkU+XUcVXVsmcaGi1xa6VNGVha52vYdEi5PYVKGhKQt/M7w8bvzw8qU0PrW/bpbd+CoY6cMgfWd/YaRn8ngeGenJZrNgsOHkmXSN9ho6sND3l1bVysJEJw0dbbSioSUb7Z5lemX8GRcyPTfS9Z0kvxbWA2x1Kxxg0Xw2uvTBaoSGhobuwV3GT4OwnUfrUwuy81PrgAzlu8xZ5y4cLsi0t9HcCrZHt9lUNbRxQBT/21ZGel1KcuM7Gren72Uwj7TYVCvmNTQ0dAfbkz+X2tNJaKGjKFrQbtqTb689qWJrT769eZ16uRppT7QnThlo6L5UHOdG2Ts4IYQQQgghhBBCSMfzC/wbYXpi5gnzAAAAAElFTkSuQmCC">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0BAMAAADP4xsBAAAAGFBMVEX////W3Oa6w9KTo76PnLKBj6hIXYEfOGTCboFAAAABg0lEQVR42u3YPU4CQRjG8RnQfiCxR0ysjSeRmHgC7+AdLDyC8QRqb8EVttUY3V5kp5YsY2/Mvu+8ZGE3/J+SwC/LMB/P4G9cWxk4aGhoaGho6C3RB/+/nD4rNTEahwz66z7r+U5n6gHJlN3bk5p+zB3Wdy39E3Pp9YOSnufPhoWOTkU+XUcVXVsmcaGi1xa6VNGVha52vYdEi5PYVKGhKQt/M7w8bvzw8qU0PrW/bpbd+CoY6cMgfWd/YaRn8ngeGenJZrNgsOHkmXSN9ho6sND3l1bVysJEJw0dbbSioSUb7Z5lemX8GRcyPTfS9Z0kvxbWA2x1Kxxg0Xw2uvTBaoSGhobuwV3GT4OwnUfrUwuy81PrgAzlu8xZ5y4cLsi0t9HcCrZHt9lUNbRxQBT/21ZGel1KcuM7Gren72Uwj7TYVCvmNTQ0dAfbkz+X2tNJaKGjKFrQbtqTb689qWJrT769eZ16uRppT7QnThlo6L5UHOdG2Ts4IYQQQgghhBBCSMfzC/wbYXpi5gnzAAAAAElFTkSuQmCC">
+<meta name="theme-color" content="#1F3864">
+
 
 <!-- =====================================================================
      CONTENT SECURITY POLICY
@@ -201,6 +224,9 @@
   .tt-pv-head    { font-size:var(--tt-head); font-weight:700; color:var(--tt-headcolor);
                    letter-spacing:var(--tt-track); margin:var(--tt-headbefore) 0 var(--tt-headafter);
                    border-bottom:var(--tt-rule); background:var(--tt-headshade); padding:var(--tt-headpad); }
+  /* the divider between sections. Not on the first heading: there is nothing
+     above it to divide it from, and a rule there reads as a stray line. */
+  .tt-pv-sep     { border-top:var(--tt-seprule); padding-top:var(--tt-headbefore); margin-top:0 !important; }
   .tt-pv-role    { font-size:var(--tt-role); font-weight:700; color:var(--tt-rolecolor); margin:6pt 0 0; }
   /* The employer and the date range. Regular weight, grey, never larger than
      the body: the third render path in this file, and it carried the same flaw
@@ -304,7 +330,17 @@
     #printArea a { text-decoration: none !important; }
     #printArea * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .tt-noprint { display: none !important; }
-    @page { margin: 0; }
+    /* The margin belongs to the PAGE, so every page gets it, exactly as Word
+       does it. The sheet's own padding is dropped here or it would be added on
+       top of this and only on the first page. */
+    /* The size has to be stated. The Word file declares A4 in w:pgSz and the
+       browser was declaring nothing, so it fell through to whatever the chosen
+       printer defaults to. On a great many machines that is Letter, which is
+       279mm tall against A4's 297: eighteen millimetres shorter per page, on
+       top of the margin problem, and a PDF that breaks in a different place
+       from the Word file built from the same text. */
+    @page { size: A4; margin: 14mm; }
+    #printArea .tt-sheet { padding: 0 !important; width: auto !important; }
   }
 
   /* =====================================================================
@@ -1459,6 +1495,12 @@ var APP = {
   domainMode: '',
   domainGap: null,      // the report the gate was computed from, kept for the render
   accent: 'navy',       // the one accent colour, applied to name, headings and rule
+  /* A hairline above every section heading except the first, so the end of one
+     section is visibly the end of one section. It is a paragraph border, which
+     is a property of the paragraph and not content, so no parser sees it, and
+     it sits inside the space that already exists above a heading and therefore
+     costs no height at all. Both of those were measured, not assumed. */
+  sectionRule: true,
   world: null,          // stage 1b: what occupation each side belongs to
   route: '',            // stop | work | polish. what this run is actually for
   skillModel: null,     // parsed skills section: groups + items
@@ -8355,14 +8397,6 @@ var TT_LAYOUTS = {
     headRule: true, ruleSize: 8, headTrack: 0,
     headBefore: 260, headAfter: 80, bodyAfter: 40
   },
-  masthead: {
-    name: '\u05db\u05d5\u05ea\u05e8\u05ea \u05e8\u05d0\u05e9\u05d9\u05ea',
-    note: '\u05e9\u05dd \u05d2\u05d3\u05d5\u05dc \u05de\u05e2\u05dc \u05e7\u05d5 \u05e2\u05d1\u05d4, \u05d5\u05de\u05e9\u05dd \u05d5\u05d4\u05dc\u05d0\u05d4 \u05d3\u05e3 \u05e9\u05e7\u05d8.',
-    css: "Calibri, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif", docxFont: 'Calibri',
-    nameSize: 46, headSize: 22, roleSize: 23, orgSize: 21, dateSize: 21, bodySize: 21,
-    headRule: false, ruleSize: 20, headTrack: 24, nameRule: true, nameTrack: -12,
-    headBefore: 280, headAfter: 80, bodyAfter: 40
-  },
   band: {
     name: '\u05e8\u05e6\u05d5\u05e2\u05d4',
     note: '\u05db\u05d5\u05ea\u05e8\u05d5\u05ea \u05e2\u05dc \u05e8\u05e6\u05d5\u05e2\u05ea \u05e8\u05e7\u05e2 \u05d1\u05d4\u05d9\u05e8\u05d4, \u05d8\u05e7\u05e1\u05d8 \u05e9\u05d7\u05d5\u05e8 \u05d1\u05ea\u05d5\u05db\u05d4.',
@@ -8376,7 +8410,7 @@ var TT_LAYOUTS = {
     headBefore: 250, headAfter: 80, bodyAfter: 40
   }
 };
-var TT_LAYOUT_ORDER = ['classic', 'business', 'masthead', 'band'];
+var TT_LAYOUT_ORDER = ['classic', 'business', 'band'];
 TT_TEMPLATE_ORDER = TT_LAYOUT_ORDER.slice();
 
 function accentByKey(key) { return TT_ACCENTS[key] || TT_ACCENTS.navy; }
@@ -8434,6 +8468,26 @@ var TT_FIT_STEPS = [
 ];
 
 var TT_FIT_MAX_PAGES = 2;
+
+/* ---------------- what a page actually holds ----------------
+   A4 is 297mm tall and the document keeps 14mm clear on every edge, so a page
+   holds 269mm of text. That last number is the one that matters and it was
+   nowhere in the code.
+
+   Three places each said "14mm" and only one of them meant it per page. Word
+   puts its margin on every page, because w:pgMar is a page property. The
+   browser was given @page{margin:0} and the sheet carried 14mm of its own
+   padding, and padding belongs to the element, not to the page: it appears once
+   at the very top of the flow and once at the very bottom. So the first printed
+   page held 283mm of text and every page after it held 297mm with no margin at
+   all, while Word held 269mm throughout.
+
+   The dashed line was drawn every 297mm, which matched neither. It landed 14mm
+   past the real break on page two and 42mm past it on page three, which is
+   three lines and then ten. */
+var TT_PAGE_MM = 297;
+var TT_MARGIN_MM = 14;
+var TT_CONTENT_MM = TT_PAGE_MM - TT_MARGIN_MM * 2;   // 269
 var TT_BODY_FLOOR = 19;    // half points, so 9.5pt. Nothing goes under this.
 
 function scaleTemplate(tpl, step) {
@@ -8891,9 +8945,19 @@ function docxParagraph(text, opts) {
   if (lang === 'neutral') lang = opts.fallbackLang || 'he';
   var rtl = lang === 'he';
 
-  var border = opts.rule
-    ? '<w:pBdr><w:bottom w:val="single" w:sz="' + (tpl.ruleSize || 4) + '" w:space="' + (opts.rulePad == null ? 2 : opts.rulePad) +
-      '" w:color="' + tpl.ruleColor + '"/></w:pBdr>' : '';
+  /* The schema fixes the order inside pBdr: top, then left, then bottom, then
+     right. A bottom element written before a top one is not a different look,
+     it is a file Word refuses to open. */
+  var borderParts = '';
+  if (opts.sepRule) {
+    borderParts += '<w:top w:val="single" w:sz="4" w:space="' + (opts.sepPad == null ? 6 : opts.sepPad) +
+                   '" w:color="C9C9C9"/>';
+  }
+  if (opts.rule) {
+    borderParts += '<w:bottom w:val="single" w:sz="' + (tpl.ruleSize || 4) + '" w:space="' +
+                   (opts.rulePad == null ? 2 : opts.rulePad) + '" w:color="' + tpl.ruleColor + '"/>';
+  }
+  var border = borderParts ? '<w:pBdr>' + borderParts + '</w:pBdr>' : '';
   // paragraph shading, not a table cell and not a text box: the run inside is
   // still an ordinary run of text and comes out of a parser unchanged
   var shade = opts.shade ? '<w:shd w:val="clear" w:color="auto" w:fill="' + opts.shade + '"/>' : '';
@@ -8978,6 +9042,7 @@ function buildDocxXml(text, tplKey) {
       body += docxParagraph(headingText(l.text, tpl), {
         tpl: tpl, fallbackLang: docLang, bold: true, size: tpl.headSize, color: tpl.headColor,
         rule: tpl.headRule, rulePad: 4, shade: tpl.headShade, track: tpl.headTrack,
+        sepRule: APP.sectionRule && !isFirstHeading(doc, i) && !tpl.headShade,
         spaceBefore: tpl.headBefore, spaceAfter: tpl.headAfter
       });
       continue;
@@ -9116,6 +9181,14 @@ function twip(t) { return (t / 20) + 'pt'; }
    entry gets the emphasis and the lines under it are subordinate. That
    respects the order the candidate chose: put the title first and the title is
    emphasised, put the employer first and the employer is. */
+/* Whether a heading is the first one in the document. The section divider is
+   suppressed on it: there is no section above it to divide it from, and a rule
+   floating under the contact line reads as a mistake. */
+function isFirstHeading(doc, i) {
+  for (var j = 0; j < i; j++) if (doc.lines[j] && doc.lines[j].isHeading) return false;
+  return true;
+}
+
 function spineRole(doc, i) {
   var lines = doc.lines, l = lines[i];
   if (!l || !l.structKind) return '';
@@ -9169,8 +9242,20 @@ function buildPrintHtml(text, tplKey) {
     if (!l.raw.trim()) { html += '<div style="height:6pt"></div>'; continue; }
 
     if (l.isHeading) {
+      /* The divider replaces the top margin with the same amount of padding and
+         draws the hairline on the boundary, so the heading sits exactly where it
+         sat before and the page is not one millimetre longer. */
+/* Not on a shaded heading. The tinted band already marks where a section
+   begins, so a hairline above it is redundant, and worse: the divider works by
+   turning the top margin into top padding, and the shade needs the padding
+   shorthand for its own inset. The shorthand wins, the padding is lost, the
+   margin is already gone, and the heading loses the space above it entirely.
+   Measured as eight millimetres SHORTER, which is how the conflict surfaced. */
+      var sep = APP.sectionRule && !isFirstHeading(doc, i) && !tpl.headShade;
       html += '<h2' + attrs(l) + 'font-size:' + pt(tpl.headSize) + ';font-weight:700;color:#' + tpl.headColor +
-              ';letter-spacing:' + (tpl.headTrack / 20) + 'pt;margin:' + twip(tpl.headBefore) + ' 0 ' + twip(tpl.headAfter) + ';' +
+              ';letter-spacing:' + (tpl.headTrack / 20) + 'pt;' +
+              (sep ? 'border-top:0.5pt solid #c9c9c9;padding-top:' + twip(tpl.headBefore) + ';margin:0 0 ' + twip(tpl.headAfter) + ';'
+                   : 'margin:' + twip(tpl.headBefore) + ' 0 ' + twip(tpl.headAfter) + ';') +
               (tpl.headRule ? 'border-bottom:' + rulePt(tpl) + ' solid #' + tpl.ruleColor + ';padding-bottom:2pt;' : '') +
               (tpl.headShade ? 'background:#' + tpl.headShade + ';padding:' + twip(tpl.headPad || 40) + ' ' + twip((tpl.headPad || 40) * 1.5) + ';' : '') +
               '">' + escapeHtml(headingText(l.text, tpl)) + '</h2>';
@@ -9212,8 +9297,8 @@ function buildPrintHtml(text, tplKey) {
             'white-space:pre-wrap">' + (l.type === 'bullet' ? escapeHtml(bulletGlyph(l.marker)) + ' ' : '') +
             runsToHtml(emphasisRuns(l.text, l.cat)) + '</p>';
   }
-  return '<div dir="' + pageDir + '" style="direction:' + pageDir + ';text-align:' + (pageDir === 'rtl' ? 'right' : 'left') +
-         ';font-family:' + tpl.css + ';color:#000;background:#fff;padding:14mm;line-height:1.32">' + html + '</div>';
+  return '<div class="tt-sheet" dir="' + pageDir + '" style="direction:' + pageDir + ';text-align:' + (pageDir === 'rtl' ? 'right' : 'left') +
+         ';font-family:' + tpl.css + ';color:#000;background:#fff;padding:' + TT_MARGIN_MM + 'mm;line-height:1.32">' + html + '</div>';
 }
 
 function exportPdf(text, tplKey) {
@@ -10165,6 +10250,7 @@ function templateVars(tpl) {
     '--tt-datecolor': '#' + (tpl.dateColor || '555555'),
     '--tt-contact': '#' + tpl.contactColor,
     '--tt-rule': tpl.headRule ? rulePt(tpl) + ' solid #' + tpl.ruleColor : '0 none',
+    '--tt-seprule': APP.sectionRule ? '0.5pt solid #c9c9c9' : '0 none',
     '--tt-namerule': tpl.nameRule ? rulePt(tpl) + ' solid #' + tpl.ruleColor : '0 none',
     '--tt-track': (tpl.headTrack / 20) + 'pt',
     '--tt-nametrack': ((tpl.nameTrack || 0) / 20) + 'pt',
@@ -10207,7 +10293,15 @@ function renderAccentPicker() {
       '<span class="text-xs">' + escapeHtml(a.name) + '</span></button>';
   });
   html += '</div>';
+  html += '<label class="inline-flex items-center gap-2 cursor-pointer mt-2 text-xs text-slate-600">' +
+    '<input type="checkbox" id="sectionRuleBox"' + (APP.sectionRule ? ' checked' : '') + '>' +
+    '<span>קו מפריד דק בין הסעיפים</span></label>';
   el.innerHTML = html;
+  var box = $('sectionRuleBox');
+  if (box) box.addEventListener('change', function (ev) {
+    APP.sectionRule = !!ev.currentTarget.checked;
+    renderPreview();
+  });
   var btns = el.querySelectorAll('.tt-accbtn');
   for (var i = 0; i < btns.length; i++) {
     btns[i].addEventListener('click', function (ev) {
@@ -10296,14 +10390,14 @@ function fitPageToLimit(page, tplKey) {
      Chrome can still tip over in Word. Three percent of headroom costs a barely
      visible amount of space and removes an entire class of "it said two pages
      and gave me three". */
-  var limit = 297 * mm * TT_FIT_MAX_PAGES * 0.97;
+  var limit = (TT_MARGIN_MM * 2 + TT_CONTENT_MM * TT_FIT_MAX_PAGES) * mm * 0.995;
 
   for (var i = 0; i < TT_FIT_STEPS.length; i++) {
     APP.fitStep = i;
     applyTemplateVars(page, templateByKey(tplKey));
     if (page.scrollHeight <= limit + 1) break;
   }
-  APP.fitPages = Math.max(1, page.scrollHeight / (297 * mm));
+  APP.fitPages = Math.max(1, (page.scrollHeight - TT_MARGIN_MM * 2 * mm) / (TT_CONTENT_MM * mm));
 }
 
 /* What the shrinking did, said plainly, because a candidate who sees their
@@ -10341,15 +10435,18 @@ function drawPageCuts(page) {
   page.removeChild(probe);
   if (!mm || !isFinite(mm)) return;
 
-  var pageH = 297 * mm;
-  var total = page.scrollHeight;
-  var pages = Math.ceil(total / pageH);
+  /* Content starts below the sheet's top padding and each page holds
+     TT_CONTENT_MM of it, so break n sits at padding + n pages of content.
+     Measured against the Word file rather than assumed. */
+  var contentH = TT_CONTENT_MM * mm;
+  var contentTotal = page.scrollHeight - TT_MARGIN_MM * 2 * mm;
+  var pages = Math.max(1, Math.ceil(contentTotal / contentH));
   if (pages < 2) return;
 
   for (var n = 1; n < pages && n < 12; n++) {
     var cut = document.createElement('div');
     cut.className = 'tt-pagecut';
-    cut.style.top = (pageH * n) + 'px';
+    cut.style.top = (TT_MARGIN_MM * mm + contentH * n) + 'px';
     cut.setAttribute('data-label', 'עמוד ' + (n + 1));
     page.appendChild(cut);
   }
@@ -10392,7 +10489,8 @@ function renderPreview() {
       // a template may display the heading upper cased. data-raw carries the
       // real text so applying edits cannot bake the display casing into the
       // document, while still letting a genuine retype through
-      html += '<div class="tt-pv-head" data-raw="' + escapeHtml(l.text) + '"' + attrs + '>' +
+      var sepCls = (APP.sectionRule && !isFirstHeading(doc, i) && !tpl.headShade) ? ' tt-pv-sep' : '';
+      html += '<div class="tt-pv-head' + sepCls + '" data-raw="' + escapeHtml(l.text) + '"' + attrs + '>' +
               escapeHtml(headingText(l.text, tpl)) + '</div>';
       return;
     }
