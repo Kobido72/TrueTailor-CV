@@ -72,12 +72,12 @@
        6. "הדפס או שמור כ־PDF" opens
      ===================================================================== -->
 <meta http-equiv="Content-Security-Policy" content="
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com;
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://www.googletagmanager.com;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   font-src 'self' data: https://fonts.gstatic.com;
-  connect-src 'self' blob: data: https://generativelanguage.googleapis.com https://cdnjs.cloudflare.com;
+  connect-src 'self' blob: data: https://generativelanguage.googleapis.com https://cdnjs.cloudflare.com https://www.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://*.google-analytics.com;
   worker-src 'self' blob: https://cdnjs.cloudflare.com;
-  img-src 'self' data: blob:;
+  img-src 'self' data: blob: https://www.google-analytics.com https://*.google-analytics.com;
   object-src 'none';
   base-uri 'none';
   form-action 'none'">
@@ -86,6 +86,42 @@
      'no-referrer': a Google API key can optionally be restricted to a
      referring domain, and no-referrer would silently break such a key. -->
 <meta name="referrer" content="strict-origin-when-cross-origin">
+
+<!-- =====================================================================
+     GOOGLE ANALYTICS 4
+
+     Measures how many people arrive, from where, on what device, and how
+     long they stay. It reads none of the page: the resume, the posting and
+     the API key are never touched by it, because gtag does not look at the
+     DOM or at form fields. What it does send is the address of this page,
+     the referrer, the device, and an IP that Google turns into an
+     approximate location and does not store.
+
+     Three notes worth keeping.
+
+     The Content Security Policy above had to be widened by three lines or
+     none of this would have worked, and it would have failed SILENTLY: the
+     script blocked, no error shown, no data ever arriving, and nothing on
+     screen to say why.
+
+     Advertising is switched off. allow_google_signals and
+     allow_ad_personalization_signals default to true, which turns ordinary
+     visitor counting into remarketing data. Neither is wanted here.
+
+     IP anonymisation is not set because in GA4 it is not a setting: the
+     address is anonymised on collection whatever the page asks for. Writing
+     anonymize_ip would look thorough and do nothing.
+     ===================================================================== -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-BYKBETZ27W"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-BYKBETZ27W', {
+    allow_google_signals: false,
+    allow_ad_personalization_signals: false
+  });
+</script>
 <title>TrueTailor CV — התאמת קורות חיים למשרה</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1052,7 +1088,7 @@
     <h2>קורות החיים שלך, <span>מכוונים למשרה אחת</span>.</h2>
     <p>כל שורה נכתבת מחדש מול דרישה מסוימת במודעה, ואף עובדה לא נכנסת בלי שאתה מאשר אותה שורה אחר שורה.</p>
     <div class="tt-facts">
-      <span class="tt-fact"><b>מקומי</b> · הכל רץ בדפדפן שלך</span>
+      <span class="tt-fact"><b>בלי שרת</b> · רק הדפדפן שלך ו-Google</span>
       <span class="tt-fact"><b>בלי המצאות</b> · רק מה שהוכח או שאמרת</span>
       <span class="tt-fact"><b>ידידותי ל־ATS</b> · עמודה אחת, בלי טבלאות</span>
     </div>
