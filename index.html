@@ -230,16 +230,33 @@
      A contenteditable div with a faint hover tint reads as a static document to
      anyone who does not already know it is not one. The dotted underline is
      always on, so the affordance exists before the mouse arrives. */
+  /* ---------- the affordance is painted, never laid out ----------
+     This was a 1px bottom BORDER, and a border is height. The page cut is
+     measured off this very element, so every editable block made the preview
+     one pixel taller than the file it claims to be showing. A two page resume
+     is around forty four blocks, which is 11.6mm of height that exists on
+     screen and in neither the docx nor the PDF: the dashed rule sat two to
+     three lines too low, and lines pushed below it still downloaded on page
+     one. Drawn as a background image the same edge occupies no space at all,
+     so what is measured is what ships.
+
+     The hover and focus rules below set background-COLOR, not the background
+     shorthand: the shorthand resets background-image and would erase this
+     edge the moment the mouse arrived. */
   .tt-page.is-editable [contenteditable="true"] {
-    border-bottom:1px dotted rgba(100,116,139,.42);
-    transition:background .12s ease;
+    background-image:repeating-linear-gradient(to right,
+      rgba(100,116,139,.42) 0 2px, transparent 2px 4px);
+    background-repeat:no-repeat;
+    background-size:100% 1px;
+    background-position:left bottom;
+    transition:background-color .12s ease;
   }
   .tt-page [contenteditable="true"]:focus {
     outline:2px solid #0E8F86; outline-offset:2px; border-radius:2px;
-    background:#F0FBFA; border-bottom-color:transparent !important;
+    background-color:#F0FBFA; background-image:none;
   }
   .tt-page.is-editable [contenteditable="true"]:hover {
-    background:#FFFBEB; box-shadow:0 0 0 3px #FFFBEB; border-radius:2px;
+    background-color:#FFFBEB; box-shadow:0 0 0 3px #FFFBEB; border-radius:2px;
     cursor:text;
   }
   .tt-editbar {
@@ -938,7 +955,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v35.5</span>
+        <span class="tt-ver" id="verBadge">v35.6</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1510,7 +1527,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v35.5';
+var TT_VERSION = 'v35.6';
 
 var APP = {
   apiKey: '',
@@ -1572,6 +1589,12 @@ var APP = {
      by both exports, so what is on screen is what downloads. */
   fitStep: 0,
   fitPages: 1,
+  /* Which document line index STARTS each page after the first. Decided once,
+     in the preview, at a block boundary, and then consumed by the preview rule,
+     the docx and the print sheet alike. Empty means "let the engine paginate",
+     which is what this file did before and is still the fallback when the
+     preview has not been measured. */
+  pageBreaks: [],
   previewDirty: false,
   metricsNoticeShown: false,
   pipelineRunning: false,   // guards the start button, not reset between runs
@@ -8526,6 +8549,29 @@ var TT_MARGIN_MM = 14;
 var TT_CONTENT_MM = TT_PAGE_MM - TT_MARGIN_MM * 2;   // 269
 var TT_BODY_FLOOR = 19;    // half points, so 9.5pt. Nothing goes under this.
 
+/* How much of a page is treated as usable, by both the shrink-to-fit loop and
+   the break chooser, which have to agree or the fit certifies two pages and the
+   breaks need three. Word fills a line by its own rules and can want marginally
+   more height than Chrome did for the same words: line-height:1.32 multiplies
+   the font SIZE, w:lineRule="auto" multiplies the font's natural line height,
+   and those differ by up to about two percent depending on the font. Three
+   percent covers that spread. The comment here used to claim three percent
+   while the code did half of one; both now say the same number. */
+var TT_PAGE_SAFETY = 0.97;
+
+/* The one decision, in the form both exports read it: document line index to
+   "this line starts a new page". Produced by drawPageCuts off the measured
+   preview and consumed by buildDocxXml and buildPrintHtml, so the rule on
+   screen and the break in the file are the same fact rather than two engines
+   guessing in parallel. An empty set means nothing has been measured yet and
+   both exports flow exactly as this file always made them flow. */
+function pageBreakSet() {
+  var set = {};
+  var arr = (typeof APP !== 'undefined' && APP.pageBreaks) || [];
+  for (var i = 0; i < arr.length; i++) set[arr[i]] = true;
+  return set;
+}
+
 function scaleTemplate(tpl, step) {
   if (!tpl) return tpl;
   if (!step || (step.font === 1 && step.space === 1)) return tpl;
@@ -8956,6 +9002,15 @@ function docxStyles(tpl, rtlDoc) {
         '<w:lang w:val="en-US" w:bidi="he-IL"/>' +
       '</w:rPr></w:rPrDefault>' +
       '<w:pPrDefault><w:pPr>' +
+        /* Word's widow and orphan control defaults to ON when a file says
+           nothing, and this file said nothing. Now that the page break is
+           chosen by the app and written into the document, that setting has no
+           legitimate work left to do: no paragraph is ever split across the
+           break, so all it can do is disagree with the break and drag a line
+           across it. Off, stated outright, for the same reason every direction
+           in this file is stated outright: silence is not a setting.
+           Schema order inside pPr puts widowControl before spacing. */
+        '<w:widowControl w:val="0"/>' +
         '<w:bidi w:val="' + (rtlDoc ? '1' : '0') + '"/>' +
         '<w:spacing w:after="0" w:line="264" w:lineRule="auto"/>' +
         '<w:jc w:val="' + (rtlDoc ? 'right' : 'left') + '"/>' +
@@ -8997,10 +9052,26 @@ function docxParagraph(text, opts) {
   // paragraph shading, not a table cell and not a text box: the run inside is
   // still an ordinary run of text and comes out of a parser unchanged
   var shade = opts.shade ? '<w:shd w:val="clear" w:color="auto" w:fill="' + opts.shade + '"/>' : '';
-  // element order inside pPr is fixed by the schema: pBdr, shd, bidi, spacing, ind, jc
-  var pPr = '<w:pPr>' + border + shade +
+  /* The break the preview decided, written into the file. Without this the
+     document flowed and Word paginated it on its own, which is the whole
+     reason the dashed rule and the downloaded file disagreed. */
+  var brk = opts.pageBreakBefore ? '<w:pageBreakBefore/>' : '';
+
+  /* ---------- space before, in the units Word actually applies ----------
+     CSS collapses adjacent vertical margins to the LARGER of the two. Word
+     adds space-after to the following space-before. Same numbers, different
+     arithmetic, and over a two page resume the gap measured 4.2mm: every
+     heading in the Word file sat lower than the same heading on screen, and
+     the page break moved with it. Subtracting what the previous paragraph
+     already contributed makes Word's total equal to the CSS one. */
+  var wantBefore = opts.spaceBefore || 0;
+  var before = Math.max(0, wantBefore - (opts.prevAfter || 0));
+
+  // element order inside pPr is fixed by the schema:
+  // pageBreakBefore, widowControl, pBdr, shd, bidi, spacing, ind, jc
+  var pPr = '<w:pPr>' + brk + border + shade +
     '<w:bidi w:val="' + (rtl ? '1' : '0') + '"/>' +
-    '<w:spacing w:before="' + (opts.spaceBefore || 0) + '" w:after="' + (opts.spaceAfter == null ? tpl.bodyAfter : opts.spaceAfter) +
+    '<w:spacing w:before="' + before + '" w:after="' + (opts.spaceAfter == null ? tpl.bodyAfter : opts.spaceAfter) +
     '" w:line="' + (opts.line || 264) + '" w:lineRule="auto"/>' +
     (opts.indent ? '<w:ind w:start="' + opts.indent + '" w:hanging="180"/>' : '') +
     /* Full justification for body text, so both edges of the paragraph are
@@ -9070,12 +9141,25 @@ function buildDocxXml(text, tplKey) {
   var body = '';
   var nameDone = false;
 
+  /* Every paragraph goes through here so that two things can be true of all of
+     them without being restated at six call sites: the page break chosen in
+     the preview lands on the right line, and each paragraph knows what the one
+     before it already spent on space-after. */
+  var breaks = pageBreakSet();
+  var prevAfter = 0;
+  function para(idx, txt, opts) {
+    opts.prevAfter = prevAfter;
+    if (breaks[idx]) opts.pageBreakBefore = true;
+    prevAfter = (opts.spaceAfter == null ? tpl.bodyAfter : opts.spaceAfter);
+    return docxParagraph(txt, opts);
+  }
+
   for (var i = 0; i < doc.lines.length; i++) {
     var l = doc.lines[i];
-    if (!l.raw.trim()) { body += docxParagraph('', { tpl: tpl, fallbackLang: docLang, spaceAfter: 0, size: 12 }); continue; }
+    if (!l.raw.trim()) { body += para(i, '', { tpl: tpl, fallbackLang: docLang, spaceAfter: 0, size: 12 }); continue; }
 
     if (l.isHeading) {
-      body += docxParagraph(headingText(l.text, tpl), {
+      body += para(i, headingText(l.text, tpl), {
         tpl: tpl, fallbackLang: docLang, bold: true, size: tpl.headSize, color: tpl.headColor,
         rule: tpl.headRule, rulePad: 4, shade: tpl.headShade, track: tpl.headTrack,
         sepRule: APP.sectionRule && !isFirstHeading(doc, i) && !tpl.headShade,
@@ -9085,7 +9169,7 @@ function buildDocxXml(text, tplKey) {
     }
     // the name and the contact line follow the document, not their own letters
     if (!nameDone && l.cat === 'header') {
-      body += docxParagraph(l.raw.trim(), {
+      body += para(i, l.raw.trim(), {
         tpl: tpl, lang: docLang, bold: true, size: tpl.nameSize, color: tpl.nameColor,
         track: tpl.nameTrack, spaceAfter: 20,
         rule: tpl.nameRule && lastHeaderLine(doc, i), rulePad: 8
@@ -9094,7 +9178,7 @@ function buildDocxXml(text, tplKey) {
       continue;
     }
     if (l.cat === 'header') {
-      body += docxParagraph(l.raw.trim(), {
+      body += para(i, l.raw.trim(), {
         tpl: tpl, lang: docLang, size: tpl.bodySize, color: tpl.contactColor, spaceAfter: 20,
         rule: tpl.nameRule && lastHeaderLine(doc, i), rulePad: 8
       });
@@ -9108,12 +9192,12 @@ function buildDocxXml(text, tplKey) {
          size was the bug being fixed here. */
       var drole = spineRole(doc, i);
       if (drole === 'title') {
-        body += docxParagraph(l.text, {
+        body += para(i, l.text, {
           tpl: tpl, fallbackLang: docLang, bold: true, size: tpl.roleSize,
           color: tpl.roleColor, spaceBefore: 120, spaceAfter: 0
         });
       } else {
-        body += docxParagraph(l.text, {
+        body += para(i, l.text, {
           tpl: tpl, fallbackLang: docLang, bold: false,
           size: drole === 'dates' ? (tpl.dateSize || tpl.orgSize || tpl.bodySize) : (tpl.orgSize || tpl.bodySize),
           color: drole === 'dates' ? (tpl.dateColor || '555555') : (tpl.orgColor || '555555'),
@@ -9128,7 +9212,7 @@ function buildDocxXml(text, tplKey) {
     var glyph = isBullet ? bulletGlyph(l.marker) + ' ' : '';
     var runs = emphasisRuns(l.text, l.cat);
     if (isBullet) runs = [{ text: glyph, bold: false }].concat(runs);
-    body += docxParagraph(glyph + l.text, {
+    body += para(i, glyph + l.text, {
       tpl: tpl, fallbackLang: docLang, size: tpl.bodySize, indent: isBullet ? 240 : 0, runs: runs, justify: true
     });
   }
@@ -9266,16 +9350,27 @@ function buildPrintHtml(text, tplKey) {
   // direction is stated three ways on purpose: the attribute for the parser,
   // the CSS property because print stylesheets have been seen to ignore the
   // attribute, and isolate so one Hebrew word cannot flip a whole English line
+  /* The break the preview decided. attrs() reads the loop counter it closes
+     over rather than taking it as an argument, so every element in this
+     builder picks the break up without seven call sites having to be told
+     about it. page-break-before is written alongside break-before because the
+     print path is whatever browser the candidate happens to be using. */
+  var breaks = pageBreakSet();
+
   function attrs(l) {
     var lang = l.cat === 'header' ? docLang : detectLang(l.raw);
     if (lang === 'neutral') lang = docLang;
     var d = dirFor(lang);
-    return ' dir="' + d + '" style="direction:' + d + ';unicode-bidi:isolate;text-align:' + (d === 'rtl' ? 'right' : 'left') + ';';
+    return ' dir="' + d + '" style="' + (breaks[i] ? 'break-before:page;page-break-before:always;' : '') +
+           'direction:' + d + ';unicode-bidi:isolate;text-align:' + (d === 'rtl' ? 'right' : 'left') + ';';
   }
 
   for (var i = 0; i < doc.lines.length; i++) {
     var l = doc.lines[i];
-    if (!l.raw.trim()) { html += '<div style="height:6pt"></div>'; continue; }
+    if (!l.raw.trim()) {
+      html += '<div style="' + (breaks[i] ? 'break-before:page;page-break-before:always;' : '') + 'height:6pt"></div>';
+      continue;
+    }
 
     if (l.isHeading) {
       /* The divider replaces the top margin with the same amount of padding and
@@ -9871,6 +9966,7 @@ function startOverAll() {
   APP.emphasis = null;
   APP.fitStep = 0;
   APP.fitPages = 1;
+  APP.pageBreaks = [];
   APP.resumeRaw = '';
   APP.jobRaw = '';
   resetRun();
@@ -10419,21 +10515,20 @@ function fitPageToLimit(page, tplKey) {
   applyTemplateVars(page, templateByKey(tplKey));
   var mm = pageMm(page);
   if (!mm) { APP.fitPages = 1; return; }
-  /* Aim slightly inside the line rather than at it. The page geometry now
-     matches across the preview, the PDF and the Word file, but the engines that
-     fill that page do not: Word hyphenates and breaks lines by its own rules, so
-     a document measured to land exactly on the last millimetre of page two in
-     Chrome can still tip over in Word. Three percent of headroom costs a barely
-     visible amount of space and removes an entire class of "it said two pages
-     and gave me three". */
-  var limit = (TT_MARGIN_MM * 2 + TT_CONTENT_MM * TT_FIT_MAX_PAGES) * mm * 0.995;
+  /* Aim slightly inside the line rather than at it, using the SAME usable page
+     figure the break chooser uses. If these two disagree the fit loop certifies
+     a document as two pages and drawPageCuts then needs three breaks to place
+     it, which is the contradiction the candidate sees as "it says two pages and
+     shows me three". */
+  var usable = TT_CONTENT_MM * mm * TT_PAGE_SAFETY;
+  var limit = TT_MARGIN_MM * 2 * mm + usable * TT_FIT_MAX_PAGES;
 
   for (var i = 0; i < TT_FIT_STEPS.length; i++) {
     APP.fitStep = i;
     applyTemplateVars(page, templateByKey(tplKey));
     if (page.scrollHeight <= limit + 1) break;
   }
-  APP.fitPages = Math.max(1, (page.scrollHeight - TT_MARGIN_MM * 2 * mm) / (TT_CONTENT_MM * mm));
+  APP.fitPages = Math.max(1, (page.scrollHeight - TT_MARGIN_MM * 2 * mm) / usable);
 }
 
 /* What the shrinking did, said plainly, because a candidate who sees their
@@ -10458,32 +10553,145 @@ function fitNotice() {
     'גודל הטקסט לא יורד מתחת ל־9.5 נקודות, כדי שהמסמך יישאר קריא. ההקטנה חלה גם על קובץ ה־Word וגם על ה־PDF.', 'ok');
 }
 
+/* ---------------- where the page actually breaks ----------------
+   This used to draw a rule every TT_CONTENT_MM down the sheet and call it the
+   page break. It was a RULER, and the file it described contained no break at
+   all: the docx and the print sheet were left to paginate themselves, and the
+   two engines were only ever going to agree by coincidence. They did not, for
+   three separate reasons, all of them measured:
+
+     - the editable blocks each carried a 1px border that nothing downloaded
+       had (fixed in the stylesheet above, ~11.6mm over a two page resume),
+     - CSS collapses adjacent margins and Word ADDS space-before to the
+       previous space-after (~4.2mm, fixed in docxParagraph),
+     - line-height:1.32 multiplies the font SIZE while w:lineRule="auto"
+       multiplies the font's natural line height, which is not the same number
+       and differs per font (Calibri 1.343, Arial 1.265).
+
+   Tuning those to agree is a losing game: it has to hold for every template,
+   every font, and every Word installation that substitutes a font it does not
+   have. So the break stops being predicted and starts being DECIDED. It is
+   chosen here, once, at a block boundary, and the same decision is then
+   handed to the docx as w:pageBreakBefore and to the print sheet as
+   break-before:page. The file breaks where the rule is drawn by construction,
+   and a line dragged below the rule downloads below it too, because the break
+   follows the content instead of the geometry.
+
+   Choosing at a block boundary is also what removes the last error the ruler
+   could not avoid. A rule at an absolute pixel can land halfway through a line
+   of text; no page engine has ever split a line, so the real break was always
+   somewhere up to a full line ABOVE the rule. Blocks cannot be half broken. */
+
+/* The blocks that make up the flow, in order, each paired with the document
+   line it came from. A bullet is a row whose editable child carries the index,
+   so the geometry is read off the row and the index off whatever inside it
+   has one. */
+function pageBlocks(page) {
+  var out = [];
+  var kids = page.children || [];
+  for (var i = 0; i < kids.length; i++) {
+    var el = kids[i];
+    if (el.classList && el.classList.contains('tt-pagecut')) continue;
+    var holder = el.hasAttribute('data-idx') ? el : el.querySelector('[data-idx]');
+    if (!holder) continue;
+    var idx = parseInt(holder.getAttribute('data-idx'), 10);
+    if (!isFinite(idx)) continue;
+    out.push({
+      el: el, idx: idx,
+      blank: !!holder.getAttribute('data-blank'),
+      // a section heading, which is the one block that must not be left
+      // stranded at the foot of a page with nothing under it to label
+      head: !!(el.classList && el.classList.contains('tt-pv-head'))
+    });
+  }
+  return out;
+}
+
+/* One pass of the break chooser.
+
+   pullHeadings decides what happens when the last thing on a page turns out to
+   be a section heading. A heading is a label for what comes after it, so a
+   heading alone at the foot of a page labels nothing and the reader meets the
+   section with its title left on the previous sheet. Pulling it forward costs
+   the height of one heading and is almost always the right trade, which is why
+   drawPageCuts runs this both ways and takes the tidy one only when it does not
+   cost a page. */
+function walkBreaks(blocks, cap, contentTop, pullHeadings) {
+  var cuts = [];
+  var pageStart = contentTop;
+  /* The block that OPENS a page cannot be pushed anywhere useful, so it is the
+     one block exempt from the overflow test. Holding that as an index rather
+     than a flag matters: as a flag it drifted onto the block AFTER the one that
+     opened the page, which meant a very tall opening block could carry its
+     neighbour past the bottom edge with nothing left to catch it. */
+  var pageStartIdx = 0;
+  var b = 0;
+
+  while (b < blocks.length && cuts.length < 11) {
+    var el = blocks[b].el;
+    if (b <= pageStartIdx || el.offsetTop + el.offsetHeight - pageStart <= cap) { b++; continue; }
+
+    /* A page that opens on a blank line opens on nothing. Walk forward to the
+       first block that has content and break there instead. */
+    var k = b;
+    while (k < blocks.length - 1 && blocks[k].blank) k++;
+
+    /* Then walk BACK over any heading that would otherwise be left behind,
+       skipping the blank lines that sit above one. Bounded by the block that
+       opened this page: pulling back to it, or past it, would produce an empty
+       page, which is worse than the problem being fixed. */
+    if (pullHeadings) {
+      var j = k - 1;
+      for (;;) {
+        while (j > pageStartIdx && blocks[j].blank) j--;
+        if (j <= pageStartIdx || !blocks[j].head) break;
+        k = j; j = k - 1;
+      }
+    }
+    if (k <= pageStartIdx) k = b;
+
+    cuts.push({ top: blocks[k].el.offsetTop, idx: blocks[k].idx });
+    pageStart = blocks[k].el.offsetTop;
+    pageStartIdx = k;
+    b = k + 1;
+  }
+  return cuts;
+}
+
 function drawPageCuts(page) {
+  APP.pageBreaks = [];
   if (!page) return;
   var old = page.querySelectorAll('.tt-pagecut');
   for (var i = 0; i < old.length; i++) old[i].parentNode.removeChild(old[i]);
 
-  // one millimetre in this document's pixels, measured, not assumed
-  var probe = document.createElement('div');
-  probe.style.cssText = 'position:absolute;visibility:hidden;height:100mm;';
-  page.appendChild(probe);
-  var mm = probe.getBoundingClientRect().height / 100;
-  page.removeChild(probe);
+  var mm = pageMm(page);
   if (!mm || !isFinite(mm)) return;
 
-  /* Content starts below the sheet's top padding and each page holds
-     TT_CONTENT_MM of it, so break n sits at padding + n pages of content.
-     Measured against the Word file rather than assumed. */
-  var contentH = TT_CONTENT_MM * mm;
-  var contentTotal = page.scrollHeight - TT_MARGIN_MM * 2 * mm;
-  var pages = Math.max(1, Math.ceil(contentTotal / contentH));
-  if (pages < 2) return;
+  var blocks = pageBlocks(page);
+  if (!blocks.length) return;
 
-  for (var n = 1; n < pages && n < 12; n++) {
+  /* The flow starts below the sheet's top padding, and offsetTop is measured
+     from the same origin because .tt-page is the positioned ancestor. */
+  var cap = TT_CONTENT_MM * mm * TT_PAGE_SAFETY;
+  var contentTop = TT_MARGIN_MM * mm;
+
+  /* Both answers, then the better one that is still affordable. Moving a
+     stranded heading down is a courtesy; spending a whole extra page on that
+     courtesy is not, because the two page limit is the thing this document is
+     being shrunk to meet in the first place. A document that is ALREADY over
+     the limit is allowed to keep its own page count and no more, so the tidy
+     pass can still help it without making it worse. */
+  var plain = walkBreaks(blocks, cap, contentTop);
+  var tidy  = walkBreaks(blocks, cap, contentTop, true);
+  var budget = Math.max(plain.length + 1, TT_FIT_MAX_PAGES);
+  var cuts = (tidy.length + 1 <= budget) ? tidy : plain;
+
+  for (var c = 0; c < cuts.length; c++) {
+    APP.pageBreaks.push(cuts[c].idx);
     var cut = document.createElement('div');
     cut.className = 'tt-pagecut';
-    cut.style.top = (TT_MARGIN_MM * mm + contentH * n) + 'px';
-    cut.setAttribute('data-label', 'עמוד ' + (n + 1));
+    cut.style.top = cuts[c].top + 'px';
+    cut.setAttribute('data-label', 'עמוד ' + (c + 2));
     page.appendChild(cut);
   }
 }
