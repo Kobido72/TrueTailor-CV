@@ -989,7 +989,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v35.7</span>
+        <span class="tt-ver" id="verBadge">v35.8</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1576,7 +1576,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v35.7';
+var TT_VERSION = 'v35.8';
 
 var APP = {
   apiKey: '',
@@ -1793,11 +1793,10 @@ function alignFor(lang) { return lang === 'he' ? 'text-right' : 'text-left'; }
 /* Direction of a piece of text, falling back to a caller supplied language for
    text that carries no letters at all. Used by every bubble and every preview
    line, so an English question always reads left to right even inside this
-   right to left page. */
+   right to left page. The decision itself is dirLangFor, defined below with
+   the word counter it needs. */
 function dirForText(text, fallbackLang) {
-  var l = detectLang(text);
-  if (l === 'neutral') l = fallbackLang || 'he';
-  return dirFor(l);
+  return dirFor(dirLangFor(text, fallbackLang));
 }
 function alignForText(text, fallbackLang) {
   return dirForText(text, fallbackLang) === 'rtl' ? 'text-right' : 'text-left';
@@ -1838,6 +1837,51 @@ function dominantLang(counts) {
   if (counts.he > counts.en) return 'he';
   if (counts.en > counts.he) return 'en';
   return 'neutral';
+}
+
+/* ---------- WHICH WAY A LINE IS READ ----------
+   Direction used to be decided by detectLang, which counts LETTERS. That is
+   the right question for "which language is this, so the model can be told"
+   and the wrong one for "which way round does this line go", because the two
+   scripts do not spend the same number of letters on a word. A Hebrew answer
+   that names the tools it is about, "עבדתי עם Priority, SAP Business One ו-Excel
+   לניהול מלאי, רכש ותמחור", is seven Hebrew words against five Latin ones and
+   still has more Latin LETTERS, so it was declared English and laid out left to
+   right. A Hebrew sentence in a left to right paragraph is not merely aligned
+   to the wrong edge: the bidi algorithm then orders its clauses and its commas
+   around a left to right base, and the sentence has to be decoded rather than
+   read. The longer the answer and the more of the posting's own English terms
+   it earned, the worse it got, which is exactly backwards, because bringing
+   those terms in is the entire point of the tailoring.
+
+   So direction is decided on the same unit the language lock already uses: the
+   word. Hebrew carries the line when it has at least as many words in it, and
+   the Latin runs inside stay left to right on their own, because that is what
+   the bidi algorithm does with them once the paragraph is pointing the right
+   way. When Latin genuinely has more words the first strong letter decides,
+   which is the Unicode rule and what dir="auto" would have done: it keeps
+   "Priority ERP – ניהול מלאי ורכש" Hebrew and an English bullet with one Hebrew
+   company name in it English.
+
+   detectLang is deliberately left alone. Everything that NAMES the language to
+   the model still goes through it, and a Russian line still reports Russian
+   rather than being folded into 'en' here, where only the direction is wanted
+   and Cyrillic reads left to right exactly as Latin does. */
+var TT_LATIN_OR_CYRILLIC_RE = /[A-Za-z\u0400-\u04FF\u0500-\u052F]/;
+var TT_FIRST_STRONG_RE = new RegExp('[' + TT_HEBREW_CLASS + ']|[A-Za-z\\u0400-\\u04FF\\u0500-\\u052F]');
+
+function dirLangFor(text, fallbackLang) {
+  var s = String(text == null ? '' : text);
+  var fb = (fallbackLang && fallbackLang !== 'neutral') ? fallbackLang : 'he';
+  if (!TT_HEBREW_ONE.test(s)) {
+    // no Hebrew at all: Latin and Cyrillic both read left to right, and a line
+    // with no letters in it belongs to the document around it
+    return TT_LATIN_OR_CYRILLIC_RE.test(s) ? 'en' : fb;
+  }
+  var c = wordLangCounts(s);
+  if (c.he >= c.en) return 'he';
+  var m = s.match(TT_FIRST_STRONG_RE);
+  return (m && TT_HEBREW_ONE.test(m[0])) ? 'he' : 'en';
 }
 
 // How much of a line one language has to still carry for the line to count as
@@ -3275,6 +3319,21 @@ function docLanguage(doc) {
   return detectLang(body || doc.raw);
 }
 
+/* The same question asked for the page rather than for the model, and answered
+   by words for the same reason a single line is. This is what the sheet, the
+   print file and the Word file point by, and it is also the fallback every line
+   with no letters of its own inherits: the name, the contact line, "2019 -
+   2024". A Hebrew resume carrying the posting's English vocabulary was capable
+   of tipping the LETTER count on its own body text, and when it did, the whole
+   document turned round, header included. docLanguage is left as it is,
+   because what it still answers is which language to NAME to the model, and
+   that has to keep counting what it counts. */
+function docDirLang(doc) {
+  var body = '';
+  for (var i = 0; i < doc.lines.length; i++) if (doc.lines[i].editable) body += doc.lines[i].text + ' ';
+  return dirLangFor(body || doc.raw, 'he');
+}
+
 /* Everything the model is allowed to see, as plain numbered text. */
 function editableExcerpt(doc, cat) {
   var lines = editableLines(doc, cat);
@@ -4691,7 +4750,7 @@ var KIND_LABEL = {
 function renderSignals() {
   var s = APP.signals, el = $('signalsOut');
   if (!el) return;
-  var lang = detectLang(APP.jobRaw), d = dirFor(lang);
+  var d = dirForText(APP.jobRaw);
   var html = '';
 
   var head = [s.role_title, s.seniority, s.domain].filter(Boolean);
@@ -5434,7 +5493,7 @@ function renderCoverage() {
   if (!el) return;
   if (!APP.coverage.length) { el.innerHTML = '<span class="text-slate-400">לא בוצעה השוואה.</span>'; return; }
   var sc = coverageScore();
-  var d = dirFor(detectLang(APP.jobRaw));
+  var d = dirForText(APP.jobRaw);
 
   var html = '<div class="mb-3 rounded-lg border border-slate-200 p-2">' +
     '<div class="flex items-baseline justify-between mb-1"><span class="text-xs text-slate-500">כיסוי הדרישות</span>' +
@@ -5489,7 +5548,7 @@ function renderCoverage() {
       html += '<div class="rounded-lg border p-2 ' + st.cls + '">' +
               '<div class="text-xs font-semibold mb-1">' + st.label + (g.req_id ? ' · ' + escapeHtml(g.req_id) : '') + '</div>' +
               '<div>' + escapeHtml(g.text) + '</div>' +
-              (g.quote ? '<div class="text-xs text-slate-500 mt-1" dir="' + dirFor(detectLang(g.quote)) + '">בשורה: ' + escapeHtml(g.quote) + '</div>' : '') +
+              (g.quote ? '<div class="text-xs text-slate-500 mt-1" dir="' + dirForText(g.quote) + '">בשורה: ' + escapeHtml(g.quote) + '</div>' : '') +
               '</div>';
     });
     html += '</div></div>';
@@ -7197,7 +7256,7 @@ function renderDiff() {
   var skillIds = (APP.skillModel && APP.skillModel.lineIds) || null;
   if (skillIds && APP.skillLines) for (var q = 0; q < skillIds.length; q++) skillSet[skillIds[q]] = 1;
 
-  var docLang = docLanguage(doc);
+  var docLang = docDirLang(doc);
   if (docLang === 'neutral') docLang = 'he';
 
   function flag(txt, kind) { return '<span class="tt-flag' + (kind ? ' is-' + kind : '') + '">' + escapeHtml(txt) + '</span>'; }
@@ -7467,7 +7526,7 @@ function renderKeywords() {
   // the panel is Hebrew interface text, the keyword chips are the job's own
   // words, so the box is rtl and every chip carries its own direction
   el.setAttribute('dir', 'rtl');
-  var jobDir = dirFor(detectLang(APP.jobRaw));
+  var jobDir = dirForText(APP.jobRaw);
   var rep = keywordReport(APP.finalText || $('finalOutput') && $('finalOutput').value || '');
   // the same measurement on the resume as it arrived, so the number has
   // something to be a number against
@@ -7808,8 +7867,7 @@ function switchTab(name) {
 function syncFinalBox() {
   var box = $('finalOutput');
   if (!box) return;
-  var lang = detectLang(box.value || APP.finalText);
-  if (lang === 'neutral') lang = 'he';
+  var lang = dirLangFor(box.value || APP.finalText, 'he');
   box.setAttribute('dir', dirFor(lang));
   box.className = 'w-full border border-slate-300 rounded-lg p-3 text-sm tt-line font-mono ' + alignFor(lang);
 }
@@ -8395,7 +8453,7 @@ function setFinalView(view) {
    Both views are drawn on the shape of the real document now: same headings,
    same roles, same order, same bullets. */
 function sheetDir(l, docLang) {
-  var lang = l.cat === 'header' ? docLang : detectLang(l.raw);
+  var lang = l.cat === 'header' ? docLang : dirLangFor(l.raw, docLang);
   if (lang === 'neutral') lang = docLang;
   return dirFor(lang);
 }
@@ -8410,7 +8468,7 @@ function renderFinalStruct() {
     return;
   }
   var doc = parseResume(text);
-  var docLang = docLanguage(doc);
+  var docLang = docDirLang(doc);
   if (docLang === 'neutral') docLang = 'he';
   el.setAttribute('dir', dirFor(docLang));
 
@@ -9081,7 +9139,7 @@ function xmlEscape(s) {
 function docxParagraph(text, opts) {
   opts = opts || {};
   var tpl = opts.tpl || currentTemplate();
-  var lang = opts.lang || detectLang(text);
+  var lang = opts.lang || dirLangFor(text, opts.fallbackLang);
   if (lang === 'neutral') lang = opts.fallbackLang || 'he';
   var rtl = lang === 'he';
 
@@ -9106,6 +9164,22 @@ function docxParagraph(text, opts) {
      reason the dashed rule and the downloaded file disagreed. */
   var brk = opts.pageBreakBefore ? '<w:pageBreakBefore/>' : '';
 
+  /* ---------- the same decision, restated in Word's own vocabulary ----------
+     The break is chosen here and written into the file, so in principle Word
+     has nothing left to decide. In practice it measures the text itself, and
+     it can want marginally more height for the same words than the browser
+     did. When that happens Word paginates on its own BEFORE reaching the
+     break, and with widowControl off in docDefaults it is free to do the two
+     things this file spends its effort preventing: leave a job title alone at
+     the foot of a page, and cut a bullet in half across the boundary.
+
+     keepNext says this paragraph belongs with the one after it and is set on
+     everything that labels what follows: section headings, and the title, the
+     employer and the dates of a job. keepLines says a paragraph is not split
+     across a page and is set on body text and bullets. Neither moves anything
+     when Word agrees with the measurement; both catch it when it does not. */
+  var keeps = (opts.keepNext ? '<w:keepNext/>' : '') + (opts.keepLines ? '<w:keepLines/>' : '');
+
   /* ---------- space before, in the units Word actually applies ----------
      CSS collapses adjacent vertical margins to the LARGER of the two. Word
      adds space-after to the following space-before. Same numbers, different
@@ -9117,8 +9191,9 @@ function docxParagraph(text, opts) {
   var before = Math.max(0, wantBefore - (opts.prevAfter || 0));
 
   // element order inside pPr is fixed by the schema:
-  // pageBreakBefore, widowControl, pBdr, shd, bidi, spacing, ind, jc
-  var pPr = '<w:pPr>' + brk + border + shade +
+  // keepNext, keepLines, pageBreakBefore, widowControl, pBdr, shd, bidi,
+  // spacing, ind, jc
+  var pPr = '<w:pPr>' + keeps + brk + border + shade +
     '<w:bidi w:val="' + (rtl ? '1' : '0') + '"/>' +
     '<w:spacing w:before="' + before + '" w:after="' + (opts.spaceAfter == null ? tpl.bodyAfter : opts.spaceAfter) +
     '" w:line="' + (opts.line || 264) + '" w:lineRule="auto"/>' +
@@ -9185,7 +9260,7 @@ function lastHeaderLine(doc, i) {
 function buildDocxXml(text, tplKey) {
   var tpl = templateByKey(tplKey || APP.template);
   var doc = parseResume(text);
-  var docLang = docLanguage(doc);
+  var docLang = docDirLang(doc);
   if (docLang === 'neutral') docLang = 'he';
   var body = '';
   var nameDone = false;
@@ -9209,7 +9284,7 @@ function buildDocxXml(text, tplKey) {
 
     if (l.isHeading) {
       body += para(i, headingText(l.text, tpl), {
-        tpl: tpl, fallbackLang: docLang, bold: true, size: tpl.headSize, color: tpl.headColor,
+        tpl: tpl, fallbackLang: docLang, bold: true, keepNext: true, size: tpl.headSize, color: tpl.headColor,
         rule: tpl.headRule, rulePad: 4, shade: tpl.headShade, track: tpl.headTrack,
         sepRule: APP.sectionRule && !isFirstHeading(doc, i) && !tpl.headShade,
         spaceBefore: tpl.headBefore, spaceAfter: tpl.headAfter
@@ -9242,12 +9317,12 @@ function buildDocxXml(text, tplKey) {
       var drole = spineRole(doc, i);
       if (drole === 'title') {
         body += para(i, l.text, {
-          tpl: tpl, fallbackLang: docLang, bold: true, size: tpl.roleSize,
+          tpl: tpl, fallbackLang: docLang, bold: true, keepNext: true, size: tpl.roleSize,
           color: tpl.roleColor, spaceBefore: 120, spaceAfter: 0
         });
       } else {
         body += para(i, l.text, {
-          tpl: tpl, fallbackLang: docLang, bold: false,
+          tpl: tpl, fallbackLang: docLang, bold: false, keepNext: true,
           size: drole === 'dates' ? (tpl.dateSize || tpl.orgSize || tpl.bodySize) : (tpl.orgSize || tpl.bodySize),
           color: drole === 'dates' ? (tpl.dateColor || '555555') : (tpl.orgColor || '555555'),
           spaceBefore: 0, spaceAfter: 20
@@ -9262,7 +9337,8 @@ function buildDocxXml(text, tplKey) {
     var runs = emphasisRuns(l.text, l.cat);
     if (isBullet) runs = [{ text: glyph, bold: false }].concat(runs);
     body += para(i, glyph + l.text, {
-      tpl: tpl, fallbackLang: docLang, size: tpl.bodySize, indent: isBullet ? 240 : 0, runs: runs, justify: true
+      tpl: tpl, fallbackLang: docLang, size: tpl.bodySize, indent: isBullet ? 240 : 0,
+      runs: runs, justify: true, keepLines: true
     });
   }
 
@@ -9296,7 +9372,7 @@ function buildDocxXml(text, tplKey) {
 /* The direction of the finished file, decided the same way the preview decides
    it, so the two can never disagree. */
 function docxIsRtl(text) {
-  var lang = docLanguage(parseResume(text));
+  var lang = docDirLang(parseResume(text));
   return lang === 'he';
 }
 
@@ -9388,7 +9464,7 @@ function rulePt(tpl) { return ((tpl.ruleSize || 4) / 8) + 'pt'; }
 function buildPrintHtml(text, tplKey) {
   var tpl = templateByKey(tplKey || APP.template);
   var doc = parseResume(text);
-  var docLang = docLanguage(doc);
+  var docLang = docDirLang(doc);
   if (docLang === 'neutral') docLang = 'he';
   var pageDir = dirFor(docLang);
   var html = '';
@@ -9407,7 +9483,7 @@ function buildPrintHtml(text, tplKey) {
   var breaks = pageBreakSet();
 
   function attrs(l) {
-    var lang = l.cat === 'header' ? docLang : detectLang(l.raw);
+    var lang = l.cat === 'header' ? docLang : dirLangFor(l.raw, docLang);
     if (lang === 'neutral') lang = docLang;
     var d = dirFor(lang);
     return ' dir="' + d + '" style="' + (breaks[i] ? 'break-before:page;page-break-before:always;' : '') +
@@ -9432,7 +9508,13 @@ function buildPrintHtml(text, tplKey) {
    margin is already gone, and the heading loses the space above it entirely.
    Measured as eight millimetres SHORTER, which is how the conflict surfaced. */
       var sep = APP.sectionRule && !isFirstHeading(doc, i) && !tpl.headShade;
-      html += '<h2' + attrs(l) + 'font-size:' + pt(tpl.headSize) + ';font-weight:700;color:#' + tpl.headColor +
+      /* The counterpart of keepNext in the Word file. The break is already
+         chosen and written above, so this only has work to do when the print
+         engine measures the page differently from the preview: it stops a
+         heading, or a job title, from being the last thing on the sheet.
+         page-break-* is written alongside break-* because the print path is
+         whatever browser the candidate happens to be using. */
+      html += '<h2' + attrs(l) + 'break-after:avoid;page-break-after:avoid;font-size:' + pt(tpl.headSize) + ';font-weight:700;color:#' + tpl.headColor +
               ';letter-spacing:' + (tpl.headTrack / 20) + 'pt;' +
               (sep ? 'border-top:0.5pt solid #c9c9c9;padding-top:' + twip(tpl.headBefore) + ';margin:0 0 ' + twip(tpl.headAfter) + ';'
                    : 'margin:' + twip(tpl.headBefore) + ' 0 ' + twip(tpl.headAfter) + ';') +
@@ -9459,12 +9541,12 @@ function buildPrintHtml(text, tplKey) {
     if (!plainOnly && l.subtype === 'roleheader') {
       var role = spineRole(doc, i);
       if (role === 'title') {
-        html += '<p' + attrs(l) + 'font-size:' + pt(tpl.roleSize) + ';font-weight:700;color:#' + tpl.roleColor +
+        html += '<p' + attrs(l) + 'break-after:avoid;page-break-after:avoid;font-size:' + pt(tpl.roleSize) + ';font-weight:700;color:#' + tpl.roleColor +
                 ';margin:6pt 0 0">' + escapeHtml(l.text) + '</p>';
       } else {
         /* employer, location, dates: regular weight, grey, and never larger
            than the body, so the eye lands on the title and moves on */
-        html += '<p' + attrs(l) + 'font-size:' + pt(role === 'dates' ? (tpl.dateSize || tpl.orgSize || tpl.bodySize) : (tpl.orgSize || tpl.bodySize)) +
+        html += '<p' + attrs(l) + 'break-after:avoid;page-break-after:avoid;font-size:' + pt(role === 'dates' ? (tpl.dateSize || tpl.orgSize || tpl.bodySize) : (tpl.orgSize || tpl.bodySize)) +
                 ';font-weight:400;color:#' + (role === 'dates' ? (tpl.dateColor || '555555') : (tpl.orgColor || '555555')) +
                 ';margin:0 0 2pt">' + escapeHtml(l.text) + '</p>';
       }
@@ -9473,7 +9555,9 @@ function buildPrintHtml(text, tplKey) {
     var bulletPad = l.type === 'bullet' ? 'padding-inline-start:12pt;text-indent:-9pt;' : '';
     /* matches the Word export: body text is justified so both edges are flush,
        and a line that never wraps is unaffected either way */
-    html += '<p' + attrs(l) + 'font-size:' + pt(tpl.bodySize) + ';text-align:justify;margin:0 0 ' + twip(tpl.bodyAfter) + ';' + bulletPad +
+    /* keepLines, in the print sheet's own words: a bullet is moved whole or
+       not at all, rather than leaving its first line at the foot of a page. */
+    html += '<p' + attrs(l) + 'break-inside:avoid;page-break-inside:avoid;font-size:' + pt(tpl.bodySize) + ';text-align:justify;margin:0 0 ' + twip(tpl.bodyAfter) + ';' + bulletPad +
             'white-space:pre-wrap">' + (l.type === 'bullet' ? escapeHtml(bulletGlyph(l.marker)) + ' ' : '') +
             runsToHtml(emphasisRuns(l.text, l.cat)) + '</p>';
   }
@@ -9824,8 +9908,8 @@ function updateLangBadges() {
   var names = { he: 'עברית', en: 'אנגלית', neutral: '' };
   if (rb) rb.textContent = r.trim() ? 'זוהתה שפה: ' + names[detectLang(r)] : '';
   if (jb) jb.textContent = j.trim() ? 'זוהתה שפה: ' + names[detectLang(j)] : '';
-  $('resumeInput').setAttribute('dir', r.trim() ? dirFor(detectLang(r)) : 'rtl');
-  $('jobInput').setAttribute('dir', j.trim() ? dirFor(detectLang(j)) : 'rtl');
+  $('resumeInput').setAttribute('dir', r.trim() ? dirForText(r) : 'rtl');
+  $('jobInput').setAttribute('dir', j.trim() ? dirForText(j) : 'rtl');
   // every path that fills the resume box (paste, file, translation) ends here,
   // so the structure panel is refreshed in one place
   renderStructurePanel();
@@ -10650,9 +10734,18 @@ function pageBlocks(page) {
     out.push({
       el: el, idx: idx,
       blank: !!holder.getAttribute('data-blank'),
-      // a section heading, which is the one block that must not be left
-      // stranded at the foot of a page with nothing under it to label
-      head: !!(el.classList && el.classList.contains('tt-pv-head'))
+      /* A block that labels what comes AFTER it, and therefore may not be the
+         last thing on a page. A section heading was the only one of these the
+         chooser knew about, and it is not the only one there is: the title,
+         the employer and the dates of a job are the same kind of block. A page
+         that ends on "מנהל תפעול ארצי" with the employer, the dates and every
+         bullet overleaf has started a new job on the wrong sheet, and a page
+         that ends on the employer has split the header itself in half. Both
+         were measured in the downloaded PDF, not guessed at. */
+      keepNext: !!(el.classList && (el.classList.contains('tt-pv-head') ||
+                                    el.classList.contains('tt-pv-role') ||
+                                    el.classList.contains('tt-pv-org')  ||
+                                    el.classList.contains('tt-pv-date')))
     });
   }
   return out;
@@ -10661,12 +10754,17 @@ function pageBlocks(page) {
 /* One pass of the break chooser.
 
    pullHeadings decides what happens when the last thing on a page turns out to
-   be a section heading. A heading is a label for what comes after it, so a
-   heading alone at the foot of a page labels nothing and the reader meets the
-   section with its title left on the previous sheet. Pulling it forward costs
-   the height of one heading and is almost always the right trade, which is why
-   drawPageCuts runs this both ways and takes the tidy one only when it does not
-   cost a page. */
+   be a block that labels what follows it: a section heading, or the title, the
+   employer or the dates of a job. Such a block alone at the foot of a page
+   labels nothing, and the reader meets the section, or the job, with its name
+   left on the previous sheet. Pulling it forward costs the height of that
+   block and is almost always the right trade, which is why drawPageCuts runs
+   this both ways and takes the tidy one only when it does not cost a page.
+
+   The walk back is a loop rather than a single step on purpose: a job header is
+   three consecutive blocks and a heading can sit above them, so it keeps
+   walking while the block above is still one of these and stops at the first
+   line of ordinary content. */
 function walkBreaks(blocks, cap, contentTop, pullHeadings) {
   var cuts = [];
   var pageStart = contentTop;
@@ -10687,7 +10785,7 @@ function walkBreaks(blocks, cap, contentTop, pullHeadings) {
     var k = b;
     while (k < blocks.length - 1 && blocks[k].blank) k++;
 
-    /* Then walk BACK over any heading that would otherwise be left behind,
+    /* Then walk BACK over any label that would otherwise be left behind,
        skipping the blank lines that sit above one. Bounded by the block that
        opened this page: pulling back to it, or past it, would produce an empty
        page, which is worse than the problem being fixed. */
@@ -10695,7 +10793,7 @@ function walkBreaks(blocks, cap, contentTop, pullHeadings) {
       var j = k - 1;
       for (;;) {
         while (j > pageStartIdx && blocks[j].blank) j--;
-        if (j <= pageStartIdx || !blocks[j].head) break;
+        if (j <= pageStartIdx || !blocks[j].keepNext) break;
         k = j; j = k - 1;
       }
     }
@@ -10753,7 +10851,7 @@ function renderPreview() {
   // whatever the last button said is about the previous state of this page
   previewNote('');
   var doc = parseResume(APP.finalText);
-  var docLang = docLanguage(doc);
+  var docLang = docDirLang(doc);
   var pageDir = dirFor(docLang === 'neutral' ? 'he' : docLang);
   var tpl = currentTemplate();
 
@@ -10770,7 +10868,7 @@ function renderPreview() {
     if (!l.raw.trim()) { html += '<div class="tt-pv-gap" data-idx="' + i + '" data-blank="1"></div>'; return; }
     // the name and the contact line follow the document, not their own letters:
     // an email address must not throw the header to the other side of the page
-    var lang = l.cat === 'header' ? docLang : detectLang(l.raw);
+    var lang = l.cat === 'header' ? docLang : dirLangFor(l.raw, docLang);
     if (lang === 'neutral') lang = docLang;
     var attrs = ' data-idx="' + i + '" data-marker="' + escapeHtml(l.marker) + '" dir="' + dirFor(lang) + '" contenteditable="true" spellcheck="false"';
     var endsHeader = tpl.nameRule && lastHeaderLine(doc, i) ? ' tt-pv-headend' : '';
