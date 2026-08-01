@@ -123,6 +123,40 @@
   });
 </script>
 <title>TrueTailor CV — התאמת קורות חיים למשרה</title>
+
+<!-- =====================================================================
+     WHAT A SHARED LINK LOOKS LIKE
+
+     Facebook and LinkedIn accept a URL and nothing else. The old sharer
+     parameter that carried a sentence was withdrawn, so every word and the
+     picture in the card they show is read from the four og: tags below. With
+     no tags the card is a bare link, which is the difference between a share
+     that gets clicked and one that does not. WhatsApp reads them too.
+
+     og:image has to be an ABSOLUTE https address. A relative path resolves
+     against the crawler, not against this page, and silently yields no
+     picture. The file lives beside this one in the repository; it is not
+     needed for the app to run and its absence breaks nothing on screen.
+
+     The Content Security Policy above is not involved: none of this is
+     fetched by the browser. The crawlers read the tags from the served html.
+
+     If the address ever changes it changes in five places: the four og:/url
+     lines here and TT_PUBLIC_URL in the sharing section of the script.
+     ===================================================================== -->
+<meta name="description" content="כלי שמתאים קורות חיים למשרה אחת: ניתוח מול מודעת הדרושים, ציון התאמה ושכתוב לשיפור הסיכוי לעבור סינון ATS. רץ כולו בדפדפן.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="TrueTailor CV">
+<meta property="og:locale" content="he_IL">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:title" content="TrueTailor CV — התאמת קורות חיים למשרה">
+<meta property="og:description" content="ניתוח קורות החיים מול מודעת המשרה, ציון התאמה ושכתוב שלא ממציא עובדות. חינמי, רץ כולו בדפדפן שלך.">
+<meta property="og:url" content="https://truetailor-app.github.io/TrueTailor-CV/">
+<meta property="og:image" content="https://truetailor-app.github.io/TrueTailor-CV/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="TrueTailor CV">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700&family=Heebo:wght@500;700;800;900&display=swap" rel="stylesheet">
@@ -955,7 +989,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v35.6</span>
+        <span class="tt-ver" id="verBadge">v35.7</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1181,6 +1215,21 @@
         <button id="btnAboutClose" class="px-4 py-2 rounded-lg border border-slate-300 text-sm ms-auto">סגור</button>
       </div>
       <div id="aboutNote" class="text-sm mt-2"></div>
+    </div>
+  </div>
+
+  <!-- SHARE.
+       Opened from the About panel and drawn on top of it, so closing this
+       returns to where it was opened from. Everything inside is built by
+       renderShare so the two languages live on one line in the script rather
+       than in a second copy of this markup. -->
+  <div id="shareModal" class="tt-hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-lg w-full p-5 max-h-[90vh] overflow-y-auto">
+      <div id="shareBody"></div>
+      <div id="shareNote" class="text-sm mt-2"></div>
+      <div class="flex gap-2 mt-4">
+        <button id="btnShareClose" class="px-4 py-2 rounded-lg border border-slate-300 text-sm ms-auto">סגור</button>
+      </div>
     </div>
   </div>
 
@@ -1527,7 +1576,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v35.6';
+var TT_VERSION = 'v35.7';
 
 var APP = {
   apiKey: '',
@@ -9857,26 +9906,28 @@ function bindUi() {
     window.open('mailto:' + TT_CONTACT + '?subject=' + encodeURIComponent(subj), '_blank');
   });
 
-  /* There is no public address to share yet: this is a file on a disk, so
-     window.location is a file:// path that means nothing on anyone else's
-     machine. Until it is hosted the button copies a short blurb and the
-     contact address, and says so rather than quietly copying a dead link. */
+  /* The app has a public address now, so this button no longer copies a
+     blurb: it opens a panel with one route per platform. Which platform gets
+     which route, and why three of the four cannot be done the obvious way,
+     is set out in the sharing section further down. */
   var abShare = $('btnAboutShare');
   if (abShare) abShare.addEventListener('click', function () {
-    var txt = L('TrueTailor CV — כלי שמתאים קורות חיים למשרה אחת, רץ כולו בדפדפן ולא ממציא כלום. לפרטים: ' + TT_CONTACT,
-                'TrueTailor CV — a tool that tailors a resume to one job, runs entirely in the browser and invents nothing. Details: ' + TT_CONTACT);
-    var ok = function () { aboutNote(L('הטקסט הועתק. אין עדיין כתובת ציבורית לאפליקציה, אז זה מה שיש לשתף.',
-                                       'Text copied. The app has no public address yet, so this is what there is to share.')); };
-    var no = function () { aboutNote(L('ההעתקה נחסמה על ידי הדפדפן.', 'The browser blocked the copy.'), 'error'); };
-    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(ok, no); return; }
-    try {
-      var ta = document.createElement('textarea');
-      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.select();
-      var done = document.execCommand('copy');
-      document.body.removeChild(ta);
-      done ? ok() : no();
-    } catch (e) { no(); }
+    ttShareNote(''); renderShare(); show('shareModal');
+  });
+  var shClose = $('btnShareClose');
+  if (shClose) shClose.addEventListener('click', function () { hide('shareModal'); });
+  var shModal = $('shareModal');
+  if (shModal) shModal.addEventListener('click', function (ev) {
+    if (ev.target === shModal) hide('shareModal');
+  });
+  /* One listener on the container rather than one per button: renderShare
+     rewrites its own innerHTML every time the panel opens, and listeners
+     bound to the old buttons would pile up on every open. */
+  var shBody = $('shareBody');
+  if (shBody) shBody.addEventListener('click', function (ev) {
+    var t = ev.target;
+    var hit = (t && t.closest) ? t.closest('[data-tt-share]') : null;
+    if (hit) ttShareDo(hit.getAttribute('data-tt-share'));
   });
   $('howKeyModal').addEventListener('click', function (ev) {
     if (ev.target === $('howKeyModal')) hide('howKeyModal');
@@ -10903,7 +10954,8 @@ var TT_UI_STRINGS = [
   ['#btnPrepRefresh', 'Refresh'],
   ['#btnAboutContact', 'Send feedback'],
   ['#btnAboutShare', 'Share the app'],
-  ['#btnAboutClose', 'Close']
+  ['#btnAboutClose', 'Close'],
+  ['#btnShareClose', 'Close']
 ];
 
 /* One string, two languages, used by the renderers that build their own text.
@@ -10961,6 +11013,491 @@ function checkUiStrings() {
   });
   if (bad.length && window.console) console.warn('TT i18n: selectors not matching exactly one element:', bad);
   return bad;
+}
+
+/* ================= sharing the app =================
+
+   THE ADDRESS. One constant, used by the share links and by the QR code. The
+   og: tags in the head carry the same address and have to be edited with it;
+   they cannot read a variable, because a crawler does not run this script.
+
+   Why the address is not simply taken from window.location. This file is one
+   self contained html that also runs from a disk, and there location.href is
+   a file:// path that means nothing on anybody else's machine. So the rule
+   is: use the address actually being served whenever the page really is on
+   http or https, which covers a future move to a custom domain with no code
+   change at all, and fall back to the constant in every other case. */
+var TT_PUBLIC_URL = 'https://truetailor-app.github.io/TrueTailor-CV/';
+
+function ttShareBase() {
+  if (location.protocol === 'http:' || location.protocol === 'https:') {
+    return (location.origin + location.pathname).replace(/index\.html?$/i, '');
+  }
+  return TT_PUBLIC_URL;
+}
+
+/* One tagged link per platform, so GA4 can answer the only question worth
+   asking here: which platform actually brings people in. medium and campaign
+   are deliberately constant; source is the whole measurement. */
+function ttShareLink(source) {
+  var b = ttShareBase();
+  return b + (b.indexOf('?') >= 0 ? '&' : '?') +
+         'utm_source=' + encodeURIComponent(source) + '&utm_medium=share&utm_campaign=app';
+}
+
+/* The sentence that travels with the link wherever a sentence is allowed.
+   The last clause is not decoration. Whoever follows this link needs their
+   own Gemini key before the app does anything at all, and finding that out
+   after arriving is a worse experience than being told in the message. */
+function ttShareText() {
+  return L('TrueTailor CV \u2014 \u05d4\u05ea\u05d0\u05de\u05ea \u05e7\u05d5\u05e8\u05d5\u05ea \u05d7\u05d9\u05d9\u05dd \u05dc\u05de\u05e9\u05e8\u05d4 \u05d1\u05e2\u05d6\u05e8\u05ea AI. \u05de\u05e0\u05ea\u05d7 \u05d0\u05ea \u05e7\u05d5\u05e8\u05d5\u05ea \u05d4\u05d7\u05d9\u05d9\u05dd \u05de\u05d5\u05dc \u05de\u05d5\u05d3\u05e2\u05ea \u05d4\u05d3\u05e8\u05d5\u05e9\u05d9\u05dd, \u05de\u05e6\u05d9\u05d2 \u05e6\u05d9\u05d5\u05df \u05d4\u05ea\u05d0\u05de\u05d4 \u05d5\u05de\u05e9\u05db\u05ea\u05d1 \u05db\u05d3\u05d9 \u05dc\u05e9\u05e4\u05e8 \u05d0\u05ea \u05d4\u05e1\u05d9\u05db\u05d5\u05d9 \u05dc\u05e2\u05d1\u05d5\u05e8 \u05e1\u05d9\u05e0\u05d5\u05df ATS. \u05d7\u05d9\u05e0\u05de\u05d9, \u05e8\u05e5 \u05db\u05d5\u05dc\u05d5 \u05d1\u05d3\u05e4\u05d3\u05e4\u05df \u05d5\u05dc\u05d0 \u05de\u05de\u05e6\u05d9\u05d0 \u05db\u05dc\u05d5\u05dd. \u05e0\u05d3\u05e8\u05e9 \u05de\u05e4\u05ea\u05d7 Gemini API \u05d0\u05d9\u05e9\u05d9 (\u05d7\u05d9\u05e0\u05de\u05d9 \u05de\u05d0\u05ea Google AI Studio).',
+           'TrueTailor CV \u2014 tailors a resume to one job posting with AI. It reads your resume against the posting, scores the fit and rewrites to improve your chances of passing an ATS screen. Free, runs entirely in the browser and invents nothing. Needs your own Gemini API key (free from Google AI Studio).');
+}
+
+function ttShareNote(msg, kind) {
+  var el = $('shareNote');
+  if (!el) return;
+  if (!msg) { el.innerHTML = ''; return; }
+  el.innerHTML = '<span class="' + (kind === 'error' ? 'text-red-700' : 'text-emerald-700') +
+                 ' font-semibold">' + escapeHtml(msg) + '</span>';
+}
+
+/* Same two step copy the interview sheet uses: the clipboard API where it
+   exists, and the old textarea trick where it does not, because file:// has
+   no clipboard API in several browsers and this app is meant to run there. */
+function ttShareCopy(txt, okMsg) {
+  var ok = function () { ttShareNote(okMsg); };
+  var no = function () { ttShareNote(L('\u05d4\u05d4\u05e2\u05ea\u05e7\u05d4 \u05e0\u05d7\u05e1\u05de\u05d4 \u05e2\u05dc \u05d9\u05d3\u05d9 \u05d4\u05d3\u05e4\u05d3\u05e4\u05df.', 'The browser blocked the copy.'), 'error'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(ok, no);
+    return;
+  }
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    var done = document.execCommand('copy');
+    document.body.removeChild(ta);
+    done ? ok() : no();
+  } catch (e) { no(); }
+}
+
+/* ----------------------------------------------------------------- QR code
+
+   Byte mode, error correction level M, versions 1 to 10, which covers this
+   address with room to spare. Written out here rather than pulled from a CDN
+   for two reasons: a fourth CDN script would widen the integrity gap already
+   documented at the top of this file, and it would not load at all when the
+   page is opened from a disk with no network, which is a case this app
+   supports everywhere else.
+
+   Verified against an independent implementation on all eight mask patterns
+   and by decoding the result back through a real scanner.
+
+   One deliberate difference from that implementation: the dark ratio penalty
+   here follows ISO 18004, where the deviation from 50% is symmetric. Some
+   libraries score 52% and 48% differently. The mask that comes out can
+   therefore differ, which changes nothing a scanner sees, because the chosen
+   mask is recorded in the format bits and undone on the way in. */
+/* Minimal QR encoder: byte mode, ECC level M, versions 1..10.
+   Written to be embedded in a single-file app, so no dependencies. */
+
+function ttQrEncode(text) {
+  /* ---- GF(256) tables, primitive polynomial 0x11D ---- */
+  var EXP = new Array(512), LOG = new Array(256);
+  (function () {
+    var x = 1;
+    for (var i = 0; i < 255; i++) {
+      EXP[i] = x; LOG[x] = i;
+      x <<= 1;
+      if (x & 0x100) x ^= 0x11D;
+    }
+    for (var j = 255; j < 512; j++) EXP[j] = EXP[j - 255];
+  })();
+  function gmul(a, b) { return (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]]; }
+
+  /* ---- per version (1..10) at ECC level M:
+         [ total codewords, ecc codewords per block, group1 blocks, group2 blocks ] ---- */
+  var VER = {
+    1:  [26,   10, 1, 0],
+    2:  [44,   16, 1, 0],
+    3:  [70,   26, 1, 0],
+    4:  [100,  18, 2, 0],
+    5:  [134,  24, 2, 0],
+    6:  [172,  16, 4, 0],
+    7:  [196,  18, 4, 0],
+    8:  [242,  22, 2, 2],
+    9:  [292,  22, 3, 2],
+    10: [346,  26, 4, 1]
+  };
+  var ALIGN = {
+    1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30],
+    6: [6, 34], 7: [6, 22, 38], 8: [6, 24, 42], 9: [6, 26, 46], 10: [6, 28, 50]
+  };
+
+  /* ---- utf-8 bytes ---- */
+  var bytes = [];
+  for (var i = 0; i < text.length; i++) {
+    var c = text.charCodeAt(i);
+    if (c < 0x80) bytes.push(c);
+    else if (c < 0x800) { bytes.push(0xC0 | (c >> 6), 0x80 | (c & 63)); }
+    else if (c >= 0xD800 && c <= 0xDBFF && i + 1 < text.length) {
+      var lo = text.charCodeAt(i + 1); i++;
+      var cp = 0x10000 + ((c - 0xD800) << 10) + (lo - 0xDC00);
+      bytes.push(0xF0 | (cp >> 18), 0x80 | ((cp >> 12) & 63), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+    } else { bytes.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63)); }
+  }
+
+  /* ---- pick the smallest version that holds it ---- */
+  var version = 0, spec = null, dataCw = 0, lenBits = 0;
+  for (var v = 1; v <= 10; v++) {
+    var s = VER[v];
+    var blocks = s[2] + s[3];
+    var dc = s[0] - s[1] * blocks;
+    var lb = (v <= 9) ? 8 : 16;
+    if (4 + lb + bytes.length * 8 <= dc * 8) {
+      version = v; spec = s; dataCw = dc; lenBits = lb; break;
+    }
+  }
+  if (!version) return null;   /* too long: caller falls back to the plain link */
+
+  /* ---- bit stream ---- */
+  var bits = [];
+  function put(val, n) { for (var k = n - 1; k >= 0; k--) bits.push((val >> k) & 1); }
+  put(4, 4);                       /* byte mode */
+  put(bytes.length, lenBits);
+  for (var b = 0; b < bytes.length; b++) put(bytes[b], 8);
+
+  var cap = dataCw * 8;
+  var term = Math.min(4, cap - bits.length);
+  for (var t = 0; t < term; t++) bits.push(0);
+  while (bits.length % 8) bits.push(0);
+
+  var data = [];
+  for (var p = 0; p < bits.length; p += 8) {
+    var byte = 0;
+    for (var q = 0; q < 8; q++) byte = (byte << 1) | bits[p + q];
+    data.push(byte);
+  }
+  var pad = [0xEC, 0x11], pi = 0;
+  while (data.length < dataCw) { data.push(pad[pi & 1]); pi++; }
+
+  /* ---- split into blocks, compute ECC ---- */
+  var eccLen = spec[1], g1 = spec[2], g2 = spec[3], nBlocks = g1 + g2;
+  var g1Len = Math.floor(dataCw / nBlocks);
+  var g2Len = g1Len + 1;
+
+  /* generator polynomial */
+  var gen = [1];
+  for (var d = 0; d < eccLen; d++) {
+    var next = new Array(gen.length + 1).fill(0);
+    for (var gi = 0; gi < gen.length; gi++) {
+      next[gi] ^= gen[gi];
+      next[gi + 1] ^= gmul(gen[gi], EXP[d]);
+    }
+    gen = next;
+  }
+
+  function rs(block) {
+    var rem = block.concat(new Array(eccLen).fill(0));
+    for (var m = 0; m < block.length; m++) {
+      var factor = rem[m];
+      if (factor === 0) continue;
+      for (var n = 1; n < gen.length; n++) rem[m + n] ^= gmul(gen[n], factor);
+    }
+    return rem.slice(block.length);
+  }
+
+  var dBlocks = [], eBlocks = [], off = 0;
+  for (var bl = 0; bl < nBlocks; bl++) {
+    var len = (bl < g1) ? g1Len : g2Len;
+    var blk = data.slice(off, off + len); off += len;
+    dBlocks.push(blk); eBlocks.push(rs(blk));
+  }
+
+  /* ---- interleave ---- */
+  var out = [];
+  for (var col = 0; col < g2Len; col++)
+    for (var bb = 0; bb < nBlocks; bb++)
+      if (col < dBlocks[bb].length) out.push(dBlocks[bb][col]);
+  for (var ec = 0; ec < eccLen; ec++)
+    for (var bc = 0; bc < nBlocks; bc++) out.push(eBlocks[bc][ec]);
+
+  /* ---- matrix ---- */
+  var size = version * 4 + 17;
+  var mat = [], res = [];
+  for (var r = 0; r < size; r++) {
+    mat.push(new Array(size).fill(0));
+    res.push(new Array(size).fill(false));
+  }
+  function setF(x, y, val) { if (x >= 0 && y >= 0 && x < size && y < size) { mat[y][x] = val; res[y][x] = true; } }
+
+  function finder(cx, cy) {
+    for (var dy = -1; dy <= 7; dy++)
+      for (var dx = -1; dx <= 7; dx++) {
+        var x = cx + dx, y = cy + dy;
+        if (x < 0 || y < 0 || x >= size || y >= size) continue;
+        var on = (dx >= 0 && dx <= 6 && (dy === 0 || dy === 6)) ||
+                 (dy >= 0 && dy <= 6 && (dx === 0 || dx === 6)) ||
+                 (dx >= 2 && dx <= 4 && dy >= 2 && dy <= 4);
+        setF(x, y, on ? 1 : 0);
+      }
+  }
+  finder(0, 0); finder(size - 7, 0); finder(0, size - 7);
+
+  for (var t2 = 8; t2 < size - 8; t2++) {
+    setF(t2, 6, t2 % 2 === 0 ? 1 : 0);
+    setF(6, t2, t2 % 2 === 0 ? 1 : 0);
+  }
+
+  var ac = ALIGN[version];
+  for (var ai = 0; ai < ac.length; ai++)
+    for (var aj = 0; aj < ac.length; aj++) {
+      var ax = ac[ai], ay = ac[aj];
+      if ((ax === 6 && ay === 6) || (ax === 6 && ay === size - 7) || (ax === size - 7 && ay === 6)) continue;
+      for (var oy = -2; oy <= 2; oy++)
+        for (var ox = -2; ox <= 2; ox++)
+          setF(ax + ox, ay + oy, (Math.max(Math.abs(ox), Math.abs(oy)) !== 1) ? 1 : 0);
+    }
+
+  setF(8, size - 8, 1);                       /* dark module */
+
+  /* reserve format areas */
+  for (var f = 0; f < 9; f++) { if (f !== 6) { setF(f, 8, 0); setF(8, f, 0); } }
+  for (var f2 = 0; f2 < 8; f2++) { setF(size - 1 - f2, 8, 0); setF(8, size - 1 - f2, 0); }
+  setF(8, size - 8, 1);
+
+  /* version info, v7+ */
+  if (version >= 7) {
+    var vrem = version;
+    for (var vi = 0; vi < 12; vi++) {
+      vrem <<= 1;
+      if (vrem & 0x1000) vrem ^= 0x1F25;  /* generator 0x1F25 has degree 12 */
+    }
+    var vbits = ((version << 12) | (vrem & 0xFFF));
+    for (var k2 = 0; k2 < 18; k2++) {
+      var bit = (vbits >> k2) & 1;
+      setF(Math.floor(k2 / 3), size - 11 + (k2 % 3), bit);
+      setF(size - 11 + (k2 % 3), Math.floor(k2 / 3), bit);
+    }
+  }
+
+  /* ---- place data, zig-zag ---- */
+  var bitIdx = 0, total = out.length * 8;
+  var upward = true, col2 = size - 1;
+  while (col2 > 0) {
+    if (col2 === 6) col2--;
+    for (var rr = 0; rr < size; rr++) {
+      var yy = upward ? (size - 1 - rr) : rr;
+      for (var cc = 0; cc < 2; cc++) {
+        var xx = col2 - cc;
+        if (res[yy][xx]) continue;
+        var bitv = 0;
+        if (bitIdx < total) bitv = (out[bitIdx >> 3] >> (7 - (bitIdx & 7))) & 1;
+        bitIdx++;
+        mat[yy][xx] = bitv;
+      }
+    }
+    upward = !upward;
+    col2 -= 2;
+  }
+
+  /* ---- masking ---- */
+  function maskFn(m, x, y) {
+    switch (m) {
+      case 0: return (x + y) % 2 === 0;
+      case 1: return y % 2 === 0;
+      case 2: return x % 3 === 0;
+      case 3: return (x + y) % 3 === 0;
+      case 4: return (Math.floor(y / 2) + Math.floor(x / 3)) % 2 === 0;
+      case 5: return ((x * y) % 2) + ((x * y) % 3) === 0;
+      case 6: return (((x * y) % 2) + ((x * y) % 3)) % 2 === 0;
+      default: return (((x + y) % 2) + ((x * y) % 3)) % 2 === 0;
+    }
+  }
+
+  function fmtBits(mask) {
+    var fd = (0x00 << 3) | mask;             /* 0x00 = ECC level M */
+    var frem = fd;
+    for (var z = 0; z < 10; z++) {
+      frem <<= 1;
+      if (frem & 0x400) frem ^= 0x537;   /* generator 0x537 has degree 10 */
+    }
+    return ((fd << 10) | (frem & 0x3FF)) ^ 0x5412;
+  }
+
+  function penalty(g) {
+    var pen = 0, n = size, i2, j2, run, last;
+    /* rule 1: runs of 5+ */
+    for (i2 = 0; i2 < n; i2++) {
+      run = 1; last = g[i2][0];
+      for (j2 = 1; j2 < n; j2++) {
+        if (g[i2][j2] === last) run++;
+        else { if (run >= 5) pen += 3 + (run - 5); run = 1; last = g[i2][j2]; }
+      }
+      if (run >= 5) pen += 3 + (run - 5);
+      run = 1; last = g[0][i2];
+      for (j2 = 1; j2 < n; j2++) {
+        if (g[j2][i2] === last) run++;
+        else { if (run >= 5) pen += 3 + (run - 5); run = 1; last = g[j2][i2]; }
+      }
+      if (run >= 5) pen += 3 + (run - 5);
+    }
+    /* rule 2: 2x2 blocks */
+    for (i2 = 0; i2 < n - 1; i2++)
+      for (j2 = 0; j2 < n - 1; j2++) {
+        var vv = g[i2][j2];
+        if (vv === g[i2][j2 + 1] && vv === g[i2 + 1][j2] && vv === g[i2 + 1][j2 + 1]) pen += 3;
+      }
+    /* rule 3: finder-like patterns */
+    var pat1 = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0];
+    var pat2 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+    function match(arr, off2, pat) {
+      for (var z2 = 0; z2 < 11; z2++) if (arr[off2 + z2] !== pat[z2]) return false;
+      return true;
+    }
+    for (i2 = 0; i2 < n; i2++) {
+      var rowArr = g[i2], colArr = [];
+      for (j2 = 0; j2 < n; j2++) colArr.push(g[j2][i2]);
+      for (j2 = 0; j2 + 11 <= n; j2++) {
+        if (match(rowArr, j2, pat1) || match(rowArr, j2, pat2)) pen += 40;
+        if (match(colArr, j2, pat1) || match(colArr, j2, pat2)) pen += 40;
+      }
+    }
+    /* rule 4: dark ratio */
+    var dark = 0;
+    for (i2 = 0; i2 < n; i2++) for (j2 = 0; j2 < n; j2++) dark += g[i2][j2];
+    var pct = dark * 100 / (n * n);
+    pen += Math.floor(Math.abs(pct - 50) / 5) * 10;
+    return pen;
+  }
+
+  var best = null, bestPen = Infinity;
+  for (var mk = 0; mk < 8; mk++) {
+    var g3 = [];
+    for (var y3 = 0; y3 < size; y3++) {
+      g3.push(mat[y3].slice());
+      for (var x3 = 0; x3 < size; x3++)
+        if (!res[y3][x3] && maskFn(mk, x3, y3)) g3[y3][x3] ^= 1;
+    }
+    var fb = fmtBits(mk);
+    for (var fi = 0; fi < 15; fi++) {
+      var fbit = (fb >> fi) & 1;
+      /* the copy running down column 8 */
+      if (fi < 6) g3[fi][8] = fbit;
+      else if (fi < 8) g3[fi + 1][8] = fbit;
+      else g3[size - 15 + fi][8] = fbit;
+      /* the copy running along row 8 */
+      if (fi < 8) g3[8][size - 1 - fi] = fbit;
+      else if (fi === 8) g3[8][15 - fi] = fbit;
+      else g3[8][14 - fi] = fbit;
+    }
+    g3[size - 8][8] = 1;
+    var pn = penalty(g3);
+    if (pn < bestPen) { bestPen = pn; best = g3; }
+  }
+  return best;
+}
+
+/* Drawn as an inline svg and not an image on purpose: the CSP above allows
+   no external images, and every module in one path keeps this small. */
+function ttQrSvg(text, px) {
+  var m = ttQrEncode(text);
+  if (!m) return '';
+  var n = m.length, quiet = 4, side = n + quiet * 2, d = '', x, y;
+  for (y = 0; y < n; y++)
+    for (x = 0; x < n; x++)
+      if (m[y][x]) d += 'M' + (x + quiet) + ' ' + (y + quiet) + 'h1v1h-1z';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + side + ' ' + side + '" ' +
+         'width="' + px + '" height="' + px + '" shape-rendering="crispEdges" ' +
+         'role="img" aria-label="QR" style="flex:none;border-radius:8px">' +
+         '<rect width="' + side + '" height="' + side + '" fill="#ffffff"/>' +
+         '<path d="' + d + '" fill="#1F3864"/></svg>';
+}
+
+/* ------------------------------------------------------------- the platforms
+
+   They are not interchangeable, and pretending otherwise produces buttons
+   that quietly do nothing.
+
+   WhatsApp takes free text, so it gets the sentence and the link together.
+
+   LinkedIn and Facebook take a URL and nothing else. Facebook's quote
+   parameter was withdrawn and LinkedIn never had one. Every word and the
+   picture in the card they show comes from the og: tags in the head, which
+   is why those tags are not optional here.
+
+   Instagram has no web share at all. There is no share endpoint, links in
+   captions are not clickable, and no amount of URL building changes that.
+   The two routes that do work are the operating system share sheet on a
+   phone, where Instagram appears if it is installed, and copying the link to
+   paste into a bio or a story sticker. So it gets an honest note instead of
+   a button that looks like the other three and leads nowhere. */
+function ttShareDo(ch) {
+  var open = function (u) { window.open(u, '_blank', 'noopener'); };
+  var link, txt;
+  if (ch === 'whatsapp') {
+    link = ttShareLink('whatsapp');
+    open('https://wa.me/?text=' + encodeURIComponent(ttShareText() + ' ' + link));
+  } else if (ch === 'linkedin') {
+    open('https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(ttShareLink('linkedin')));
+  } else if (ch === 'facebook') {
+    open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(ttShareLink('facebook')));
+  } else if (ch === 'native') {
+    try {
+      navigator.share({ title: 'TrueTailor CV', text: ttShareText(), url: ttShareLink('mobile') })
+        .catch(function () { /* the person closed the sheet, which is not an error */ });
+    } catch (e) { /* nothing to report: the button only appears where share exists */ }
+  } else if (ch === 'copylink') {
+    ttShareCopy(ttShareLink('copy'), L('\u05d4\u05e7\u05d9\u05e9\u05d5\u05e8 \u05d4\u05d5\u05e2\u05ea\u05e7.', 'Link copied.'));
+  } else if (ch === 'copytext') {
+    txt = ttShareText() + ' ' + ttShareLink('copy');
+    ttShareCopy(txt, L('\u05d4\u05d8\u05e7\u05e1\u05d8 \u05d5\u05d4\u05e7\u05d9\u05e9\u05d5\u05e8 \u05d4\u05d5\u05e2\u05ea\u05e7\u05d5.', 'Text and link copied.'));
+  }
+}
+
+function renderShare() {
+  var el = $('shareBody');
+  if (!el) return;
+  var en = TT_UI_LANG === 'en';
+  var btn = function (ch, label, cls) {
+    return '<button type="button" data-tt-share="' + ch + '" class="px-4 py-2 rounded-lg text-sm ' + cls + '">' +
+           escapeHtml(label) + '</button>';
+  };
+  var h = '';
+
+  h += '<div class="tt-about-h">' + (en ? 'Share the app' : '\u05e9\u05d9\u05ea\u05d5\u05e3 \u05d4\u05d0\u05e4\u05dc\u05d9\u05e7\u05e6\u05d9\u05d4') + '</div>';
+  h += '<p class="text-sm text-slate-600 mt-1">' + (en
+    ? 'Anyone who opens this link gets the app itself, with nothing to install.'
+    : '\u05db\u05dc \u05de\u05d9 \u05e9\u05e4\u05d5\u05ea\u05d7 \u05d0\u05ea \u05d4\u05e7\u05d9\u05e9\u05d5\u05e8 \u05de\u05e7\u05d1\u05dc \u05d0\u05ea \u05d4\u05d0\u05e4\u05dc\u05d9\u05e7\u05e6\u05d9\u05d4 \u05e2\u05e6\u05de\u05d4, \u05d1\u05dc\u05d9 \u05dc\u05d4\u05ea\u05e7\u05d9\u05df \u05e9\u05d5\u05dd \u05d3\u05d1\u05e8.') + '</p>';
+
+  h += '<div class="flex flex-wrap gap-2 mt-3">';
+  h += btn('whatsapp', 'WhatsApp', 'bg-emerald-600 text-white');
+  h += btn('linkedin', 'LinkedIn', 'bg-sky-800 text-white');
+  h += btn('facebook', 'Facebook', 'bg-blue-800 text-white');
+  if (navigator.share) {
+    h += btn('native', en ? 'Share\u2026' : '\u05e9\u05d9\u05ea\u05d5\u05e3\u2026', 'border border-slate-300');
+  }
+  h += btn('copylink', en ? 'Copy link' : '\u05d4\u05e2\u05ea\u05e7 \u05e7\u05d9\u05e9\u05d5\u05e8', 'border border-slate-300');
+  h += btn('copytext', en ? 'Copy text' : '\u05d4\u05e2\u05ea\u05e7 \u05d8\u05e7\u05e1\u05d8', 'border border-slate-300');
+  h += '</div>';
+
+  h += '<p class="text-xs text-slate-500 mt-2">' + (en
+    ? 'Instagram has no link sharing from a browser. On a phone use Share\u2026 and pick Instagram; on a computer copy the link and paste it in your bio or a story sticker.'
+    : '\u05dc\u05d0\u05d9\u05e0\u05e1\u05d8\u05d2\u05e8\u05dd \u05d0\u05d9\u05df \u05e9\u05d9\u05ea\u05d5\u05e3 \u05e7\u05d9\u05e9\u05d5\u05e8\u05d9\u05dd \u05de\u05d4\u05d3\u05e4\u05d3\u05e4\u05df. \u05d1\u05e0\u05d9\u05d9\u05d3 \u05d9\u05e9 \u05dc\u05d4\u05e9\u05ea\u05de\u05e9 \u05d1\u05db\u05e4\u05ea\u05d5\u05e8 \u05e9\u05d9\u05ea\u05d5\u05e3 \u05d5\u05dc\u05d1\u05d7\u05d5\u05e8 \u05d0\u05d9\u05e0\u05e1\u05d8\u05d2\u05e8\u05dd; \u05d1\u05de\u05d7\u05e9\u05d1 \u05d9\u05e9 \u05dc\u05d4\u05e2\u05ea\u05d9\u05e7 \u05d0\u05ea \u05d4\u05e7\u05d9\u05e9\u05d5\u05e8 \u05d5\u05dc\u05d4\u05d3\u05d1\u05d9\u05e7 \u05d1\u05d1\u05d9\u05d5 \u05d0\u05d5 \u05d1\u05e1\u05d8\u05d9\u05e7\u05e8 \u05d1\u05e1\u05d8\u05d5\u05e8\u05d9.') + '</p>';
+
+  h += '<div class="text-xs mt-3 p-2 rounded bg-slate-100 text-slate-700 break-all" dir="ltr">' +
+       escapeHtml(ttShareBase()) + '</div>';
+
+  var svg = ttQrSvg(ttShareLink('qr'), 150);
+  if (svg) {
+    h += '<div class="flex items-center gap-3 mt-3">' + svg +
+         '<div class="text-xs text-slate-600">' + (en
+           ? 'Scan to open the app on a phone.'
+           : '\u05e1\u05e8\u05d9\u05e7\u05d4 \u05e9\u05dc \u05d4\u05e7\u05d5\u05d3 \u05ea\u05e4\u05ea\u05d7 \u05d0\u05ea \u05d4\u05d0\u05e4\u05dc\u05d9\u05e7\u05e6\u05d9\u05d4 \u05d1\u05e0\u05d9\u05d9\u05d3.') + '</div></div>';
+  }
+
+  el.innerHTML = h;
 }
 
 /* ================= about ================= */
