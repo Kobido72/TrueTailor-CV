@@ -989,7 +989,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v35.9</span>
+        <span class="tt-ver" id="verBadge">v36.0</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1494,6 +1494,12 @@
       כשתסיים לחץ <b>"החל שינויים"</b> בתחתית, אחרת העריכות לא ייכנסו לקובץ.</span>
     </div>
 
+    <!-- The whole point of the run, stated where the run ends. This was
+         computed all along and drawn only inside a tab nobody had a reason to
+         open, so a candidate could finish, download the file and never learn
+         whether anything had improved. -->
+    <div id="progressStrip" class="mb-3"></div>
+
     <div id="templatePicker" class="flex flex-wrap gap-3 mb-3"></div>
     <div id="accentPicker" class="mb-3"></div>
 
@@ -1576,7 +1582,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v35.9';
+var TT_VERSION = 'v36.0';
 
 var APP = {
   apiKey: '',
@@ -4285,7 +4291,11 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     '',
     priorityKeywordBrief(20),
     '',
-    sectionKeywordGaps(sectionText, 12),
+    cat === 'summary' ? summaryBrief(APP.doc) : null,
+    cat === 'summary' ? '' : null,
+    placementBrief(cat) || sectionKeywordGaps(sectionText, 12),
+    '',
+    unplacedBrief(),
     '',
     stateLineBrief(APP.doc, cat) || null,
     stateLineBrief(APP.doc, cat) ? '' : null,
@@ -4341,6 +4351,14 @@ function promptSkillPlan(groups, signals, coverage, qa, uiLang) {
     '',
     priorityKeywordBrief(20),
     '',
+    /* The skills list is where a screener's search lands first, so it gets the
+       same named placement the prose sections get. Without it this call saw the
+       whole permitted vocabulary and had no way to know which of it the other
+       two calls, running at the same moment, were already carrying. */
+    placementBrief('skills') || null,
+    placementBrief('skills') ? '' : null,
+    unplacedBrief() || null,
+    unplacedBrief() ? '' : null,
     'COVERAGE MAP:',
     JSON.stringify(coverage),
     '',
@@ -4697,7 +4715,11 @@ function priorityKeywordBrief(limit) {
     var c = coverageOf(k.reqId);
     var st = c ? c.status : 'missing';
     var r = reqById(k.reqId);
-    var rule = st === 'direct'
+    var blocked = blockedProductFor(k.term);
+    var rule = blocked
+      ? 'DO NOT WRITE THIS WORD. It names a product the resume never mentions (' + blocked + '). ' +
+        'The requirement behind it is proved by something else, so prove it in the candidate\'s own words or in the family name.'
+      : st === 'direct'
       ? 'USE THIS EXACT WORD, the resume proves it'
       : st === 'equivalent'
         ? 'DO NOT WRITE THIS WORD. Write the shared properties in the posting\'s vocabulary: ' +
@@ -4709,6 +4731,319 @@ function priorityKeywordBrief(limit) {
   });
   lines.push('Spend your effort top down. A line that carries one of the first three of these is worth more than three lines that carry the last three.');
   return lines.join('\n');
+}
+
+/* ---------- WHICH WORD, NOT WHICH REQUIREMENT ----------
+   Every list of permitted vocabulary in this file was filtered on the status of
+   the REQUIREMENT a word belongs to, and a requirement is not a word. A posting
+   that asks for an enterprise ERP and names two of them carries the keywords
+   ERP, Priority and SAP under one requirement. A candidate who runs Priority
+   makes that requirement direct, and direct meant every keyword under it was
+   handed to the writing stage as permitted vocabulary. SAP included. A product
+   the person has never opened was being offered, by name, to three sections at
+   once, and the only thing standing between that and a false claim on a resume
+   was a sentence of prose telling the model not to.
+
+   That is an invitation at the level of the data and a brake at the level of
+   the text, and the brake is the weaker of the two. The filter belongs where
+   the claim is: on the word.
+
+   Three cases, and toolClusters already knows which is which because stage 1
+   asks the posting for the product name and for the FAMILY it belongs to:
+
+     the word is in the resume            usable, and it is a swap, not a claim
+     the word is a family name and the
+     candidate runs a product in it       usable, and this is the ONE place a
+                                          posting term may enter a line the
+                                          candidate did not literally do
+     the word is a product they never
+     touched                              never, in any section, at any status
+
+   Certifications get no family route at all. There is no generic version of a
+   licence somebody does not hold. */
+var TT_TERM_GATE = { signals: null, coverage: null, banned: null, cats: null };
+
+function termGate() {
+  if (TT_TERM_GATE.banned && TT_TERM_GATE.signals === APP.signals && TT_TERM_GATE.coverage === APP.coverage) {
+    return TT_TERM_GATE;
+  }
+  var banned = [], cats = {};
+  try {
+    toolClusters().forEach(function (t) {
+      if (t.inResume) return;                       // they use it, nothing to guard
+      if (t.name) banned.push(normalizeToken(t.name));
+      (t.modules || []).forEach(function (m) { if (m) banned.push(normalizeToken(m)); });
+      /* The family name is what the candidate may honestly be called in the
+         market's own words, and only where the substitute is close enough for
+         that to be true. A licence has no family name. */
+      if (t.kind === 'tool' && t.cls && (t.distance === 'same_class' || t.distance === 'neighbor_class')) {
+        cats[normalizeToken(t.cls)] = String(t.cls);
+      }
+    });
+  } catch (e) { banned = []; cats = {}; }
+  TT_TERM_GATE = { signals: APP.signals, coverage: APP.coverage, banned: banned, cats: cats };
+  return TT_TERM_GATE;
+}
+
+/* Empty when the term may be written. Otherwise the product name that blocks
+   it, so the caller can say WHY rather than silently dropping a word. */
+function blockedProductFor(term) {
+  var g = termGate();
+  var n = normalizeToken(term);
+  if (!n) return '';
+  if (g.cats[n]) return '';                         // the family name itself
+  for (var i = 0; i < g.banned.length; i++) {
+    var b = g.banned[i];
+    if (!b) continue;
+    if (n === b || containsTerm(n, b)) return b;
+  }
+  return '';
+}
+
+function isCategoryTerm(term) {
+  return !!termGate().cats[normalizeToken(term)];
+}
+
+/* ---------- THE SIX SECONDS ----------
+   The summary is the only part of a resume that can be aimed entirely at one
+   posting, and it is the part a recruiter reads before deciding whether to read
+   anything else. It is also the one section that holds no evidence of its own:
+   it does not prove that the candidate managed a team, it RESTATES what a line
+   further down already proves. That is what makes it safe to aim, and it is the
+   rule the whole feature rests on. Every claim in it must be traceable to a line
+   that already exists in the document. Nothing new enters the world here.
+
+   Two shapes are in use and both are correct. A paragraph of four or five lines
+   that says who this person is, and four or five bullets that say the same
+   thing. Which one a candidate has chosen is not this app's business, so the
+   shape is detected and preserved. It is offered as a choice, never imposed. */
+
+function summaryShape(doc) {
+  var lines = ((doc && doc.lines) || []).filter(function (l) {
+    return l && l.editable && l.cat === 'summary' && String(l.text || '').trim();
+  });
+  if (!lines.length) return { exists: false, format: '', count: 0, words: 0 };
+  var bullets = 0, words = 0;
+  lines.forEach(function (l) {
+    if (l.isBullet || /^\s*[•\-–*]/.test(l.text)) bullets++;
+    words += String(l.text).trim().split(/\s+/).length;
+  });
+  /* One long line is a paragraph however it was typed. Several short ones that
+     are not marked as bullets are still a list to the eye that reads them. */
+  var format = (bullets >= Math.ceil(lines.length / 2)) ? 'bullets'
+             : (lines.length >= 3 && words / lines.length < 14) ? 'bullets'
+             : 'paragraph';
+  return { exists: true, format: format, count: lines.length, words: words };
+}
+
+/* How much of what this posting weighs sits in things that are named rather
+   than described. A posting built out of tools, systems and certificates reads
+   as a checklist, and a checklist is answered fastest by a list. A posting built
+   out of areas of responsibility reads as a description of a person, and that is
+   answered by a paragraph.
+
+   Measured as a share of the posting's OWN weight rather than against a count,
+   because a fixed number would mean one thing on a posting with six
+   requirements and something else entirely on one with twenty, and this app has
+   already been bitten once by a threshold that was chosen rather than derived. */
+function postingFragmentation() {
+  var reqs = (APP.signals && APP.signals.requirements) || [];
+  if (!reqs.length) return null;
+  var atomic = 0, total = 0;
+  reqs.forEach(function (r) {
+    var w = reqScoreWeight(r);
+    if (!w) return;
+    total += w;
+    var named = (r.kind === 'tool' || r.kind === 'certification');
+    /* A requirement stated in a handful of words is a name whatever its kind:
+       "Excel מתקדם" and "בקרת איכות" are items, "אחריות על שרשרת האספקה מקצה
+       לקצה מול ספקים בארץ ובחו\'ל" is a description of a job. */
+    var short = String(r.text || '').trim().split(/\s+/).length <= 5;
+    if (named || short) atomic += w;
+  });
+  if (!total) return null;
+  return atomic / total;
+}
+
+/* The block the summary call is handed. Everything here is decided in the
+   browser: which shape the candidate already uses, how long it should be, and
+   whether the other shape is worth offering. The model writes; it does not get
+   to choose the form of somebody else's resume. */
+var TT_FRAGMENTED_SHARE = 0.5;
+
+function summaryBrief(doc) {
+  var shape = summaryShape(doc);
+  var frag = postingFragmentation();
+  var want = (frag != null && frag >= TT_FRAGMENTED_SHARE) ? 'bullets' : 'paragraph';
+  var swap = shape.exists && shape.format !== want;
+
+  var head = shape.exists
+    ? ['THIS IS THE SUMMARY, AND IT IS THE SIX SECONDS THE WHOLE APPLICATION GETS.',
+       'A recruiter reads this before deciding whether to read the rest. Rewrite it so that a person screening for THIS posting reaches the end of it and carries on down the page.']
+    : ['THIS RESUME HAS NO SUMMARY.',
+       'Propose one. It is shown to the candidate switched off and enters the document only if they turn it on, so a proposal that is honest and unremarkable is better than one that is impressive and stretched.'];
+
+  var form = shape.format === 'bullets' || (!shape.exists && want === 'bullets')
+    ? ['SHAPE: BULLETS. Four or five of them, one line each, each carrying one thing this posting screens for.']
+    : ['SHAPE: ONE PARAGRAPH. Four or five lines. Not a list of nouns and not a mission statement: who this person is professionally, what they have run, and why that answers this posting.'];
+  if (shape.exists) {
+    form.push('The candidate wrote their summary in this shape and it stays in this shape. Do not convert it.');
+  }
+
+  var content = [
+    'WHAT GOES IN, IN THIS ORDER OF PRIORITY:',
+    '  the occupation and the years, exactly as the file supports them',
+    '  the one or two requirements at the top of the priority list that this resume genuinely proves',
+    '  the scale the candidate has actually worked at: people, sites, budget, caseload, whatever this occupation measures',
+    '  the domain or regulated environment, where the file names one',
+    '',
+    'THE RULE THAT GOVERNS THIS ENTIRE SECTION, AND IT IS ABSOLUTE:',
+    'The summary proves nothing. It RESTATES what other lines in this document already prove, in the vocabulary of the posting.',
+    'Every claim you write here must be traceable to a specific line elsewhere in the resume. Twelve years only if the dates add up to twelve. A team of twenty four only if a line says twenty four. A system only if a line names it or the family name has been cleared for it above.',
+    'If the file does not support a claim, the claim does not appear. A shorter summary made only of true things beats a fuller one that has to be defended in an interview.',
+    'No seniority the file does not show. No adjectives about the candidate\'s character. No sentence that would be equally true of anybody in this occupation.'
+  ];
+
+  var alt = swap
+    ? ['',
+       'ALSO RETURN AN ALTERNATIVE, IN THE OTHER SHAPE.',
+       'This posting reads as ' + (want === 'bullets' ? 'a list of named requirements, which a reader checks off fastest against bullets.' : 'a description of a role rather than a checklist, which reads better as a paragraph.'),
+       'So return the summary twice: once in the shape the candidate already uses, which is the default, and once as ' + (want === 'bullets' ? 'four or five bullets' : 'a single paragraph') + '.',
+       'Same facts, same claims, different form. The candidate is shown both and chooses. Say in one sentence, in Hebrew, why the alternative might suit this posting better. Never tell them their own choice was wrong.']
+    : [];
+
+  return head.concat(['']).concat(form).concat(['']).concat(content).concat(alt).join('\n');
+}
+
+/* ---------- WHERE EACH WORD LIVES ----------
+   The three writing calls of stage 4 go out at the same moment and none of them
+   can see the others. Each was handed the same question - which of the posting's
+   words is this section missing - and the answer to that question is nearly the
+   same list three times over, because it is filtered on one thing only: whether
+   the section happens to contain the word already. Measured on a real pair, nine
+   terms were offered to the summary, the experience and the skills sections
+   simultaneously, with nothing deciding which of them owned any of it.
+
+   Three complaints come out of that one fact.
+
+   The experience section is the longest and gets the most rewriting, so it takes
+   most of the list and the other sections take almost none: the CONCENTRATION.
+   A term that found no obvious line in that section lands nowhere at all,
+   because the rule that stops repetition is scoped to a section and cannot
+   coordinate across three parallel calls: the THIN COVERAGE. And a model told
+   to work a word in somewhere, with no line named, inserts it, where a model
+   told that line L12 already proves the thing swaps the wording on L12: the
+   ARTIFICIAL SOUND. Insertion reads pasted on. Substitution reads like the
+   person wrote it.
+
+   The coverage map already knows the answer. Every row carries evidence_ids,
+   the lines that prove the requirement. So each term is given a home before the
+   calls go out, and each call is told which words belong to it and on which
+   line, rather than being handed a list and left to compete for it.
+
+   What this deliberately does NOT do is find a home for a term that has none. A
+   word with no line behind it stays out, and it is reported as unplaced rather
+   than quietly dropped, because a term nobody can carry is a fact about the
+   application and the candidate should be able to see it. */
+
+function keywordPlacementPlan() {
+  var lines = {}, cats = {};
+  ((APP.doc && APP.doc.lines) || []).forEach(function (l) {
+    if (!l || !l.editable) return;
+    lines[l.id] = l.text;
+    cats[l.id] = l.cat;
+  });
+
+  var perLine = {}, placed = [], unplaced = [], seen = {};
+
+  allKeywords().forEach(function (k) {
+    var norm = normalizeToken(k.term);
+    if (!norm || seen[norm]) return;
+    var c = coverageOf(k.reqId);
+    var st = c ? c.status : 'missing';
+
+    /* Never, at any status: a product the candidate has not touched. */
+    var blocked = blockedProductFor(k.term);
+    if (blocked) return;
+
+    if (st === 'missing' || st === 'unknown') return;
+
+    /* equivalent means the candidate runs something else in the same family.
+       The family NAME is honest and the product name is not, and the gate above
+       has already removed the product name, so what survives here is the family
+       name and it gets the line where the substitute is actually used. */
+    if (st === 'equivalent' && !isCategoryTerm(k.term)) return;
+
+    var ids = (c && Array.isArray(c.evidence_ids)) ? c.evidence_ids : [];
+    var home = '';
+    for (var i = 0; i < ids.length; i++) {
+      if (lines[ids[i]] != null) { home = ids[i]; break; }
+    }
+    if (!home) {
+      unplaced.push({ term: k.term, reqId: k.reqId, status: st, weight: k.weight });
+      return;
+    }
+    if (containsTerm(normalizeToken(lines[home]), k.term)) { seen[norm] = 1; return; }
+
+    /* Two per line is the ceiling. A line asked to carry four of the posting's
+       words stops being a sentence about a job and becomes a list. */
+    perLine[home] = perLine[home] || [];
+    if (perLine[home].length >= 2) {
+      unplaced.push({ term: k.term, reqId: k.reqId, status: st, weight: k.weight, full: home });
+      return;
+    }
+    seen[norm] = 1;
+    perLine[home].push(k.term);
+    placed.push({
+      term: k.term, reqId: k.reqId, status: st, weight: k.weight,
+      id: home, cat: cats[home] || 'other', category: isCategoryTerm(k.term)
+    });
+  });
+
+  return { placed: placed, unplaced: unplaced, perLine: perLine };
+}
+
+/* The block one section is handed. Named lines, in weight order, with the line
+   text quoted so the model does not have to hunt for it. */
+function placementBrief(cat, plan) {
+  plan = plan || keywordPlacementPlan();
+  var mine = plan.placed.filter(function (p) { return p.cat === cat; });
+  if (!mine.length) return '';
+  var byLine = {}, order = [];
+  mine.forEach(function (p) {
+    if (!byLine[p.id]) { byLine[p.id] = []; order.push(p.id); }
+    byLine[p.id].push(p);
+  });
+  var out = ['WORDS THAT BELONG TO THIS SECTION, AND THE LINE EACH ONE BELONGS ON.',
+    'These are not suggestions to place somewhere. Each line below already proves the thing its words name; the coverage map says so. Rewrite that line so it says it in the posting\'s word instead of the resume\'s own.',
+    'This is a vocabulary swap and never a new claim. If a line genuinely cannot carry its word without saying something the candidate did not do, leave the line alone and leave the word out.',
+    'A word is not repeated into a second line. It is carried once, here, on the line that owns it.'];
+  order.forEach(function (id) {
+    var text = ((APP.doc && lineById(APP.doc, id)) || {}).text || '';
+    out.push('  ' + id + '  "' + text + '"');
+    byLine[id].forEach(function (p) {
+      out.push('      -> ' + p.term + '  [' + p.weight + ', ' + p.status +
+        (p.category ? ', FAMILY NAME: describes the class of system the candidate does run. Never the product they do not.' : '') + ']');
+    });
+  });
+  return out.join('\n');
+}
+
+/* Words that the coverage map permits and that nothing in the file can carry.
+   A term whose requirement is simply MISSING is not in here: the priority brief
+   already refuses it in as many words, and repeating it would spend room on
+   something the model has been told twice. What lands here is the surprising
+   case - the requirement is proved, but the line that proved it is not in the
+   document any more, so there is nothing to swap the word into. Named so the
+   model stops looking, and so it cannot decide to build a line to hold it. */
+function unplacedBrief(plan) {
+  plan = plan || keywordPlacementPlan();
+  var u = plan.unplaced.filter(function (x) { return !x.full; }).slice(0, 10);
+  if (!u.length) return '';
+  return ['WORDS WITH NO LINE BEHIND THEM ANYWHERE IN THIS RESUME.',
+    'Every one of these was checked against the whole file and nothing in it proves them. They are listed so you stop looking: there is no line to swap them into and inventing one is the single worst thing you can do here.',
+    u.map(function (x) { return '  ' + x.term + ' (' + x.reqId + ', ' + x.status + ')'; }).join('\n')
+  ].join('\n');
 }
 
 /* Which of the words this section is ALLOWED to use are not in it yet.
@@ -4729,7 +5064,9 @@ function sectionKeywordGaps(sectionText, limit) {
     var st = c ? c.status : 'missing';
     if (st !== 'direct' && st !== 'partial') return;      // equivalent and missing may not be typed
     if (containsTerm(hay, k.term)) return;                // already carried by this section
-    out.push({ term: k.term, weight: k.weight, reqId: k.reqId, status: st });
+    /* The requirement being proved says nothing about THIS word. See termGate. */
+    if (blockedProductFor(k.term)) return;
+    out.push({ term: k.term, weight: k.weight, reqId: k.reqId, status: st, category: isCategoryTerm(k.term) });
   });
   if (!out.length) return '';
   var lines = ['WORDS THIS SECTION IS ALLOWED TO USE AND DOES NOT USE YET, most significant first.',
@@ -4737,7 +5074,8 @@ function sectionKeywordGaps(sectionText, limit) {
     'Where a line already proves the thing, prefer the posting\'s word for it over the resume\'s own synonym. That is a vocabulary swap, not a new claim.',
     'Do not invent a line to hold a word. A word that has no line to belong to stays out.'];
   out.forEach(function (g) {
-    lines.push('  [' + g.weight + '] ' + g.term + '  (' + g.reqId + ', ' + g.status + ')');
+    lines.push('  [' + g.weight + '] ' + g.term + '  (' + g.reqId + ', ' + g.status +
+      (g.category ? ', FAMILY NAME - describes what the candidate does run, never a product they do not' : '') + ')');
   });
   return lines.join('\n');
 }
@@ -7107,9 +7445,13 @@ function progressReport() {
 
 function renderProgress() {
   var el = $('progressOut');
-  if (!el) return;
   var p = progressReport();
-  if (!p) { el.innerHTML = ''; return; }
+  if (!p) {
+    if (el) el.innerHTML = '';
+    if ($('progressStrip')) $('progressStrip').innerHTML = '';
+    return;
+  }
+  if (!el) el = document.createElement('div');
 
   var dv = p.vocabAfter - p.vocabBefore;
   var df = p.fitAfter - p.fitBefore;
@@ -7163,6 +7505,9 @@ function renderProgress() {
   }
   html += '</div>';
   el.innerHTML = html;
+  /* The same panel, drawn where the candidate actually is when the run ends. */
+  var strip = $('progressStrip');
+  if (strip) strip.innerHTML = html;
 }
 
 /* ---------------- local verification panels ----------------
@@ -10977,6 +11322,7 @@ function renderPreview() {
   fitPageToLimit(page, APP.template);
   drawPageCuts(page);
   fitNotice();
+  try { renderProgress(); } catch (e) {}
 
   var blocks = page.querySelectorAll('[contenteditable="true"]');
   for (var b = 0; b < blocks.length; b++) {
