@@ -326,6 +326,56 @@
   .tt-pv-bullet  { font-size:var(--tt-body); flex:1; white-space:pre-wrap; }
   .tt-pv-gap     { height:6pt; }
 
+  /* ---------- MEASURABLE NUMBERS, MARKED FOR THE SIX SECONDS ----------
+     A reader scanning a page stops on digits before they stop on words, so the
+     numbers the candidate already earned are given the weight they do the work
+     of. Nothing is added and nothing is claimed here: this marks text that is
+     already in the document.
+
+     The WEIGHT is the real mark and it reaches the Word file and the pdf too,
+     because a figure a recruiter can find in two seconds is worth as much in
+     the document they receive as on the screen the candidate is looking at.
+
+     The COLOUR and the TINT are a screen reading aid and stop here. The
+     template rules in this file allow one accent, in the name, the section
+     headings and the rule; a coloured number in the body of a resume is the
+     decoration those rules exist to prevent.
+
+     The horizontal padding is cancelled by an equal negative margin ON PURPOSE.
+     fitPageToLimit measures this exact element to decide the page count. Padding
+     that took real width would make the preview taller than the file the
+     candidate downloads, and the dashed page rule would stop telling the truth.
+     The tint still bleeds its three points; the layout never sees them. */
+  /* ---------- WHERE THE READING STOPS ----------
+     Drawn, not enforced. It marks the point past which a reviewer scanning the
+     page is unlikely to arrive, so the candidate can see which of their bullets
+     are actually being read before deciding what to reorder.
+
+     It never removes anything and it is never a target: a role with fewer
+     bullets than its horizon is not failing anything, and this app cannot
+     invent bullets to reach a number. Screen only, like the metric tint. */
+  .tt-pv-horizon {
+    border-top:1px dashed rgba(100,116,139,.55);
+    margin:5pt 0 3pt; padding-top:2pt;
+    font-size:7.5pt; color:#64748b; letter-spacing:.02em;
+  }
+  .tt-pv-belowfold { opacity:.62; }
+  @media print { .tt-pv-horizon { display:none !important; } .tt-pv-belowfold { opacity:1 !important; } }
+
+  .tt-metric-highlight {
+    font-weight:600; color:#0b4f6c;
+    background-color:rgba(11,79,108,0.06);
+    padding:0 3px; margin:0 -3px; border-radius:2px;
+  }
+  @media print {
+    /* the weight stays, because the exported file carries it as well. The tint
+       and the colour do not: on paper they are noise. */
+    .tt-metric-highlight {
+      background-color:transparent !important; color:inherit !important;
+      padding:0 !important; margin:0 !important;
+    }
+  }
+
   .tt-tpl-classic {
     --tt-font: Arial, "Arial Hebrew", sans-serif;
     --tt-name: 16pt; --tt-head: 12pt; --tt-role: 11pt; --tt-body: 10.5pt;
@@ -989,7 +1039,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v36.0</span>
+        <span class="tt-ver" id="verBadge">v37.0</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1502,6 +1552,7 @@
 
     <div id="templatePicker" class="flex flex-wrap gap-3 mb-3"></div>
     <div id="accentPicker" class="mb-3"></div>
+    <div id="fitBiasPicker" class="mb-3"></div>
 
     <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
       <label class="inline-flex items-center gap-2 cursor-pointer">
@@ -1521,6 +1572,7 @@
 
     <!-- the proofreading runs on its own and reports here; the download waits for it -->
     <div id="spellOut" class="mt-3"></div>
+    <div id="grammarOut" class="mt-3"></div>
 
     <div class="flex flex-wrap gap-2 mt-4">
       <button id="btnApplyPreview" class="tt-btn" disabled>✅ החל שינויים</button>
@@ -1582,7 +1634,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v36.0';
+var TT_VERSION = 'v37.0';
 
 var APP = {
   apiKey: '',
@@ -1637,13 +1689,19 @@ var APP = {
   parseFailures: [],    // sections whose model answer could not be read
   emphasis: null,       // bold runs read out of the uploaded file
   spell: { state: 'idle', fixes: [], forText: '', error: '', promise: null },
+  /* Same shape as spell, different contract: these are OFFERED, not applied.
+     See scheduleGrammarPass. */
+  grammar: { state: 'idle', fixes: [], refused: [], forText: '', error: '', promise: null },
   finalText: '',
   template: 'classic',
-  /* Which step of TT_FIT_STEPS the document is currently rendered at. Zero is
+  /* Which step of the active fit ladder the document is rendered at. Zero is
      the template as designed. It is recomputed on every preview render and read
      by both exports, so what is on screen is what downloads. */
   fitStep: 0,
   fitPages: 1,
+  /* Which ladder of TT_FIT_LADDERS the fit loop walks. The candidate's
+     choice, not the app's; see TT_FIT_BIAS_NAMES. */
+  fitBias: 'auto',
   /* Which document line index STARTS each page after the first. Decided once,
      in the preview, at a block boundary, and then consumed by the preview rule,
      the docx and the print sheet alike. Empty means "let the engine paginate",
@@ -1755,42 +1813,36 @@ var TT_HEBREW_RE = new RegExp('[' + TT_HEBREW_CLASS + ']', 'g');
 var TT_WORD_END = '(?![' + TT_HEBREW_CLASS + 'a-zA-Z0-9])';
 
 /* ---------- which language, and therefore which way the page runs ----------
-   This used to count exactly two things: Hebrew letters and Latin letters. Any
-   text made of neither scored zero on both and came back "neutral", and every
-   caller resolves neutral by falling back to Hebrew.
+   Two languages, Hebrew and English, and that is the whole list. It used to be
+   three: Cyrillic was recognised as its own language so that a Russian resume
+   would not be laid out backwards. That support is gone by decision, and
+   Cyrillic now sits with the other unsupported scripts in TT_ALIEN_CLASS, where
+   a Cyrillic word coming back from the model is refused rather than rendered.
 
-   For a resume written in Russian that is not a rounding error, it is the whole
-   document laid out backwards: every paragraph right aligned, every line marked
-   right to left in the Word file, and a candidate looking at a document they
-   cannot send anywhere. Cyrillic reads left to right exactly as Latin does.
+   What stays is the DIRECTION handling further down, which still knows that
+   Cyrillic reads left to right. The two are different questions: what this app
+   is willing to WRITE is Hebrew and English, but what it has to RENDER is
+   whatever the candidate's own file already contains, and a stray Cyrillic line
+   in an uploaded document should not flip the paragraph around it.
 
-   The fix is to recognise the script rather than to widen the fallback, because
-   the fallback is right for what it was written for: a line with no letters at
-   all, "2019 - 2023", belongs to whatever the surrounding document is, and in a
-   Hebrew document that is Hebrew.
-
-   'ru' is returned as its own value rather than folded into 'en'. Direction and
-   alignment only ever ask whether the answer is 'he', so they get left to right
-   for free. What would have broken is everything that NAMES the language to the
-   model: a Russian answer announced as English is a Russian answer that comes
-   back translated into English and pasted into a Russian resume. */
-var TT_CYRILLIC_RE = /[\u0400-\u04FF\u0500-\u052F]/g;
+   'neutral' is what text with none of these comes back as, and every caller
+   resolves neutral by falling back to the surrounding document. That fallback
+   is right for what it was written for: a line with no letters at all,
+   "2019 - 2023", belongs to whatever is around it. */
 
 function detectLang(text) {
   var s = String(text || '');
   var hebrewChars = (s.match(TT_HEBREW_RE) || []).length;
   var latinChars = (s.match(/[A-Za-z]/g) || []).length;
-  var cyrillicChars = (s.match(TT_CYRILLIC_RE) || []).length;
-  if (!hebrewChars && !latinChars && !cyrillicChars) return 'neutral';
-  if (cyrillicChars > hebrewChars && cyrillicChars > latinChars) return 'ru';
+  if (!hebrewChars && !latinChars) return 'neutral';
   return hebrewChars > latinChars ? 'he' : 'en';
 }
 
 /* The one place that turns a detected language into a name the model will
-   understand. Kept in a single function so a fourth script is one line here
-   rather than eight scattered ternaries, which is what this replaced. */
+   understand. Kept in a single function so the list is one line rather than
+   eight scattered ternaries, which is what this replaced. */
 function langName(lang) {
-  return lang === 'he' ? 'Hebrew' : lang === 'ru' ? 'Russian' : 'English';
+  return lang === 'he' ? 'Hebrew' : 'English';
 }
 
 function dirFor(lang) { return lang === 'he' ? 'rtl' : 'ltr'; }
@@ -1902,9 +1954,55 @@ var TT_LANG_LOCK_SHARE = 0.35;
    test waved them straight through because the line was still English by
    count. An English resume with one Hebrew clause spliced into a bullet is the
    single most visible way this app can embarrass someone. */
+/* ---------- A THIRD WRITING SYSTEM ----------
+   Every language check in this file counts Hebrew letters, Latin letters and
+   Cyrillic letters. A word written in any other script scores zero on all
+   three, so it is invisible to all of them: detectLang calls it neutral,
+   wordLangCounts splits on it as though it were punctuation and the word
+   disappears from the count entirely, and languageLockVerdict therefore returns
+   ok. An Arabic word spliced into a Hebrew bullet passed every gate in the app
+   and went into the finished resume, which is exactly what was seen.
+
+   Arabic is the one that actually happens, because it sits close to Hebrew and
+   a model slips a token; the rest are here because the hole is the same hole
+   for all of them and enumerating one script would leave it open for the next.
+   Hebrew presentation forms end at FB4F and Arabic presentation forms A begin
+   at FB50, so the two ranges do not touch. */
+var TT_ALIEN_CLASS =
+  '\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF' +  /* Arabic, and its presentation forms */
+  '\\u0370-\\u03FF\\u1F00-\\u1FFF' +                                              /* Greek */
+  '\\u0400-\\u04FF\\u0500-\\u052F' +                                              /* Cyrillic: supported until Russian was dropped */
+  '\\u0530-\\u058F' +                                                             /* Armenian */
+  '\\u0900-\\u097F\\u0980-\\u09FF' +                                              /* Devanagari, Bengali */
+  '\\u0E00-\\u0E7F' +                                                             /* Thai */
+  '\\u3040-\\u30FF\\u4E00-\\u9FFF\\uAC00-\\uD7AF';                                /* Japanese, Chinese, Korean */
+var TT_ALIEN_RE = new RegExp('[' + TT_ALIEN_CLASS + ']');
+
+/* The offending words themselves, because a refusal that cannot name what it
+   refused is a refusal nobody can act on. */
+function alienScriptWords(text) {
+  var words = String(text == null ? '' : text).split(/\s+/);
+  var out = [];
+  for (var i = 0; i < words.length; i++) {
+    if (words[i] && TT_ALIEN_RE.test(words[i]) && out.indexOf(words[i]) === -1) out.push(words[i]);
+  }
+  return out;
+}
+
 function foreignScriptSpliceReason(original, candidate) {
   var o = String(original == null ? '' : original);
   var c = String(candidate == null ? '' : candidate);
+
+  /* Checked first and separately from everything below it. This one does not
+     ask which language carries the line, because there is no share of Arabic
+     that is acceptable inside a Hebrew resume. The original is consulted only
+     so that a candidate whose own file legitimately contains another script
+     keeps what they wrote. */
+  var alien = alienScriptWords(c);
+  if (alien.length && !alienScriptWords(o).length) {
+    return 'הניסוח שחזר הכיל מילים בכתב שאינו עברית או אנגלית: ' + alien.slice(0, 3).join(', ') + '.';
+  }
+
   if (TT_HEBREW_ONE.test(o)) return '';            // the line already had Hebrew in it
   if (!TT_HEBREW_ONE.test(c)) return '';           // nothing Hebrew came back
   if (!/[A-Za-z]/.test(o)) return '';              // nothing to contaminate
@@ -1931,7 +2029,22 @@ function languageLockVerdict(original, candidate) {
 
 function enforceLanguageLock(original, candidate) {
   var v = languageLockVerdict(original, candidate);
-  if (v.ok) return candidate;
+  if (v.ok) {
+    /* Checked only when the language lock has already passed, and only against
+       what the rewrite INTRODUCED. A candidate who wrote "ניסיון עשיר" in their
+       own resume keeps it: this refuses the app's contribution, never theirs. */
+    var flags = clicheFlagsIn(candidate).filter(function (f) {
+      return !clicheFlagsIn(String(original || '')).length;
+    });
+    if (flags.length) {
+      APP.rejectedByLanguageLock++;
+      logRefusal('cliche', original, candidate,
+        'הניסוח שחזר נכתב בשפה שמזוהה כטקסט של בינה מלאכותית (' + flags.slice(0, 3).join(', ') + '), ' +
+        'ולכן נדחה והשורה המקורית נשמרה. מגייס מזהה את הניסוחים האלה, והם עולים יותר ממה שהם קונים.');
+      return original;
+    }
+    return candidate;
+  }
   APP.rejectedByLanguageLock++;
   logRefusal('lang', original, candidate, v.reason);
   return original;
@@ -2047,83 +2160,98 @@ function stripAiTypography(s) {
     .replace(/[☀-⛿️™]/g, '');          // symbols and the trademark sign
 }
 
-var TT_CLICHES = [
-  [/spearheaded/gi, 'led'],
-  [/spearheading/gi, 'leading'],
-  [/spearhead(s)?/gi, 'lead'],
-  [/revolutioniz(ed|ing|es|e)/gi, 'changed'],
-  [/orchestrat(ed|ing|es|e)/gi, 'coordinated'],
-  [/leverag(ed|ing|es|e)/gi, 'used'],
-  [/foster(ed|ing|s)?/gi, 'built'],
-  [/pioneer(ed|ing|s)?/gi, 'started'],
-  [/synergiz(ed|ing|es|e)/gi, 'combined'],
-  [/utiliz(ed|ing|es|e)/gi, 'used'],
-  [/delv(ed|ing|es|e)\s+into/gi, 'reviewed'],
-  [/game\s*changer/gi, 'improvement'],
-  [/\ba\s+proven\s+track\s+record\s+(of|in)\s+/gi, ''],
-  [/\ba\s+proven\s+track\s+record/gi, 'experience'],
-  [/proven\s+track\s+record/gi, 'experience'],
-  [/results\s+driven/gi, ''],
-  [/seasoned\s+expert/gi, ''],
-  [/highly\s+skilled/gi, ''],
-  [/passionate\s+about/gi, 'focused on'],
-  [/transformative/gi, ''],
-  [/cutting\s+edge/gi, ''],
-  [/\brobust\b/gi, ''],
-  [/\bfurthermore,?\s*/gi, ''],
-  [/\bmoreover,?\s*/gi, ''],
-  [/\badditionally,?\s*/gi, ''],
-  [/\bin\s+addition,\s*/gi, ''],
-  [/\bnotably,\s*/gi, ''],
-  /* The English words that have become a signature. Each one is mapped to the
-     plain word a person would have typed, not deleted, because deleting the
-     verb of a sentence is worse than the word it removed. */
-  [/\bmeticulous(ly)?\b/gi, 'careful'],
-  [/\bseamless(ly)?\b/gi, 'smooth'],
-  [/\bholistic(ally)?\b/gi, 'complete'],
-  [/\bunderscor(ed|ing|es|e)\b/gi, 'showed'],
-  [/\bmyriad\s+(of\s+)?/gi, 'many '],
-  [/\bplethora\s+of\s+/gi, 'many '],
-  [/\bboast(s|ed|ing)?\b/gi, 'has'],
-  [/\bever\s+evolving\b/gi, 'changing'],
-  [/\bbest\s+in\s+class\b/gi, ''],
-  [/\bstate\s+of\s+the\s+art\b/gi, ''],
-  [/\bembark(ed|ing)?\s+on\b/gi, 'started'],
-  [/\bcommendable\b/gi, ''],
+/* ---------- THE MACHINE VOICE, REMOVED WITHOUT BREAKING THE SENTENCE ----------
+   This was one list of regular expressions that rewrote whatever it matched,
+   and it was producing the errors it was supposed to prevent. Measured:
+
+     "Spearheaded a transformative initiative"    -> "Led a initiative"
+     "Leveraged tools to foster growth"           -> "Used tools to built growth"
+     "Meticulously orchestrated a myriad of..."   -> "Careful coordinated a many..."
+     "בעידן הדיגיטלי, הפגנתי שאיפה למצוינות"        -> "הפגנתי"
+
+   Every one of those is a grammatical error this app INTRODUCED into a sentence
+   the model had written correctly. And the proofreader downstream cannot repair
+   any of them, because spellFixProblem refuses a correction that changes the
+   word count, which is exactly what a grammar repair is. So the app broke the
+   sentence and then forbade itself from fixing it, and the result went into the
+   Word file and the pdf.
+
+   A regular expression does not know that "meticulously" is an adverb and
+   "careful" is an adjective, that removing "transformative" strands the "a" in
+   front of it, or that Hebrew agreement follows the noun it was attached to.
+   The list is therefore split by WHAT IS SAFE TO DO, not by which word it is.
+
+     SWAPS    one inflected word for the same inflected form of a plainer word.
+              Same part of speech, same tense, same number. Nothing around the
+              word has to change, so nothing can break. English almost only:
+              Hebrew agreement rides on the noun and a regex cannot see it.
+
+     PREFIXES a sentence opening connector together with its comma. Removing a
+              whole adjunct is safe in both languages precisely because it takes
+              the entire phrase and not a word inside a clause.
+
+     FLAGS    everything else. These are DETECTED, never rewritten. A line that
+              comes back carrying one is refused and the candidate's own line is
+              kept, which is the same thing acceptRewrite already does for a
+              rewrite that fails any other check. Refusing costs an improvement.
+              Rewriting cost correctness, and correctness is not ours to spend.
+
+   The model is given this vocabulary as a prohibition in HARD_RULES, so a flag
+   firing should be rare. When it does fire it is logged and shown, rather than
+   patched over. */
+var TT_CLICHE_SWAPS = [
+  [/spearheaded/gi, 'led'], [/spearheading/gi, 'leading'], [/spearheads/gi, 'leads'], [/spearhead/gi, 'lead'],
+  [/revolutionis?ed/gi, 'changed'], [/revolutionis?ing/gi, 'changing'], [/revolutionis?es/gi, 'changes'], [/revolutionis?e/gi, 'change'],
+  [/orchestrated/gi, 'coordinated'], [/orchestrating/gi, 'coordinating'], [/orchestrates/gi, 'coordinates'], [/orchestrate/gi, 'coordinate'],
+  [/leveraged/gi, 'used'], [/leveraging/gi, 'using'], [/leverages/gi, 'uses'], [/\bleverage\b/gi, 'use'],
+  [/utilis?ed/gi, 'used'], [/utilis?ing/gi, 'using'], [/utilis?es/gi, 'uses'], [/utilis?e/gi, 'use'],
+  [/fostered/gi, 'built'], [/fostering/gi, 'building'], [/fosters/gi, 'builds'], [/\bfoster\b/gi, 'build'],
+  [/pioneered/gi, 'started'], [/pioneering/gi, 'starting'], [/pioneers/gi, 'starts'], [/\bpioneer\b/gi, 'start'],
+  [/showcased/gi, 'showed'], [/showcasing/gi, 'showing'], [/showcases/gi, 'shows'], [/showcase/gi, 'show'],
+  [/underscored/gi, 'showed'], [/underscoring/gi, 'showing'], [/underscores/gi, 'shows'], [/underscore/gi, 'show'],
+  [/synergis?ed/gi, 'combined'], [/synergis?ing/gi, 'combining'], [/synergis?es/gi, 'combines'], [/synergis?e/gi, 'combine'],
+  [/\bmeticulously\b/gi, 'carefully'], [/\bmeticulous\b/gi, 'careful'],
+  [/\bseamlessly\b/gi, 'smoothly'], [/\bseamless\b/gi, 'smooth'],
+  [/\bholistically\b/gi, 'completely'], [/\bholistic\b/gi, 'complete'],
   [/\bintricate\b/gi, 'detailed'],
-  [/\bunwavering\b/gi, ''],
-  [/\badept\s+at\b/gi, 'experienced in'],
-  [/\bwell\s+versed\s+in\b/gi, 'experienced in'],
-  [/\binstrumental\s+in\b/gi, 'central to'],
-  [/\bshowcas(ed|ing|es|e)\b/gi, 'showed'],
-  [/\ba\s+wealth\s+of\s+experience\s+(in|with)\s+/gi, 'experience in '],
-  [/\bdedicated\s+professional\b/gi, ''],
-  [/\bin\s+today'?s\s+fast\s+paced\s+\w+,?\s*/gi, ''],
-  [/\bdelve(d|s|ing)?\b/gi, 'reviewed'],
-  [/\btapestry\b/gi, ''],
-  [/\ba\s+testament\s+to\b/gi, 'evidence of'],
-  /* And the Hebrew ones. Same rule: a connector that no one writes by hand
-     goes, a word that carries meaning is replaced and not deleted. */
-  [/יתרה\s+מזאת,?\s*/g, ''],
-  [/יתרה\s+מכך,?\s*/g, ''],
-  [/זאת\s+ועוד,?\s*/g, ''],
-  [/בנוסף\s+לכך,?\s*/g, ''],
-  [/ראוי\s+לציין\s+ש?/g, ''],
-  [/חשוב\s+לציין\s+ש?/g, ''],
-  [/יש\s+לציין\s+ש?/g, ''],
-  [/בעולם\s+ה\S+\s+של\s+ימינו,?\s*/g, ''],
-  [/בעידן\s+ה\S+,?\s*/g, ''],
-  [/פורץ(ת)?\s+דרך/g, 'חדש'],
-  [/ללא\s+רבב/g, ''],
-  [/שאיפה\s+למצוינות/g, ''],
-  [/מצוינות\s+בלתי\s+מתפשרת/g, ''],
-  [/תשוקה\s+אמיתית\s+ל/g, 'התמקדות ב'],
-  [/בעל(ת)?\s+ניסיון\s+עשיר/g, 'עם ניסיון'],
-  [/ניסיון\s+עשיר\s+ומגוון/g, 'ניסיון'],
-  [/יכולות\s+מוכחות/g, 'ניסיון'],
-  [/הובלה\s+משמעותית\s+של/g, 'הובלת'],
-  [/תרומה\s+משמעותית\s+ל/g, 'תרומה ל']
+  [/\bboasts\b/gi, 'has'], [/\bboasted\b/gi, 'had'], [/\bboasting\b/gi, 'having'], [/\bboast\b/gi, 'have']
 ];
+
+/* Whole opening adjunct plus its comma. Anchored at the start of the string on
+   purpose: mid sentence these are not always removable. */
+var TT_CLICHE_PREFIXES = [
+  /^\s*furthermore,\s*/i, /^\s*moreover,\s*/i, /^\s*additionally,\s*/i,
+  /^\s*in addition,\s*/i, /^\s*notably,\s*/i,
+  /^\s*יתרה\s+מזאת,\s*/, /^\s*יתרה\s+מכך,\s*/, /^\s*זאת\s+ועוד,\s*/,
+  /^\s*בנוסף\s+לכך,\s*/, /^\s*ראוי\s+לציין\s+ש/, /^\s*חשוב\s+לציין\s+ש/, /^\s*יש\s+לציין\s+ש/
+];
+
+/* Detected only. A match refuses the line. */
+var TT_CLICHE_FLAGS = [
+  /\btransformative\b/i, /\bcutting\s+edge\b/i, /\brobust\b/i, /\bbest\s+in\s+class\b/i,
+  /\bstate\s+of\s+the\s+art\b/i, /\bcommendable\b/i, /\bunwavering\b/i, /\bresults\s+driven\b/i,
+  /\bseasoned\s+expert\b/i, /\bhighly\s+skilled\b/i, /\btapestry\b/i, /\bdedicated\s+professional\b/i,
+  /\bever\s+evolving\b/i, /\bgame\s*changer\b/i, /\bproven\s+track\s+record\b/i,
+  /\bmyriad\b/i, /\bplethora\b/i, /\bdelv(e|ed|es|ing)\s+into\b/i, /\bdelve\b/i,
+  /\ba\s+wealth\s+of\s+experience\b/i, /\ba\s+testament\s+to\b/i, /\badept\s+at\b/i,
+  /\bwell\s+versed\s+in\b/i, /\binstrumental\s+in\b/i, /\bpassionate\s+about\b/i,
+  /\bembark(ed|ing)?\s+on\b/i, /\bin\s+today'?s\s+fast\s+paced\b/i,
+  /פורץ(ת)?\s+דרך/, /ללא\s+רבב/, /שאיפה\s+למצוינות/, /מצוינות\s+בלתי\s+מתפשרת/,
+  /תשוקה\s+אמיתית/, /ניסיון\s+עשיר/, /יכולות\s+מוכחות/,
+  /הובלה\s+משמעותית\s+של/, /תרומה\s+משמעותית\s+ל/,
+  /בעולם\s+ה\S+\s+של\s+ימינו/, /בעידן\s+ה\S+,/
+];
+
+/* Which flags a piece of text carries, named, so a refusal can say what it
+   refused rather than leaving the candidate to guess. */
+function clicheFlagsIn(text) {
+  var s = String(text == null ? '' : text), out = [];
+  for (var i = 0; i < TT_CLICHE_FLAGS.length; i++) {
+    var m = s.match(TT_CLICHE_FLAGS[i]);
+    if (m && out.indexOf(m[0]) === -1) out.push(m[0]);
+  }
+  return out;
+}
 
 function stripHyphens(text, lang) {
   var s = String(text == null ? '' : text);
@@ -2163,8 +2291,14 @@ function sanitizeAiText(text, lang) {
   var lg = lang || detectLang(s);
   s = stripAiTypography(s);
   s = stripHyphens(s, lg);
-  for (var i = 0; i < TT_CLICHES.length; i++) {
-    s = replacePreservingCase(s, TT_CLICHES[i][0], TT_CLICHES[i][1]);
+  /* Only the two operations that cannot break the sentence. The rest of the
+     machine voice vocabulary is handled by refusing the line, in
+     enforceLanguageLock, and never by editing it here. */
+  for (var i = 0; i < TT_CLICHE_SWAPS.length; i++) {
+    s = replacePreservingCase(s, TT_CLICHE_SWAPS[i][0], TT_CLICHE_SWAPS[i][1]);
+  }
+  for (var j = 0; j < TT_CLICHE_PREFIXES.length; j++) {
+    s = s.replace(TT_CLICHE_PREFIXES[j], '');
   }
   s = s.replace(/[ \t]{2,}/g, ' ');
   s = s.replace(/\s+([,.;:])/g, '$1');
@@ -2375,12 +2509,127 @@ function emphasisRuns(text, cat) {
   ];
 }
 
-function runsToHtml(runs) {
+/* ---------- WHICH NUMBERS ARE WORTH A READER'S EYE ----------
+   The test is deliberately the same one the drop fence already uses in
+   lineHasNumber: a number that is not a year and is larger than one. What is
+   new here is the characters on either side of it, which is the whole reason
+   this is a scanner rather than a single regular expression. A resume is full
+   of digits that are not achievements, and every one of them would be marked
+   by a naive match: the 4 in "SAP S/4HANA", the 9001 in "ISO 9001", the year
+   range under every job, the phone number in the header.
+
+   Nothing here changes the document. It decides where a span is drawn around
+   text that is already on the page, so it cannot invent, inflate or move a
+   single character, and applyPreviewEdits reads the page back through
+   innerText, which does not see the span at all. */
+var TT_METRIC_SCAN = /(?:[\u20aa$\u20ac\u00a3]\s?)?\d[\d.,]*(?:\s?[%\u20aa$\u20ac\u00a3])?(?:\s?[KMkm]\b)?/g;
+
+/* A standard, a clause or a version number carries a digit and means nothing
+   to a recruiter counting achievements. */
+var TT_METRIC_PREFIX_SKIP = /(?:ISO|IEC|EN|ANSI|ASTM|GMP|HACCP|v|ver|version|\u05ea\u05e7\u05df|\u05ea\u05e7\u05e0\u05d4|\u05e1\u05e2\u05d9\u05e3|\u05d7\u05d5\u05e7|\u05d2\u05e8\u05e1\u05d4)\s*$/i;
+
+/* A letter, a Hebrew letter or a slash next to the digits means the digits are
+   part of a name rather than a quantity. */
+function ttMetricWordChar(ch) {
+  return !!ch && /[A-Za-z\u0590-\u05FF\/_]/.test(ch);
+}
+
+function metricRanges(str) {
+  var text = String(str == null ? '' : str);
+  var out = [], m;
+  TT_METRIC_SCAN.lastIndex = 0;
+  while ((m = TT_METRIC_SCAN.exec(text))) {
+    var hit = m[0];
+    if (!hit) { TT_METRIC_SCAN.lastIndex++; continue; }
+    var start = m.index, end = start + hit.length;
+    var before = start > 0 ? text.charAt(start - 1) : '';
+    var after = end < text.length ? text.charAt(end) : '';
+    if (ttMetricWordChar(before) || ttMetricWordChar(after)) continue;
+    if (TT_METRIC_PREFIX_SKIP.test(text.slice(0, start))) continue;
+    /* a unit attached to the number says the candidate is measuring something,
+       and that is true of a percentage or an amount whatever its size */
+    var loud = /[%\u20aa$\u20ac\u00a3]/.test(hit) || /[KMkm]$/.test(hit);
+    var digits = hit.replace(/[^\d.]/g, '');
+    if (!digits) continue;
+    if (!loud && /^(19|20)\d{4,}$/.test(digits)) continue;
+    if (!loud && /^(19|20)\d{2}$/.test(digits)) continue;   // a year proves nothing on its own
+    if (!loud && digits.replace(/\./g, '').length > 6) continue;  // an id, not a result
+    /* A phone number, an account number or a catalogue reference arrives as
+       several short groups joined by hyphens or slashes, and each group on its
+       own passes every test above. So the whole chain is measured, not the
+       group the scanner happened to stop on. */
+    if (!loud) {
+      var cs = start, ce = end;
+      while (cs > 0 && /[\d\-\u2013\/.]/.test(text.charAt(cs - 1))) cs--;
+      while (ce < text.length && /[\d\-\u2013\/.]/.test(text.charAt(ce))) ce++;
+      if (text.slice(cs, ce).replace(/\D/g, '').length > 6) continue;
+    }
+    if (!loud && !(parseFloat(digits) > 1)) continue;
+    out.push({ start: start, end: end });
+  }
+  return out;
+}
+
+/* Escaped exactly as escapeHtml would have done it, with the mark wrapped
+   around the ranges. Called instead of escapeHtml, never on top of it, so no
+   text is ever escaped twice. */
+function metricHtml(str, cls) {
+  var text = String(str == null ? '' : str);
+  var r = metricRanges(text);
+  if (!r.length) return escapeHtml(text);
+  var open = cls ? '<strong class="' + cls + '">' : '<strong>';
+  var out = '', pos = 0;
+  for (var i = 0; i < r.length; i++) {
+    out += escapeHtml(text.slice(pos, r[i].start));
+    out += open + escapeHtml(text.slice(r[i].start, r[i].end)) + '</strong>';
+    pos = r[i].end;
+  }
+  return out + escapeHtml(text.slice(pos));
+}
+
+/* The same ranges, expressed as RUNS rather than as html, because the Word
+   export never sees html: docxParagraph builds one <w:r> per run and reads a
+   bold flag off each. Splitting here is what lets a number carry weight inside
+   a sentence that is otherwise plain.
+
+   Weight only. Not the colour and not the tint: the template rules in this file
+   allow exactly one accent, in the name, the section headings and the rule, and
+   colouring numbers in the body is the decoration those rules exist to prevent.
+   Bold on a figure is the ordinary convention of the format and reads as a
+   person having emphasised their own result. */
+function metricRuns(runs) {
+  var out = [];
+  function push(r, text, bold) {
+    if (!text) return;
+    out.push({ text: text, bold: !!(r.bold || bold), italic: !!r.italic, underline: !!r.underline });
+  }
+  for (var i = 0; i < runs.length; i++) {
+    var r = runs[i], t = String(r.text == null ? '' : r.text);
+    if (!t) { out.push(r); continue; }
+    var rg = metricRanges(t);
+    if (!rg.length) { out.push(r); continue; }
+    var pos = 0;
+    for (var k = 0; k < rg.length; k++) {
+      push(r, t.slice(pos, rg[k].start), false);
+      push(r, t.slice(rg[k].start, rg[k].end), true);
+      pos = rg[k].end;
+    }
+    push(r, t.slice(pos), false);
+  }
+  return out;
+}
+
+/* opts.metrics is 'screen' in the two on screen renderers, which marks and
+   tints, and 'plain' in the print sheet the pdf is made from, which only sets
+   the weight. Absent everywhere else. */
+function runsToHtml(runs, opts) {
+  var mode = (opts && opts.metrics) || '';
+  var cls = mode === 'screen' ? 'tt-metric-highlight' : '';
   var out = '';
   for (var i = 0; i < runs.length; i++) {
     var r = runs[i];
     if (!r.text) continue;
-    var t = escapeHtml(r.text);
+    var t = mode ? metricHtml(r.text, cls) : escapeHtml(r.text);
     if (r.underline) t = '<u>' + t + '</u>';
     if (r.italic) t = '<i>' + t + '</i>';
     if (r.bold) t = '<b>' + t + '</b>';
@@ -3504,7 +3753,8 @@ function buildSkillLines(model, plan) {
    because reordering a list is not a per line edit.
    orderPlan, when given, is blockId -> the line ids of that block in their new
    order. A line carries its own added bullets with it when it moves. */
-function rebuildDocument(doc, synthesis, added, skillLines, skillLineIds, orderPlan, dropped) {
+function rebuildDocument(doc, synthesis, added, skillLines, skillLineIds, orderPlan, dropped,
+                         summaryPlan, newSummary) {
   synthesis = synthesis || {};
   added = added || [];
   orderPlan = orderPlan || {};
@@ -3517,6 +3767,38 @@ function rebuildDocument(doc, synthesis, added, skillLines, skillLineIds, orderP
   if (skillLines && skillLineIds) for (var s = 0; s < skillLineIds.length; s++) skillSet[skillLineIds[s]] = 1;
   var skillsEmitted = false;
   var blockEmitted = {};
+
+  /* An approved reshape of the summary works exactly like the skills plan: the
+     section's own lines come out and the approved shape goes in at the position
+     of the first of them. Changing four bullets into a paragraph is not four
+     line edits and cannot be written as one, which is the same reason
+     buildSkillLines exists at all. */
+  var sumLines = (summaryPlan && summaryPlan.lines && summaryPlan.lines.length) ? summaryPlan.lines : null;
+  var sumMarker = (summaryPlan && summaryPlan.format === 'bullets') ? '\u2022 ' : '';
+  var sumSet = {}, sumEmitted = false;
+  if (sumLines && summaryPlan.ids) {
+    for (var q = 0; q < summaryPlan.ids.length; q++) sumSet[summaryPlan.ids[q]] = 1;
+  }
+
+  /* A summary the resume never had goes directly under the contact block,
+     which is where a reader looks for it and the only place it can go without
+     disturbing the order the candidate chose for everything else. */
+  var newLines = (newSummary && newSummary.lines && newSummary.lines.length) ? newSummary.lines : null;
+  var newMarker = (newSummary && newSummary.format === 'bullets') ? '\u2022 ' : '';
+  var insertAt = -1, insertDone = false;
+  if (newLines) {
+    var lastHeader = -1;
+    for (var h = 0; h < doc.lines.length; h++) if (doc.lines[h].cat === 'header') lastHeader = h;
+    insertAt = lastHeader + 1;
+  }
+  function emitNewSummary() {
+    if (insertDone || !newLines) return;
+    insertDone = true;
+    if (out.length && String(out[out.length - 1]).trim()) out.push('');
+    if (newSummary.heading) out.push(newSummary.heading);
+    for (var v = 0; v < newLines.length; v++) out.push(newMarker + newLines[v]);
+    out.push('');
+  }
 
   // everything one line contributes, so a reorder can move it as a unit
   function emit(l) {
@@ -3541,6 +3823,15 @@ function rebuildDocument(doc, synthesis, added, skillLines, skillLineIds, orderP
   var out = [];
   for (var i = 0; i < doc.lines.length; i++) {
     var l = doc.lines[i];
+    if (i === insertAt) emitNewSummary();
+
+    if (sumSet[l.id]) {
+      if (!sumEmitted) {
+        sumEmitted = true;
+        for (var u = 0; u < sumLines.length; u++) out.push(sumMarker + sumLines[u]);
+      }
+      continue;                                   // the original summary lines are gone
+    }
 
     if (skillSet[l.id]) {
       if (!skillsEmitted) {
@@ -3562,6 +3853,9 @@ function rebuildDocument(doc, synthesis, added, skillLines, skillLineIds, orderP
     }
     out = out.concat(emit(l));
   }
+  /* A resume that is nothing but a contact block puts the insertion point past
+     the last line, so the loop never reaches it. */
+  emitNewSummary();
   return out.join('\n');
 }
 
@@ -3641,6 +3935,7 @@ function hasMeasurableAchievement(doc) {
 var HARD_RULES = [
   'FACTUAL INTEGRITY, NO EXCEPTIONS:',
   '1. Never invent or add a skill, tool, technology, certification, employer, responsibility, metric or achievement that is not in the source text or that the user did not state in the conversation.',
+  '1b. This application supports Hebrew and English only. Every word you write must be in the Hebrew alphabet or the Latin alphabet. Arabic, Cyrillic, Greek, Devanagari, Thai and CJK characters must never appear anywhere in your output, not in a line, not in a heading, not in a reason. A single word in another script is refused by the code and the whole line is thrown away.',
   '2. Never compute or claim a number of years of experience, such as "8+ years" or "over a decade", even when date ranges would let you calculate it. That is fabrication.',
   '3. Never upgrade support or coordination language into management language. "participated in", "coordinated", "part of a team" must not become "Managed", "Led" or "Directed", even when the job asks for a manager.',
   '4. Never delete, round or generalise away a quantified metric: percentages, amounts, volumes, SLA figures, headcount.',
@@ -4013,7 +4308,7 @@ function promptAnswerSpell(text, lang) {
 }
 
 function chatTurnInstruction(questionLang, isFirst) {
-  var qLangName = langName(questionLang === 'en' ? 'en' : questionLang === 'ru' ? 'ru' : 'he');
+  var qLangName = langName(questionLang === 'en' ? 'en' : 'he');
   return (isFirst ? 'Ask your first question, about the first item in the queue.' : 'Ask the next question, or set done to true if the queue is exhausted.') +
     ' Write the question in ' + qLangName + '.' +
     ' The question language is a display choice by the user and says nothing about the resume language: the resume lines keep their own language regardless.';
@@ -4057,6 +4352,18 @@ function answerBlock(qa, reqText) {
       : p.aForCv ? ' [the candidate typed this in ' + langName(p.aLangFrom) +
                    '; it is given here already translated into the language of the resume, use this wording]'
       : ' [answer written in ' + langName(detectLang(p.a)) + ']';
+    /* The closing answer is not evidence for a requirement and must not be
+       treated as one. It is the candidate's own argument for why they fit, and
+       the only part of this whole conversation that the resume could not have
+       produced by itself. It is labelled so the writing stage can use it where
+       it belongs, in the summary, and nowhere else. */
+    if (p.closing) {
+      return 'A' + (i + 1) + ' THE CANDIDATE\'S OWN ARGUMENT FOR WHY THEY FIT THIS JOB' + lang +
+        '\n   This is not evidence for any requirement. Do not paste it into a bullet and do not treat it as a new fact.' +
+        '\n   Use it to decide WHAT THE SUMMARY LEADS ON, and only where the rest of the file already proves it. If it claims something the file does not prove, ignore it entirely.' +
+        '\n   Q: ' + p.q +
+        '\n   A: ' + body;
+    }
     return 'A' + (i + 1) + ' about ' + about + lang +
       '\n   Q: ' + p.q +
       '\n   A: ' + body;
@@ -4215,7 +4522,11 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     'D2. Work the priority list below from the top. The posting does not weigh its requirements equally and neither should you: the first three entries are what this application is decided on, and a rewrite that carries them is worth more than five rewrites that carry the bottom of the list.',
     'D3. VOCABULARY SWAP. Where a line already proves something and says it in the resume\'s own words, rewrite it in the posting\'s words. "ניהול מערכות ליבה" against a posting that says "Global System Owner" becomes the posting\'s term, because it is the same fact stated in the words the screener searches for. This changes wording, never the claim. Where the fact is not proved, the word stays out, whatever it would do for the match.',
     'D4. Second list below: the allowed words this section does not use yet. Every one of them is a term the coverage map already permits. Work them in wherever a real line can carry one, in the section\'s own language, and leave the rest alone.',
-    'D5. Once is enough. A term that already appears in this section is covered; repeating it into a second and a third line reads as padding to a human and adds nothing to a keyword match. Spend the next rewrite on a term that is not there yet.',
+    'D3b. THE SWAP DISPLACES, AND THIS IS WHERE MOST OF THE COVERAGE ACTUALLY COMES FROM. A line has a fixed number of words a reader will give it, and the words in it that serve no requirement in this posting are spending that budget on nothing. When you rewrite a line, drop the wording that serves nothing HERE and use the room it frees for a term this posting screens for, as long as the line already proves that term.',
+    '    "אחראי על תפעול שוטף, כולל סידור עבודה ומענה טלפוני, וניהול מלאי בשלושה מחסנים" against a posting built on inventory control becomes a line that leads on the inventory across three sites. The phone duty was not a lie; it was simply not what this application is decided on.',
+    '    THE CEILING ON D3b, AND IT OUTRANKS IT: this displaces VOCABULARY, never a FACT. A number, an amount, a headcount, a scope, a date, a named system, a licence or a regulated environment stays in the line even when the posting never asks about it. Rule 4 of the hard rules is not suspended by this rule, and a quantified detail is the strongest thing a line can carry whatever its topic.',
+    'D5. Once is enough. This is a rule about REPETITION and not a ceiling on coverage. A term that already appears in this section is covered; repeating it into a second and a third line reads as padding to a human, is exactly what a modern filter scores as keyword stuffing, and adds nothing to the match. Spend the next rewrite on a term that is not there yet.',
+    '    The target this produces: every permitted term in the list below appears ONCE somewhere in the document, and none of them twice. Work down that list until you run out of lines that can honestly carry one, and do not stop early. What you may never do is take a term the coverage map did not permit, whatever it would do for the count.',
     '',
     'D6. STATE INTO ACTION. THIS APPLIES TO EVERY LINE YOU ARE ALREADY REWRITING, AND ONLY TO THOSE.',
     '    A screener, and every scoring model behind one, reads a resume for what the person DID. A line that describes a standing condition scores as a job description. A line that names an action scores as evidence.',
@@ -4233,6 +4544,7 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     '    Where the only honest action verb would be weaker than the state phrasing implies, keep the line closer to what it said. A true supporting verb beats a false leading one.',
     '',
     'D8. Do not touch a line for D6 alone. If a line proves nothing this posting asks for and you had no other reason to return it, leave it out of the array. D6 changes HOW you rewrite, not WHICH lines you rewrite.',
+    '    The one exception is rule I2 below: a line you are promoting to the top of its block is a line you already decided proves something, and it is rewritten for its opening verb even if you had no other reason to touch it.',
     'E. If an answer contains a real fact that does not belong inside any existing line, you may add it as one new bullet, attached to the id of the line it belongs next to.',
     'F. A skipped question means the candidate gave you nothing. Do not guess what they would have said.',
     'G. Lines marked "(context, not editable)" are companies, roles and dates. Use them to understand the timeline. Never return them and never restate a date range.',
@@ -4245,13 +4557,23 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     '   Never move an id into a different block. A bullet belongs to the job it was written under and moving it between jobs is a lie about who the candidate did it for.',
     '   Order by how directly the line proves a must_have requirement. A line that proves nothing this posting asks for goes to the bottom of its block.',
     '   Leave a block out of the array when its current order is already right. Chronological blocks that read as a story stay as they are.',
+    'I2. THE LINE THAT ARRIVES AT THE TOP OF A BLOCK IS THE ONE LINE OF THAT JOB A SCREENER IS CERTAIN TO READ.',
+    '   When you move a line into first or second position in its block, also return it in the "lines" array, rewritten to OPEN with the action the candidate performed, so the first words of the block say what they DID rather than what they were responsible for.',
+    '   This is D6 applied where it buys the most, and D7 governs it completely: convert the verb, never promote the person. "אחראי על ניהול צוות של 6" becomes "ניהלתי צוות של 6". "השתתפתי בפרויקט" stays what it was.',
+    '   Use the plain verb a person would have typed: ניהלתי, הובלתי, בניתי, הטמעתי, צמצמתי, איתרתי, ייצבתי, led, built, ran, cut, resolved, rebuilt.',
+    '   Do NOT reach for the impressive one. spearheaded, orchestrated, leveraged, pioneered, revolutionised and their Hebrew equivalents are stripped out of this app\'s output automatically, and a resume that reads as machine written is rejected by the human before the words ever help. The ordinary verb is the correct verb.',
+    '   At most the top two lines of a block. A section where every bullet opens on a loud verb reads as a template, which costs more than it gains.',
+    'I3. A FIGURE AT THE END OF A LONG SENTENCE IS A FIGURE NOBODY READS. If a line you are already rewriting carries its number, amount, percentage or headcount after roughly the eighth word, move it forward so it lands early in the sentence.',
+    '    "במסגרת התפקיד הייתי אחראי על הובלת פרויקט התייעלות שהביא בסופו של דבר לחיסכון של 18% בעלויות ההפצה" becomes "צמצמתי 18% מעלויות ההפצה בהובלת פרויקט התייעלות".',
+    '    This is a REORDERING OF CLAUSES INSIDE ONE SENTENCE and nothing more. Same fact, same number, same scope, same claim. Do not round the figure, do not restate it, do not add a second one, and never move a number from one line into another line.',
     'K. "order_why" is one short sentence saying which line came to the top and which requirement it proves.',
     '',
     'DROPPING DEAD WEIGHT FROM OLDER ROLES:',
     'L. A resume has a page of attention in it. A bullet under a job from six years ago that serves nothing this posting asks for is spending that attention on the wrong thing, and pushing the lines that do matter further down the page.',
     '   You may therefore PROPOSE that such a bullet be left out. You are proposing, not deciding: every one of these is shown to the candidate switched off, and it only leaves the resume if they personally turn it on.',
     'M. A bullet qualifies for the drop array only when ALL of these are true:',
-    '   M1. It is under an OLDER role. Never the current or most recent one. That job is the one being read closely and it must stay whole.',
+    '   M1. THE CURRENT ROLE IS ALMOST NEVER TOUCHED. A bullet under an older role is fair game. Under the role the candidate holds today you may propose AT MOST ONE, and only when it plainly serves nothing this posting asks for. That block is what the application is read on, and the code refuses outright any proposal that would leave the current role with fewer bullets than an earlier role, so a second one there is discarded before the candidate ever sees it.',
+    '        Ordering is the tool for the current role, not removal. A bullet there that does not serve this posting goes to the BOTTOM of its block through the order array, where it costs the candidate nothing and still shows the work they did.',
     '   M2. It serves no requirement in the coverage map, not directly, not as an equivalent, not partially. If you can name a requirement id for it, it stays.',
     '   M3. It carries no number, no percentage, no amount, no headcount, no timeframe. A quantified line is the strongest kind of line there is, and a screener reads it even when the topic is off. Those never go.',
     '   M4. It is genuinely generic or off topic: routine admin, a duty every job in that title has, a tool nobody asked about, an activity from a different discipline entirely.',
@@ -4285,6 +4607,16 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     'drop_roles is empty on nearly every resume. Read rules Q to Q5 again before you put anything into it, and remember Q2e: check the dates for the hole it would leave.',
     'from_answers lists the answer tags a line was built from. Leave it empty for a line you rewrote from the resume alone.',
     'used_answers must have one entry per answer you were given, including the skipped ones.',
+    /* Two keys that exist for the summary alone. They were the missing half of
+       a feature: the summary brief has been asking for an alternative shape,
+       and for a proposal when the section is absent, since the shape detector
+       went in, and there was nowhere in this schema for either of them to land.
+       The model answered and the answer went into the bin. */
+    cat === 'summary'
+      ? 'TWO EXTRA KEYS, FOR THIS SECTION ONLY. Return each one ONLY if the summary brief below explicitly asks for it, and leave it out entirely otherwise:\n' +
+        ' "summary_alt":{"format":"bullets","lines":["one array entry per bullet, or a single entry holding the whole paragraph"],"why":"one short sentence in Hebrew"}\n' +
+        ' "new_summary":{"heading":"the section heading, in the language of the resume","format":"paragraph","lines":["..."],"why":"one short sentence in Hebrew"}'
+      : null,
     '',
     'THE JOB, BROKEN DOWN:',
     JSON.stringify(signals),
@@ -4305,7 +4637,9 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
     'WHAT THE CANDIDATE SAID IN THE CONVERSATION:',
     answers || '(no answers were given)',
     '',
-    'THE SECTION TO REWRITE:',
+    String(sectionText || '').trim()
+      ? 'THE SECTION TO REWRITE:'
+      : 'THERE IS NO SUCH SECTION IN THIS RESUME. "lines", "order", "drop" and "drop_roles" are all empty arrays for this call. Your entire answer is the key named in the brief above.',
     sectionText,
     uiHint || ''
   ]);
@@ -4445,6 +4779,47 @@ var SPELL_PROMPT = [
   'If the text has no spelling errors, return an empty array. An empty array is the expected answer for a clean resume.',
   '',
   'Return JSON only: {"fixes":[{"before":"the exact misspelled text as it appears","after":"the corrected text","line":"the full line it appears in"}]}',
+  '',
+  'RESUME:'
+].join('\n');
+
+/* ---- grammar pass ----
+   Separate from the spelling pass, and separate on purpose.
+
+   Spelling corrections apply themselves without asking, which is only safe
+   because spellFixProblem refuses anything that changes the word count. That
+   guard is what makes the pass trustworthy, and it is also what makes it blind:
+   a grammar repair IS a change in word count. Agreement, tense, a missing
+   preposition, a stranded article, a verb left in the wrong person after an
+   answer was spliced into a line, all of them are invisible to it.
+
+   So this pass is allowed to do what that one cannot, and pays for it by not
+   applying itself. Every correction becomes something the candidate approves,
+   because a change that can alter meaning is not a change this app makes on
+   somebody's resume by itself. */
+var GRAMMAR_PROMPT = [
+  'Proofread the resume below for GRAMMAR errors only, in the language each line is written in.',
+  '',
+  'Report an error ONLY when the sentence is grammatically WRONG as written:',
+  ' - agreement: gender, number or person that does not match (Hebrew especially)',
+  ' - a verb in the wrong tense for the role it sits under: present for the current role, past for previous roles',
+  ' - a verb left in the wrong person, e.g. a first person sentence that switches to third person halfway',
+  ' - a missing or wrong preposition, a stranded or duplicated article, a missing או doubled connector',
+  ' - a sentence that is broken or incomplete, e.g. a verb with no object',
+  '',
+  'NEVER report any of these. They are style, not grammar, and reporting them is a failure:',
+  ' - a sentence you would have phrased differently',
+  ' - word choice, synonyms, tone, register, formality, length',
+  ' - a company name, product name, tool name, person name or place name',
+  ' - a number, date, percentage or amount. Never change one, in either direction.',
+  ' - a fragment used as a resume bullet. Bullets are not sentences and "ניהול מלאי בשלושה מחסנים" is correct as written.',
+  ' - a word in one language inside a sentence in another. That is normal in a resume.',
+  '',
+  'Keep every correction as small as the error. Change the words that are wrong and not one word more.',
+  'Never add a fact, a number, a tool or a claim. Never remove one.',
+  'If the resume has no grammatical errors, return an empty array. An empty array is the expected answer.',
+  '',
+  'Return JSON only: {"fixes":[{"before":"the exact text as it appears now","after":"the corrected text","why":"four to eight words in Hebrew saying what was wrong"}]}',
   '',
   'RESUME:'
 ].join('\n');
@@ -4871,23 +5246,108 @@ function postingFragmentation() {
    to choose the form of somebody else's resume. */
 var TT_FRAGMENTED_SHARE = 0.5;
 
+/* ---------- HOW THE POSTING IS WRITTEN, NOT ONLY WHAT IT WEIGHS ----------
+   postingFragmentation above asks what share of the posting's weight sits in
+   things that are NAMED. This asks a plainer question that the candidate asked
+   for directly: is this posting laid out as a list or as prose. A reader who
+   sees a screen of bullets and then a paragraph of summary feels the mismatch
+   before they can say what it is.
+
+   The two do not always agree, and the disagreement is not noise. A posting
+   made of bullets where every bullet is a full paragraph of responsibility
+   ("אחריות מקצה לקצה על שרשרת האספקה מול ספקים בארץ ובחו\"ל, כולל...") is
+   typeset as a list and reads as prose, and it is the READING that the summary
+   has to answer. So the bullet length is part of the test, not a detail.
+
+   Typography decides only when it is unambiguous, in either direction, and
+   hands back to the weight measure when it is not. That matters more than it
+   looks: a posting pasted out of LinkedIn very often arrives with every bullet
+   character stripped by the copy, and a rule that read only the glyphs would
+   quietly call every one of those a paragraph. */
+var TT_JD_MIN_LINES = 6;        // below this there is not enough layout to read
+var TT_JD_BULLET_MANY = 0.40;   // a list
+var TT_JD_BULLET_NONE = 0.10;   // no glyphs, which is NOT the same as prose
+var TT_JD_BULLET_WORDS = 12;    // above this a bullet is a paragraph wearing a dot
+/* The same figure summaryShape uses on the resume's own summary, and for the
+   same reason: several short lines are a list to the eye that reads them,
+   whatever characters do or do not sit in front of them. Absence of bullet
+   glyphs proves nothing on its own, because a posting pasted out of LinkedIn
+   very often arrives with every one of them stripped by the copy. It is the
+   LINE LENGTH that separates a stripped list from real prose. */
+var TT_JD_PROSE_WORDS = 14;
+
+var TT_JD_BULLET_RE = /^\s*(?:[\u2022\u25CF\u25AA\u2023\u00B7\u25E6\u2043\-\u2013*]|\d+[.)])\s+/;
+
+function postingLayout() {
+  var lines = String(APP.jobRaw || '').split('\n')
+    .map(function (l) { return String(l).trim(); })
+    .filter(function (l) { return l.length > 0; });
+  if (lines.length < TT_JD_MIN_LINES) return null;
+  var bullets = 0, bulletWords = 0, allWords = 0;
+  lines.forEach(function (l) {
+    allWords += l.split(/\s+/).filter(Boolean).length;
+    if (!TT_JD_BULLET_RE.test(l)) return;
+    bullets++;
+    bulletWords += l.replace(TT_JD_BULLET_RE, '').split(/\s+/).filter(Boolean).length;
+  });
+  return {
+    lines: lines.length,
+    bullets: bullets,
+    share: bullets / lines.length,
+    avgWords: bullets ? bulletWords / bullets : 0,
+    avgLineWords: allWords / lines.length
+  };
+}
+
+/* Which shape THIS POSTING answers best. Typography first where it speaks
+   clearly, the weight distribution everywhere else.
+
+   Extracted into one function so that two callers cannot drift: the brief that
+   tells the model which shape to write, and the collector that records the
+   shape a proposed new summary actually has. The collector used to take the
+   model's word for it, which is the kind of unchecked self report this file has
+   been bitten by before. It is computed here in both places instead. */
+function summaryWantedFormat() {
+  var lay = postingLayout();
+  if (lay) {
+    /* laid out as a list, and the items are short enough to read as one */
+    if (lay.share >= TT_JD_BULLET_MANY && lay.avgWords <= TT_JD_BULLET_WORDS) return 'bullets';
+    /* no glyphs AND long lines: this is genuinely written as prose. Long lines
+       are the half of this test that matters. Without it, a list whose bullet
+       characters did not survive the paste scores zero here and gets called a
+       paragraph, which is the most common posting there is. */
+    if (lay.share <= TT_JD_BULLET_NONE && lay.avgLineWords >= TT_JD_PROSE_WORDS) return 'paragraph';
+  }
+  var frag = postingFragmentation();
+  return (frag != null && frag >= TT_FRAGMENTED_SHARE) ? 'bullets' : 'paragraph';
+}
+
 function summaryBrief(doc) {
   var shape = summaryShape(doc);
-  var frag = postingFragmentation();
-  var want = (frag != null && frag >= TT_FRAGMENTED_SHARE) ? 'bullets' : 'paragraph';
+  var want = summaryWantedFormat();
   var swap = shape.exists && shape.format !== want;
 
   var head = shape.exists
     ? ['THIS IS THE SUMMARY, AND IT IS THE SIX SECONDS THE WHOLE APPLICATION GETS.',
        'A recruiter reads this before deciding whether to read the rest. Rewrite it so that a person screening for THIS posting reaches the end of it and carries on down the page.']
-    : ['THIS RESUME HAS NO SUMMARY.',
-       'Propose one. It is shown to the candidate switched off and enters the document only if they turn it on, so a proposal that is honest and unremarkable is better than one that is impressive and stretched.'];
+    : ['THIS RESUME HAS NO SUMMARY, AND THERE ARE NO LINES IN THIS SECTION TO REWRITE.',
+       'Return an EMPTY "lines" array and put your proposal in the "new_summary" key instead. "heading" is the section heading in the language of the resume, "lines" is the summary itself.',
+       'It is shown to the candidate switched off and enters the document only if they turn it on, so a proposal that is honest and unremarkable is better than one that is impressive and stretched.',
+       'Every sentence in it must restate something a line elsewhere in this resume already proves. You have the whole file below. If the file will not support a claim, the claim does not appear, and a summary of two true sentences beats four that cannot be defended in the interview.'];
 
   var form = shape.format === 'bullets' || (!shape.exists && want === 'bullets')
-    ? ['SHAPE: BULLETS. Four or five of them, one line each, each carrying one thing this posting screens for.']
-    : ['SHAPE: ONE PARAGRAPH. Four or five lines. Not a list of nouns and not a mission statement: who this person is professionally, what they have run, and why that answers this posting.'];
+    ? ['SHAPE: BULLETS. THREE OR FOUR of them, one line each, each carrying one thing this posting screens for.',
+       'Three that each land beat five that dilute each other. A fifth and a sixth are allowed ONLY when each of them carries a requirement from the top of the priority list that none of the others already carries. If a bullet is there to round the list out, it is not there.']
+    : ['SHAPE: ONE PARAGRAPH. THREE OR FOUR LINES. Not a list of nouns and not a mission statement: who this person is professionally, what they have run, and why that answers this posting.',
+       'A fifth line is allowed only when it carries something from the top of the priority list that the first four could not hold. Never a sixth. This is the part of the page a reader decides on in seconds, and every line that is not doing work is spending that decision on nothing.'];
   if (shape.exists) {
     form.push('The candidate wrote their summary in this shape and it stays in this shape. Do not convert it.');
+    form.push('It may get SHORTER than what they wrote. If their summary runs long, keep the claims that answer this posting and drop the ones that answer no posting in particular. Losing a true sentence that this employer has no use for is a gain, not a loss.');
+  } else {
+    form.push('This resume has no summary, so nothing here is being preserved and the shape above was chosen from the POSTING: ' +
+      (want === 'bullets'
+        ? 'it reads as a list of named requirements, and a reader checks those off fastest against bullets.'
+        : 'it reads as a description of a role rather than a checklist, and that is answered by a paragraph.'));
   }
 
   var content = [
@@ -4906,13 +5366,32 @@ function summaryBrief(doc) {
 
   var alt = swap
     ? ['',
-       'ALSO RETURN AN ALTERNATIVE, IN THE OTHER SHAPE.',
-       'This posting reads as ' + (want === 'bullets' ? 'a list of named requirements, which a reader checks off fastest against bullets.' : 'a description of a role rather than a checklist, which reads better as a paragraph.'),
-       'So return the summary twice: once in the shape the candidate already uses, which is the default, and once as ' + (want === 'bullets' ? 'four or five bullets' : 'a single paragraph') + '.',
-       'Same facts, same claims, different form. The candidate is shown both and chooses. Say in one sentence, in Hebrew, why the alternative might suit this posting better. Never tell them their own choice was wrong.']
+       'ALSO RETURN AN ALTERNATIVE, IN THE OTHER SHAPE. IT IS A RECOMMENDATION, NOT A REPLACEMENT.',
+       'This posting ' + (want === 'bullets'
+         ? 'is written as a list of requirements, and a reader checks those off fastest against bullets.'
+         : 'is written as a description of a role rather than a checklist, and that is answered by a paragraph.'),
+       'The shape the candidate already uses goes in "lines", exactly as every other section does, and it stays the default.',
+       'The other shape goes in the SEPARATE key "summary_alt", with format "' + want + '".',
+       want === 'bullets'
+         ? 'AS BULLETS: three to five, and each one is a REASON THIS CANDIDATE IS RIGHT FOR THIS JOB, not a duty they held. Take the strongest points the file supports, work down the priority list from the top, and stop when the next bullet would only be filling a slot. Four is usually right. A fifth earns its place only by carrying something none of the others carry.'
+         : 'AS A PARAGRAPH: three or four tight lines that answer one question, which is why this person fits THIS posting better than the next applicant. Not a career history and not a list of nouns joined by commas.',
+       'Same facts, same claims, different form and different emphasis. Not one claim may appear here that is not already proved by a line elsewhere in the document, and nothing may appear that is not in the default version above unless the file plainly supports it.',
+       'Say in one sentence, in Hebrew, why this shape might suit this posting better. Address the candidate. Never tell them their own choice was wrong.']
     : [];
 
-  return head.concat(['']).concat(form).concat(['']).concat(content).concat(alt).join('\n');
+  /* A section that does not exist sends an empty sectionText down to the bottom
+     of the prompt, so a proposal written from it would have nothing to restate
+     and every sentence in it would be invented. The rest of the document is
+     handed over here instead, and ONLY here: the other three calls each get
+     their own section and need none of this. */
+  var evidence = shape.exists ? [] : [
+    '',
+    'THE REST OF THE RESUME. THIS IS YOUR ONLY SOURCE AND IT IS EVIDENCE, NOT A SECTION TO REWRITE.',
+    'Do not return any of these line ids in "lines". Read them, and write a summary that says nothing they do not already prove.',
+    surgeonView(doc)
+  ];
+
+  return head.concat(['']).concat(form).concat(['']).concat(content).concat(alt).concat(evidence).join('\n');
 }
 
 /* ---------- WHERE EACH WORD LIVES ----------
@@ -6273,6 +6752,17 @@ var TT_JSON_REPAIR = [
   'Keep the question short.'
 ].join('\n');
 
+/* Sent back on the same turn when a question returns with a word in a script
+   this app does not support. Deliberately names the words rather than saying
+   "use Hebrew", because the model wrote the rest of the sentence in Hebrew
+   already and a general instruction would read as satisfied. */
+var TT_SCRIPT_REPAIR = [
+  'That question contained one or more words written in a script that is neither Hebrew nor Latin.',
+  'This application supports Hebrew and English only. Arabic, Cyrillic, Greek, Devanagari, Thai and CJK characters must never appear in your output.',
+  'Write the question again, in the language you were asked to use, with every word in that language\'s own alphabet.',
+  'Same JSON shape, nothing before it and nothing after it.'
+].join('\n');
+
 /* Three failures used to look identical from the outside, and all three ended
    the conversation without a single question and without a word of complaint:
    the model saying it is genuinely done, the model returning half a JSON
@@ -6290,8 +6780,8 @@ async function askNextQuestion(userMessage) {
   setChatBusy(true);
   showChatRetry(false);
 
-  var obj = null, transportError = '';
-  for (var attempt = 0; attempt < 2 && !obj; attempt++) {
+  var obj = null, transportError = '', scriptRetried = false;
+  for (var attempt = 0; attempt < 3 && !obj; attempt++) {
     var raw = '';
     try {
       raw = await callGeminiChat(APP.chat.history, {
@@ -6305,7 +6795,24 @@ async function askNextQuestion(userMessage) {
     }
     APP.chat.history.push({ role: 'model', parts: [{ text: raw }] });
     obj = safeJsonParse(raw);
-    if (!obj) APP.chat.history.push({ role: 'user', parts: [{ text: TT_JSON_REPAIR }] });
+    if (!obj) { APP.chat.history.push({ role: 'user', parts: [{ text: TT_JSON_REPAIR }] }); continue; }
+
+    /* A word in a third script is a token slip, and the fix is to ask again
+       rather than to edit it out: deleting a word from the middle of a question
+       leaves a sentence that reads as broken rather than as foreign. One retry,
+       because a second failure on the same turn is not a slip. */
+    var alien = alienScriptWords(String(obj.question || ''));
+    if (alien.length) {
+      if (!scriptRetried) {
+        scriptRetried = true;
+        obj = null;
+        APP.chat.history.push({ role: 'user', parts: [{ text: TT_SCRIPT_REPAIR }] });
+        continue;
+      }
+      transportError = 'השאלה חזרה עם מילים בכתב שאינו עברית או אנגלית (' + alien.slice(0, 3).join(', ') + ').';
+      obj = null;
+      break;
+    }
   }
 
   setChatBusy(false);
@@ -6359,6 +6866,7 @@ async function submitAnswer(skipped) {
   var entry = {
     q: APP.chat.pendingQuestion, a: text, skipped: !!skipped, reqId: APP.chat.pendingReqId,
     reqIds: (APP.chat.pendingReqIds || []).slice(),
+    closing: !!APP.chat.isClosing,
     aForCv: '', aLangFrom: '', translateNote: ''
   };
   APP.chat.qa.push(entry);
@@ -6369,6 +6877,16 @@ async function submitAnswer(skipped) {
   clearAnswerSpell();
   renderChat();
   if (!skipped) await translateAnswerForResume(entry);
+
+  /* The closing question is the last thing asked, so its answer ends the
+     conversation rather than starting another turn. Going back to
+     askNextQuestion here would spend a model call to be told what is already
+     known: that there is nothing left on the queue. */
+  if (entry.closing) {
+    APP.chat.isClosing = false;
+    finishChat();
+    return;
+  }
 
   var msg = (skipped
     ? 'The candidate skipped that question and gave no information.'
@@ -6422,14 +6940,62 @@ async function translateAnswerForResume(entry) {
   }
 }
 
+/* ---------- THE ONE QUESTION THIS APP ASKS ITSELF ----------
+   Everything else in this conversation comes off the priority queue, which was
+   computed from the posting. This one is not on the queue and cannot be: the
+   resume holds the candidate's FACTS, and nothing in it holds their ARGUMENT.
+   "Why you" is not derivable from a list of bullets. It is the single piece of
+   material in the whole run that only the candidate has.
+
+   It is asked LAST, on purpose. Asked first it gets the rehearsed answer people
+   give when they have not thought about this specific job yet. Asked after they
+   have just spent six questions recalling what they actually did, it gets the
+   real one.
+
+   And it is asked rather than demanded. The alternative considered here was to
+   require a summary from the candidate before the app would run at all, which
+   would have put the hardest writing task in the product at the front door, in
+   front of exactly the people who came because they cannot do it. A question
+   someone can answer out loud is a different thing from a paragraph someone has
+   to write. Skipping is a first class outcome: the run continues and produces a
+   factual summary, just without the argument on top of it. */
+var TT_CLOSING_Q = {
+  he: 'שאלה אחרונה, והיא שונה מכל הקודמות. אם המגייס היה מתקשר אליך עכשיו ושואל "למה דווקא אתה למשרה הזו?" — מה היית עונה לו, במשפט או שניים? זו הנקודה היחידה שרק אתה יודע; קורות החיים לבדם לא יכולים לגזור אותה. אפשר גם לדלג.',
+  en: 'One last question, and it is different from the others. If the recruiter called you right now and asked "why you for this job?" — what would you say, in a sentence or two? This is the one thing only you know; the resume on its own cannot produce it. Feel free to skip.'
+};
+
 function finishChat(note) {
+  /* Every path out of the conversation funnels through here: the model saying
+     it is done, the question budget running out, and the candidate pressing the
+     finish button. So this is the one place the closing question can be added
+     without three separate hooks that would each have to stay in step. */
+  if (!APP.chat.closingAsked && !APP.chat.done && APP.route !== 'stop') {
+    APP.chat.closingAsked = true;
+    APP.chat.isClosing = true;
+    APP.chat.finishNote = note || '';
+    var q = TT_CLOSING_Q[APP.chat.lang === 'en' ? 'en' : 'he'];
+    APP.chat.pendingQuestion = q;
+    APP.chat.pendingReqId = '';
+    APP.chat.pendingReqIds = [];
+    APP.chat.turns.push({ role: 'model', text: q, lang: APP.chat.lang, reqId: '', reqIds: [] });
+    setChatBusy(false);
+    showChatRetry(false);
+    var inRow = $('chatInputRow');
+    if (inRow) inRow.classList.remove('tt-hidden');
+    setStatus('שלב 3: שאלה אחרונה.');
+    renderChat();
+    return;
+  }
+
   APP.chat.done = true;
+  APP.chat.isClosing = false;
   APP.chat.pendingQuestion = '';
   showChatRetry(false);
   var row = $('chatInputRow');
   if (row) row.classList.add('tt-hidden');
   renderChat();
-  if (note) setStatus(note);
+  var msg = note || APP.chat.finishNote;
+  if (msg) setStatus(msg);
   runSynthesis();
 }
 
@@ -6682,8 +7248,17 @@ async function runSynthesis() {
   APP.skillModel = parseSkills(APP.doc);
   var jobs = [];
 
+  /* The summary is the one section worth a call when it does not exist. Every
+     other section can only be rewritten from lines that are already there, so
+     an absent one has nothing to do; a summary is the only part of a resume
+     that holds no evidence of its own and restates what the rest already
+     proves, which is exactly what makes it possible to propose one from a file
+     that never had it. summaryBrief has carried that branch all along and it
+     was unreachable, because this line returned before the job was queued. */
+  var hasSummary = editableLines(APP.doc, 'summary').length > 0;
+
   cats.forEach(function (cat) {
-    if (!editableLines(APP.doc, cat).length) return;
+    if (cat !== 'summary' && !editableLines(APP.doc, cat).length) return;
     jobs.push({
       cat: cat,
       label: SECTION_NAMES[cat],
@@ -6748,13 +7323,38 @@ async function runSynthesis() {
       catch (e) { APP.parseFailures.push({ cat: j.cat, reason: (e && e.message) || 'שגיאה בעיבוד התשובה.' }); }
     });
 
+    /* Two independent things can be missing from a resume and both have to be
+       sayable at once. showNotice writes over whatever was in the box, so the
+       messages are collected and shown together rather than one silently
+       replacing the other. */
+    var notices = [];
     if (!APP.skillModel) {
       /* Silence here used to look like "the skills were fine". It was not: it
          meant no skills heading was recognised, so the whole skills stage never
          ran and no skills card appeared in the review. */
-      showNotice('לא זוהתה כותרת של סעיף כישורים בקורות החיים, ולכן שלב הכישורים לא רץ. ' +
-                 'כותרת בשורה נפרדת כמו "כישורים", "מיומנויות", "Skills" או "Core Skills" תפעיל אותו.');
+      notices.push('לא זוהתה כותרת של סעיף כישורים בקורות החיים, ולכן שלב הכישורים לא רץ. ' +
+                   'כותרת בשורה נפרדת כמו "כישורים", "מיומנויות", "Skills" או "Core Skills" תפעיל אותו.');
     }
+    if (!hasSummary) {
+      var offered = APP.changes.some(function (c) { return c.kind === 'summary_new'; });
+      notices.push(offered
+        ? 'לא נמצא תקציר מקצועי בקורות החיים שהעלית. התקציר הוא מה שמגייס קורא בשש השניות הראשונות, ולכן הוצע לך אחד ברשימת האישורים, ' +
+          'בנוי אך ורק ממה שכבר כתוב במסמך שלך. הוא מגיע כבוי ולא ייכנס אלא אם תאשר אותו.'
+        : 'לא נמצא תקציר מקצועי בקורות החיים שהעלית, וגם לא הוצע אחד. אפשר להריץ את השלב שוב, או להוסיף תקציר קצר בעצמך ולהעלות מחדש.');
+    }
+    /* Reported, never acted on. The only way to fix this shape is to add
+       bullets to the current role, and this app does not invent bullets. So the
+       candidate is told what a reviewer will read into their page, and left to
+       decide, which is the same rule every removal in this file follows. */
+    var bal = recencyBalance(APP.doc);
+    if (bal) {
+      notices.push('בתפקיד הנוכחי שלך ' + bal.currentCount + ' סעיפים, ובתפקיד קודם' +
+        (bal.worst.title ? ' (' + bal.worst.title + ')' : '') + ' יש ' + bal.worst.count + '. ' +
+        'מגייס שסורק את הדף קורא עומק כחשיבות, וזה נקרא כאילו העבודה המעניינת שלך מאחוריך. ' +
+        'אי אפשר להמציא סעיפים לתפקיד הנוכחי ולכן האפליקציה לא תעשה זאת, ' +
+        'אבל הצעות הצמצום לתפקידים הקודמים ברשימת האישורים מקטינות בדיוק את הפער הזה.');
+    }
+    if (notices.length) showNotice(notices.join(' '));
   } catch (e) {
     /* Same rule as before: a crash outside the guarded calls used to leave the
        spinner running with nothing on the page left to press. */
@@ -6906,20 +7506,100 @@ function roleHeaderForBlock(doc, blockId) {
   return null;
 }
 
+/* ---------- THE RECENCY INVARIANT ----------
+   The current role is never shorter than any earlier one. Not after this app
+   has finished, and not by one bullet.
+
+   The reason is how a resume is read rather than how it is written. A reviewer
+   scans down the page and reads depth as importance: eight bullets under a job
+   from 2015 and three under the job the candidate holds today says, without
+   anybody meaning it, that the interesting work is behind them. It is the one
+   shape this app must never produce, and until now nothing stopped it: the
+   thinning fence protected the current role from being cut, which is a
+   different guarantee entirely. It said "we will not shorten this block". It
+   never said "this block will still be the longest one".
+
+   Two things follow, and the second is the awkward one.
+
+   Enforced against the WORST CASE, not against the plan. Every drop is a card
+   the candidate toggles one at a time, so a plan that balances only when all of
+   them are approved is not a guarantee. The check therefore assumes the drops
+   proposed elsewhere are all REFUSED and the ones in the current role are all
+   ACCEPTED, which is the only combination that can break it.
+
+   And it cannot be satisfied by addition. A current role that arrives shorter
+   than an older one cannot be lengthened, because inventing a bullet is the one
+   thing this app exists to not do. So an already broken resume is reported to
+   the candidate and left alone; see recencyBalance below. */
+function experienceBlocks(doc) {
+  return (doc.blocks || []).filter(function (b) { return b.cat === 'experience'; });
+}
+
+/* The block a recruiter reads first: the top one in a reverse chronological
+   resume, plus any block whose header still says the candidate is there. */
+function isCurrentBlock(doc, blockId) {
+  var blocks = experienceBlocks(doc);
+  for (var i = 0; i < blocks.length; i++) {
+    if (blocks[i].id !== blockId) continue;
+    if (i === 0) return true;
+    var head = roleHeaderForBlock(doc, blockId);
+    return !!(head && TT_PRESENT_RE.test(head.text));
+  }
+  return false;
+}
+
+/* Whether the document ALREADY breaks the rule, before this app touches it.
+   Returns null when it does not, and the two numbers when it does. */
+function recencyBalance(doc) {
+  var blocks = experienceBlocks(doc);
+  if (blocks.length < 2) return null;
+  var cur = blocks[0];
+  var curCount = cur.lineIds.length;
+  var worst = null;
+  for (var i = 1; i < blocks.length; i++) {
+    if (blocks[i].lineIds.length <= curCount) continue;
+    if (!worst || blocks[i].lineIds.length > worst.count) {
+      var head = roleHeaderForBlock(doc, blocks[i].id);
+      worst = { id: blocks[i].id, count: blocks[i].lineIds.length, title: head ? head.text : '' };
+    }
+  }
+  return worst ? { currentCount: curCount, worst: worst } : null;
+}
+
+/* One more drop from the current role, proposed on top of whatever is already
+   proposed there. True when it would leave the current role shorter than some
+   earlier role at its FULL length. */
+function dropBreaksRecency(doc, blockId, alreadyProposedHere) {
+  if (!isCurrentBlock(doc, blockId)) return false;
+  var blocks = experienceBlocks(doc);
+  var cur = blockById(doc, blockId);
+  if (!cur) return true;
+  var after = cur.lineIds.length - ((alreadyProposedHere || 0) + 1);
+  for (var i = 0; i < blocks.length; i++) {
+    if (blocks[i].id === blockId) continue;
+    if (after < blocks[i].lineIds.length) return true;
+  }
+  return false;
+}
+
+/* At most one bullet may ever be proposed out of the current role in a single
+   run. The invariant above would sometimes permit two, and it should not: this
+   is the block the application is read on, and proposing to take it apart is
+   not something this app does even when the arithmetic allows it. */
+var TT_MAX_CURRENT_DROPS = 1;
+
 /* Which line ids may be proposed for dropping at all. Everything else is
    refused before the candidate ever sees it. */
 function droppableLineIds(doc, cat) {
   var out = {};
   if (cat !== 'experience') return out;              // only ever the experience section
-  var blocks = (doc.blocks || []).filter(function (b) { return b.cat === 'experience'; });
-  blocks.forEach(function (b, idx) {
-    /* The first experience block is the most recent role in a reverse
-       chronological resume, which is nearly all of them, and it is the block a
-       recruiter actually reads. It is never thinned. Neither is any block whose
-       role header still says the candidate is there. */
-    if (idx === 0) return;
-    var head = roleHeaderForBlock(doc, b.id);
-    if (head && TT_PRESENT_RE.test(head.text)) return;
+  var blocks = experienceBlocks(doc);
+  blocks.forEach(function (b) {
+    /* The current role used to be excluded outright. It is included now, and
+       held instead by the recency invariant and the single drop cap, both of
+       which are checked in collectDropChanges where the running plan is known.
+       A bullet under the job the candidate holds today that serves nothing this
+       posting asks for is still spending the most valuable lines on the page. */
     if (b.lineIds.length <= TT_MIN_BLOCK_SURVIVORS) return;   // too small to thin at all
     b.lineIds.forEach(function (id) { out[id] = b.id; });
   });
@@ -6959,6 +7639,14 @@ function collectDropChanges(cat, obj) {
     var block = blockById(APP.doc, blockId);
     var size = block ? block.lineIds.length : 0;
     if (size - ((perBlock[blockId] || 0) + 1) < TT_MIN_BLOCK_SURVIVORS) continue;
+
+    /* The current role, held by two separate fences. The cap is absolute; the
+       invariant is arithmetic and is checked against the worst case approval
+       pattern rather than against this plan. */
+    if (isCurrentBlock(APP.doc, blockId)) {
+      if ((perBlock[blockId] || 0) >= TT_MAX_CURRENT_DROPS) continue;
+      if (dropBreaksRecency(APP.doc, blockId, perBlock[blockId] || 0)) continue;
+    }
 
     perBlock[blockId] = (perBlock[blockId] || 0) + 1;
     taken++;
@@ -7094,6 +7782,11 @@ function collectRoleDropChanges(cat, obj) {
 }
 
 function collectLineChanges(cat, obj) {
+  /* First, so a structural proposal sits at the top of its group in the review
+     list. It is the largest thing being proposed about this section and it is
+     the one the candidate has to actually decide about; a card for it buried
+     under nine rewordings is a card nobody reads. */
+  if (cat === 'summary') { collectSummaryAlt(obj); collectNewSummary(obj); }
   var lines = Array.isArray(obj.lines) ? obj.lines : [];
   for (var i = 0; i < lines.length; i++) {
     var item = lines[i];
@@ -7157,6 +7850,202 @@ function collectLineChanges(cat, obj) {
      last of all. */
   collectDropChanges(cat, obj);
   collectRoleDropChanges(cat, obj);
+}
+
+/* ---------- THE SUMMARY, MEASURED ON ITS OWN ----------
+   The rest of this file measures the whole document. That hides the section
+   that is read first: a resume can score well overall while its opening four
+   lines say nothing a reader could not have guessed from the job title.
+
+   Two questions, both answered locally, both from things this file already
+   computes. No model call, so this can run on every render.
+
+   ONE: does the summary carry anything CONCRETE at all. A summary with no
+   number, no named system and no requirement of this posting in it is not a
+   weak summary, it is a summary that is true of every person in the occupation.
+   That is the common failure, and it is worse than having no summary at all,
+   because it spends the most valuable four lines on the page and sends the
+   reader into the real content already bored.
+
+   TWO: of the requirements this posting actually turns on, how many does the
+   opening answer. keywordReport takes any text, so pointing it at the summary
+   alone is the whole measurement.
+
+   This reports. It does not rewrite, and it does not gate anything. */
+var TT_SUMMARY_TOP_REQS = 3;
+
+function summaryOnlyText(doc) {
+  var d = doc || APP.doc;
+  if (!d) return '';
+  return editableLines(d, 'summary').map(function (l) { return l.text; }).join(' ');
+}
+
+function summaryAudit(doc) {
+  if (!APP.signals || !((APP.signals.requirements || []).length)) return null;
+  var text = summaryOnlyText(doc);
+  if (!String(text).trim()) return { exists: false };
+
+  var rep = keywordReport(text);
+  var top = (rep.reqs || []).slice(0, TT_SUMMARY_TOP_REQS);   // already sorted by weight
+  var missing = top.filter(function (r) { return !r.covered; });
+  var hasNumber = lineHasNumber(text);
+
+  return {
+    exists: true,
+    lines: editableLines(doc || APP.doc, 'summary').length,
+    topTotal: top.length,
+    topHit: top.length - missing.length,
+    missing: missing.map(function (r) { return r.text || r.id; }),
+    hasNumber: hasNumber,
+    /* Nothing measurable and not one requirement of this posting: interchangeable
+       with any other candidate's summary in the same occupation. */
+    generic: !hasNumber && rep.reqHit === 0
+  };
+}
+
+function summaryAuditPanel(doc) {
+  var a = summaryAudit(doc);
+  if (!a) return '';
+  if (!a.exists) return '';
+
+  var rows = [];
+  if (a.generic) {
+    rows.push('<div class="text-amber-900"><b>התקציר שלך לא מכיל אף נתון מדיד ואף דרישה מהמשרה הזו.</b> ' +
+      'מגייס שקורא אותו לא ילמד ממנו במה אתה שונה ממועמד אחר באותו מקצוע, ' +
+      'והוא תופס את ארבע השורות שנקראות ראשונות.</div>');
+  } else if (!a.hasNumber) {
+    rows.push('<div class="text-slate-600">בתקציר אין אף נתון מספרי. היקף, ותק או תוצאה מדידה הם מה שמבדיל אותו מתקציר גנרי.</div>');
+  }
+
+  if (a.topTotal) {
+    var tone = a.topHit === a.topTotal ? 'text-emerald-700' : a.topHit ? 'text-slate-700' : 'text-amber-900';
+    rows.push('<div class="' + tone + '">התקציר עונה על <b>' + a.topHit + ' מתוך ' + a.topTotal +
+      '</b> הדרישות המרכזיות של המשרה.' +
+      (a.missing.length ? ' לא מופיע בו: ' + escapeHtml(a.missing.join(' · ')) + '.' : '') + '</div>');
+  }
+
+  if (!rows.length) return '';
+  return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm space-y-1" dir="rtl">' +
+    '<div class="text-xs uppercase tracking-wide text-slate-500 mb-1">התקציר, נמדד לבדו</div>' +
+    rows.join('') +
+    '<div class="text-xs text-slate-500 pt-1">נמדד בדפדפן על התקציר בלבד, בלי קריאה למודל.</div>' +
+    '</div>';
+}
+/* ---------------- the shape of the summary ----------------
+   summaryBrief has been asking the model for two things that had nowhere to
+   land. When the posting reads as a checklist and the candidate wrote a
+   paragraph, it asks for the same summary in the other shape; and when there
+   is no summary at all, it asks for one to be proposed. The schema had no key
+   for either, collectLineChanges had no branch for either, and the answers
+   were parsed into an object and dropped on the floor.
+
+   Both are structural: they replace or create a whole section rather than
+   editing a line, so both arrive SWITCHED OFF, which is what the brief has
+   been promising the model it would do. Neither one may carry a claim the
+   rest of the document does not already prove, and the checks below are the
+   same three every other proposal in this app passes through: the sanitiser,
+   the language lock, and the offensive word screen. */
+var TT_SUMMARY_MAX_LINES = 6;
+
+function summaryEditableLines(doc) {
+  return editableLines(doc, 'summary').filter(function (l) { return String(l.text || '').trim(); });
+}
+
+/* The three checks, applied one line at a time, with every refusal logged the
+   way langLockPanel expects. A proposal that loses a line to the lock still
+   arrives with the lines that survived: it is off by default and the candidate
+   reads it before anything happens. */
+function cleanProposedLines(arr, lang, refText, label) {
+  var out = [];
+  if (!Array.isArray(arr)) return out;
+  for (var i = 0; i < arr.length && out.length < TT_SUMMARY_MAX_LINES; i++) {
+    var raw = String(arr[i] == null ? '' : arr[i]);
+    var t = sanitizeAiText(raw, lang);
+    t = String(t || '').replace(/^\s*[\u2022\-\u2013*]\s*/, '').trim();
+    if (!t) continue;
+    if (refText) {
+      var verdict = languageLockVerdict(refText, t);
+      if (!verdict.ok) {
+        APP.rejectedByLanguageLock++;
+        logRefusal('lang', refText, t, verdict.reason + ' (' + label + ')');
+        continue;
+      }
+    }
+    var bad = offensiveWordsIn(t);
+    if (bad.length) {
+      APP.rejectedByLanguageLock++;
+      logRefusal('content', refText || '', t, label + ' \u05d4\u05db\u05d9\u05dc\u05d4 \u05de\u05d9\u05dc\u05d9\u05dd \u05e4\u05d5\u05d2\u05e2\u05e0\u05d9\u05d5\u05ea: ' + bad.slice(0, 4).join(', ') + '.');
+      continue;
+    }
+    out.push(t);
+  }
+  return out;
+}
+
+function summaryMarkerFor(format) { return format === 'bullets' ? '\u2022 ' : ''; }
+
+function collectSummaryAlt(obj) {
+  var a = obj && obj.summary_alt;
+  if (!a || !Array.isArray(a.lines) || !a.lines.length) return;
+  var cur = summaryEditableLines(APP.doc);
+  if (!cur.length) return;                    // nothing to restructure
+  var ref = cur.map(function (l) { return l.text; }).join(' ');
+  var lines = cleanProposedLines(a.lines, cur[0].lang, ref, '\u05d4\u05e6\u05e2\u05d4 \u05dc\u05e9\u05d9\u05e0\u05d5\u05d9 \u05de\u05d1\u05e0\u05d4 \u05d4\u05ea\u05e7\u05e6\u05d9\u05e8');
+  if (!lines.length) return;
+
+  var format = a.format === 'bullets' ? 'bullets' : 'paragraph';
+  /* A proposal to change the shape into the shape it already has is not a
+     proposal. The model has been told which shape the candidate uses; this is
+     the check that the instruction was followed. */
+  var have = summaryShape(APP.doc);
+  if (have.exists && have.format === format) return;
+
+  var mk = summaryMarkerFor(format);
+  APP.changes.push({
+    id: uid('c'), kind: 'summary_shape', cat: 'summary',
+    lineId: cur[0].id, lang: cur[0].lang,
+    before: cur.map(function (l) { return (l.marker || '') + l.text; }).join('\n'),
+    after: lines.map(function (t) { return mk + t; }).join('\n'),
+    altLines: lines, altFormat: format,
+    replaceIds: cur.map(function (l) { return l.id; }),
+    why: String(a.why || '').trim(),
+    reqIds: (Array.isArray(a.req_ids) ? a.req_ids : []).filter(reqById),
+    status: 'rejected'
+  });
+}
+
+function collectNewSummary(obj) {
+  var n = obj && obj.new_summary;
+  if (!n || !Array.isArray(n.lines) || !n.lines.length) return;
+  if (summaryEditableLines(APP.doc).length) return;   // there is already a summary
+  /* The whole resume is the reference for the language lock here, because a
+     brand new section has no original of its own to be locked against. */
+  var ref = String(APP.resumeRaw || '');
+  var lang = docDirLang(APP.doc);
+  if (lang === 'neutral') lang = 'he';
+  var lines = cleanProposedLines(n.lines, lang, ref, '\u05d4\u05e6\u05e2\u05d4 \u05dc\u05ea\u05e7\u05e6\u05d9\u05e8 \u05d7\u05d3\u05e9');
+  if (!lines.length) return;
+
+  /* The shape is decided here, from the posting, and NOT read off the response.
+     summaryBrief already told the model which shape to write; a "format" field
+     that disagreed with it would silently reshape the section on the strength of
+     the model's own label. Same rule as everywhere else in this file: the
+     browser decides the form of somebody's resume, the model writes. */
+  var format = summaryWantedFormat();
+  var heading = sanitizeAiText(String(n.heading || ''), lang).replace(/[:：]\s*$/, '').trim();
+  if (!heading || heading.length > 40) heading = lang === 'en' ? 'Professional Summary' : '\u05ea\u05e7\u05e6\u05d9\u05e8 \u05de\u05e7\u05e6\u05d5\u05e2\u05d9';
+
+  var mk = summaryMarkerFor(format);
+  APP.changes.push({
+    id: uid('c'), kind: 'summary_new', cat: 'summary',
+    lineId: '', lang: lang,
+    before: '',
+    after: heading + '\n' + lines.map(function (t) { return mk + t; }).join('\n'),
+    altLines: lines, altFormat: format, heading: heading,
+    why: String(n.why || '').trim(),
+    reqIds: (Array.isArray(n.req_ids) ? n.req_ids : []).filter(reqById),
+    status: 'rejected'
+  });
 }
 
 /* One card per block whose order changed. The card shows the lines as they
@@ -7282,9 +8171,23 @@ function compileApproved() {
   APP.skillLines = null;
   APP.orderPlan = {};
   APP.dropped = {};
+  APP.summaryPlan = null;
+  APP.newSummary = null;
 
   APP.changes.forEach(function (ch) {
     if (ch.status !== 'approved') return;
+    /* The two structural proposals. Neither is a line edit, so neither goes
+       through synthesis: one replaces the body of a section wholesale, exactly
+       as the skills plan does, and the other creates a section that was not
+       there. Both are still off unless the candidate turned them on. */
+    if (ch.kind === 'summary_shape') {
+      APP.summaryPlan = { lines: ch.altLines || [], format: ch.altFormat || 'paragraph', ids: ch.replaceIds || [] };
+      return;
+    }
+    if (ch.kind === 'summary_new') {
+      APP.newSummary = { heading: ch.heading || '', lines: ch.altLines || [], format: ch.altFormat || 'paragraph' };
+      return;
+    }
     if (ch.kind === 'line') {
       APP.synthesis[ch.lineId] = ch.after;
       /* The bold, italic and underline read out of the uploaded file are
@@ -7338,7 +8241,8 @@ function compileApproved() {
   }
 
   APP.finalText = rebuildDocument(APP.doc, APP.synthesis, APP.added,
-    APP.skillLines, APP.skillModel ? APP.skillModel.lineIds : null, APP.orderPlan, APP.dropped);
+    APP.skillLines, APP.skillModel ? APP.skillModel.lineIds : null, APP.orderPlan, APP.dropped,
+    APP.summaryPlan, APP.newSummary);
   return APP.finalText;
 }
 
@@ -7504,6 +8408,12 @@ function renderProgress() {
       'זה שיפור אמיתי מול מסנן אוטומטי, ולא שיפור מול מי שיקרא אותם.</div>';
   }
   html += '</div>';
+  /* Measured on the FINISHED document, so it reports what the candidate is
+     about to download rather than what they uploaded. */
+  var measured = APP.finalText ? parseResume(APP.finalText) : APP.doc;
+  html += summaryAuditPanel(measured);
+  html += foldRelevancePanel(measured);
+  html += buriedMetricPanel(measured);
   el.innerHTML = html;
   /* The same panel, drawn where the candidate actually is when the run ends. */
   var strip = $('progressStrip');
@@ -7842,6 +8752,11 @@ function keywordReport(text) {
     // the flat string count, kept because it is what an ATS literally does
     termPct: total ? Math.round(hit.length * 100 / total) : 0,
     mustPct: mustTotal ? Math.round(mustHit * 100 / mustTotal) : 0,
+    /* renderProgress has been reading these two off this object since the
+       second measurement went in, and they were never on it: the panel printed
+       "מילות מפתח חובה: undefined מתוך undefined". The counts were computed in
+       this function all along and simply never returned. */
+    mustHit: mustHit, mustTotal: mustTotal,
     critPct: critTotal ? Math.round(critHit * 100 / critTotal) : 0,
     critTotal: critTotal, critHit: critHit
   };
@@ -8647,7 +9562,7 @@ function reopenDomainChoice() {
   APP.chat = {
     history: [], turns: [], qa: [], lang: APP.chat.lang, langSeq: APP.chat.langSeq || 0,
     asked: 0, max: 8, done: false, pendingQuestion: '', pendingReqId: '', pendingReqIds: [],
-    lastTurnMessage: ''
+    lastTurnMessage: '', closingAsked: false, isClosing: false, finishNote: ''
   };
   APP.queue = [];
   if (typeof showChatRetry === 'function') showChatRetry(false);
@@ -8829,7 +9744,7 @@ function renderFinalStruct() {
     if (l.cat === 'header') { html += '<div class="tt-ct" dir="' + d + '">' + escapeHtml(l.raw.trim()) + '</div>'; return; }
     if (l.isHeading) { html += '<div class="tt-sec" dir="' + d + '"><span>' + escapeHtml(l.text) + '</span></div>'; return; }
     if (l.subtype === 'roleheader') { html += '<div class="tt-role" dir="' + d + '">' + escapeHtml(l.text) + '</div>'; return; }
-    var inner = runsToHtml(emphasisRuns(l.text, l.cat));
+    var inner = runsToHtml(emphasisRuns(l.text, l.cat), { metrics: 'screen' });
     if (l.type === 'bullet') {
       html += '<div class="tt-bl" dir="' + d + '"><span class="tt-dot">' + escapeHtml(bulletGlyph(l.marker)) +
               '</span><div class="tt-ln" style="flex:1;margin:0">' + inner + '</div></div>';
@@ -8967,16 +9882,72 @@ var TT_TEMPLATES = {};   // filled below, and by a template read from a file
    The floor matters as much as the ceiling. Below about 9.5pt a resume stops
    being read and starts being scanned, and a document that fits on two pages
    because nobody can read it has solved the wrong problem. */
-var TT_FIT_STEPS = [
-  { font: 1.00, space: 1.00 },
-  { font: 1.00, space: 0.86 },
-  { font: 1.00, space: 0.72 },
-  { font: 0.97, space: 0.72 },
-  { font: 0.94, space: 0.66 },
-  { font: 0.91, space: 0.62 },
-  { font: 0.88, space: 0.58 },
-  { font: 0.85, space: 0.55 }
-];
+var TT_FIT_LADDERS = {
+  /* The default, and the order argued for above: spacing first, font second. */
+  auto: [
+    { font: 1.00, space: 1.00 },
+    { font: 1.00, space: 0.86 },
+    { font: 1.00, space: 0.72 },
+    { font: 0.97, space: 0.72 },
+    { font: 0.94, space: 0.66 },
+    { font: 0.91, space: 0.62 },
+    { font: 0.88, space: 0.58 },
+    { font: 0.85, space: 0.55 }
+  ],
+  /* "Keep my text size." Spacing is driven all the way down before a single
+     point of font is given up. Ends denser and tighter, with the type intact. */
+  space: [
+    { font: 1.00, space: 1.00 },
+    { font: 1.00, space: 0.84 },
+    { font: 1.00, space: 0.70 },
+    { font: 1.00, space: 0.58 },
+    { font: 1.00, space: 0.48 },
+    { font: 0.97, space: 0.48 },
+    { font: 0.94, space: 0.48 },
+    { font: 0.90, space: 0.46 }
+  ],
+  /* "Keep the document breathing." Font gives way first and the white space
+     between sections is defended. Ends airier, with smaller type. */
+  font: [
+    { font: 1.00, space: 1.00 },
+    { font: 0.97, space: 0.98 },
+    { font: 0.94, space: 0.96 },
+    { font: 0.91, space: 0.92 },
+    { font: 0.88, space: 0.88 },
+    { font: 0.86, space: 0.82 },
+    { font: 0.85, space: 0.72 },
+    { font: 0.85, space: 0.60 }
+  ]
+};
+
+/* ---------- THE LEVER THE CANDIDATE DID NOT HAVE ----------
+   Everything above decides how to buy space. It was never wrong, but it was
+   never a choice either: the app picked spacing before font size on every
+   document, for every person, and the candidate had no way to say otherwise.
+
+   The two preferences are real and they genuinely conflict. Somebody sending a
+   resume to be read on a phone wants the type left alone and will accept a
+   dense page. Somebody whose document is going to a printer and a desk wants
+   the white space that separates the sections and will accept smaller type.
+   Neither is correct. Only one of them is the person applying for the job.
+
+   Every ladder ends at the same floor, 0.85 font, because the floor is not a
+   preference. Below roughly 9.5pt a resume stops being read and starts being
+   scanned, and no choice offered here is allowed to cross that.
+
+   The choice changes ONLY which ladder fitPageToLimit walks. It never changes
+   the page limit, never changes what fits, and never removes a word: a document
+   that needs content removed still needs it under all three, and still says so. */
+var TT_FIT_BIAS_NAMES = {
+  auto:  { label: 'איזון אוטומטי', hint: 'מרווחים קודם, גופן רק אם צריך' },
+  space: { label: 'לשמור על גודל הטקסט', hint: 'מכווץ מרווחים עד הסוף לפני שנוגע בגופן' },
+  font:  { label: 'לשמור על אוויר בדף', hint: 'מקטין גופן קודם, שומר על ההפרדה בין הסעיפים' }
+};
+var TT_FIT_BIAS_ORDER = ['auto', 'space', 'font'];
+
+function fitLadder() {
+  return TT_FIT_LADDERS[APP.fitBias] || TT_FIT_LADDERS.auto;
+}
 
 var TT_FIT_MAX_PAGES = 2;
 
@@ -9053,7 +10024,7 @@ function templateByKey(key) {
      is that the output looks like the file they uploaded. */
   var flat = TT_TEMPLATES[key];
   var tpl = flat || composeTemplate(key, APP.accent);
-  return scaleTemplate(tpl, TT_FIT_STEPS[APP.fitStep || 0]);
+  return scaleTemplate(tpl, fitLadder()[APP.fitStep || 0]);
 }
 
 /* Whether the current choice can be recoloured at all. */
@@ -9686,7 +10657,11 @@ function buildDocxXml(text, tplKey) {
     // and it is the glyph the uploaded file used, not always a dot
     var isBullet = l.type === 'bullet';
     var glyph = isBullet ? bulletGlyph(l.marker) + ' ' : '';
-    var runs = emphasisRuns(l.text, l.cat);
+    /* The figures the candidate earned carry weight in the downloaded file too,
+       not only on screen. metricRuns splits the run, docxParagraph writes one
+       <w:r> per piece, and the bullet glyph is prepended after the split so it
+       is never itself mistaken for a number. */
+    var runs = metricRuns(emphasisRuns(l.text, l.cat));
     if (isBullet) runs = [{ text: glyph, bold: false }].concat(runs);
     body += para(i, glyph + l.text, {
       tpl: tpl, fallbackLang: docLang, size: tpl.bodySize, indent: isBullet ? 240 : 0,
@@ -9911,7 +10886,7 @@ function buildPrintHtml(text, tplKey) {
        not at all, rather than leaving its first line at the foot of a page. */
     html += '<p' + attrs(l) + 'break-inside:avoid;page-break-inside:avoid;font-size:' + pt(tpl.bodySize) + ';text-align:justify;margin:0 0 ' + twip(tpl.bodyAfter) + ';' + bulletPad +
             'white-space:pre-wrap">' + (l.type === 'bullet' ? escapeHtml(bulletGlyph(l.marker)) + ' ' : '') +
-            runsToHtml(emphasisRuns(l.text, l.cat)) + '</p>';
+            runsToHtml(emphasisRuns(l.text, l.cat), { metrics: 'plain' }) + '</p>';
   }
   return '<div class="tt-sheet" dir="' + pageDir + '" style="direction:' + pageDir + ';text-align:' + (pageDir === 'rtl' ? 'right' : 'left') +
          ';font-family:' + tpl.css + ';color:#000;background:#fff;padding:' + TT_MARGIN_MM + 'mm;line-height:1.32">' + html + '</div>';
@@ -10487,6 +11462,7 @@ function resetRun() {
   APP.finalText = ''; APP.rejectedByLanguageLock = 0; APP.metricsNoticeShown = false;
   APP.langLockLog = []; APP.answerUse = []; APP.parseFailures = [];
   APP.spell = { state: 'idle', fixes: [], forText: '', error: '', promise: null };
+  APP.grammar = { state: 'idle', fixes: [], refused: [], forText: '', error: '', promise: null };
   /* The emphasis is deliberately NOT cleared here. It belongs to the uploaded
      file, not to the run, and runPipeline() calls this before every run: wiping
      it here meant the bold, italic and underline read out of the candidate's
@@ -10497,6 +11473,7 @@ function resetRun() {
   if (typeof setStage === 'function') setStage(1);
   APP.chat = { history: [], turns: [], qa: [], lang: APP.chat.lang, langSeq: APP.chat.langSeq || 0,
                asked: 0, max: 8, done: false, pendingQuestion: '', pendingReqId: '', pendingReqIds: [],
+               closingAsked: false, isClosing: false, finishNote: '',
                lastTurnMessage: '' };
   if (typeof showChatRetry === 'function') showChatRetry(false);
   if (typeof clearAnswerSpell === 'function') clearAnswerSpell();
@@ -10552,7 +11529,9 @@ var CHANGE_LABEL = {
   skill_rename: 'שינוי שם כישור',
   skill_drop:   'מחיקת כישור',
   skill_add:    'הוספת כישור',
-  skill_order:  'סדר הכישורים'
+  skill_order:  'סדר הכישורים',
+  summary_shape: 'שינוי מבנה התקציר',
+  summary_new:   'תקציר חדש שאינו קיים בקורות החיים'
 };
 
 var CHANGE_TONE = {
@@ -10564,8 +11543,17 @@ var CHANGE_TONE = {
   skill_rename: 'bg-sky-100 text-sky-800',
   skill_drop:   'bg-red-100 text-red-800',
   skill_add:    'bg-emerald-100 text-emerald-800',
-  skill_order:  'bg-violet-100 text-violet-800'
+  skill_order:  'bg-violet-100 text-violet-800',
+  summary_shape: 'bg-amber-100 text-amber-900',
+  summary_new:   'bg-amber-200 text-amber-900'
 };
+
+/* Not removals, but not line edits either: each one replaces or creates a whole
+   section, so each arrives switched off and neither can be edited in the card.
+   The card holds a rendering of a plan; the plan itself is the array of lines
+   underneath it, and a textarea that changed only the rendering would produce a
+   card that says one thing and a document that does another. */
+function isStructural(kind) { return kind === 'summary_shape' || kind === 'summary_new'; }
 
 /* The two changes that TAKE something away. They share every behaviour that
    matters: they arrive switched off, "אשר הכל" never turns them on, they
@@ -10731,6 +11719,28 @@ function renderChangeCard(ch) {
   } else if (ch.kind === 'skill_order') {
     body = '<div class="text-xs text-slate-500 mb-1">לפני</div><div class="mb-2 text-slate-500">' + escapeHtml(ch.before) + '</div>' +
            '<div class="text-xs text-slate-500 mb-1">אחרי</div><div>' + escapeHtml(ch.after) + '</div>';
+  } else if (ch.kind === 'summary_shape') {
+    /* Both shapes side by side, because the decision being asked for is not
+       "is this sentence better" but "does my summary read as a paragraph or as
+       a list against THIS posting", and that is a question nobody can answer
+       from a description of the two options. */
+    body = '<div class="grid sm:grid-cols-2 gap-3">' +
+      '<div><div class="text-xs text-slate-500 mb-1">התקציר שלך, כפי שכתבת אותו</div>' +
+      '<div class="text-slate-500 whitespace-pre-line rounded p-2 bg-white border border-slate-200">' + escapeHtml(ch.before) + '</div></div>' +
+      '<div><div class="text-xs text-slate-500 mb-1">אותן עובדות, במבנה ' +
+        (ch.altFormat === 'bullets' ? 'בולטים' : 'פסקה') + '</div>' +
+      '<div class="whitespace-pre-line rounded p-2 bg-amber-50 border border-amber-200">' + escapeHtml(ch.after) + '</div></div></div>' +
+      '<div class="text-xs text-slate-500 mt-2">' +
+        'זו הצעה למבנה בלבד. אין בה אף טענה חדשה, והיא לא תיכנס לקורות החיים אלא אם תאשר. המבנה שכתבת בעצמך נשאר ברירת המחדל.' +
+      '</div>';
+  } else if (ch.kind === 'summary_new') {
+    body = '<div class="whitespace-pre-line rounded p-2 bg-amber-50 border border-amber-300">' + escapeHtml(ch.after) + '</div>' +
+      '<div class="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">' +
+        '<b>לפני שמאשרים:</b> אין תקציר בקורות החיים שהעלית, וזה סעיף חדש שייכנס מתחת לפרטי הקשר. ' +
+        'כל משפט בו אמור לחזור על משהו שכבר מוכח בשורה אחרת במסמך. קרא אותו כאילו שאלו אותך עליו בראיון, ' +
+        'ואם משפט אחד לא מרגיש לך נכון, דחה את ההצעה כולה.' +
+      '</div>' +
+      '<div class="text-xs text-slate-500 mt-1">ההצעה מגיעה כבויה ולא תיכנס לקורות החיים אלא אם תאשר אותה.</div>';
   } else if (ch.kind === 'line_order') {
     // two numbered columns: the point that climbed is meant to be obvious
     body = '<div class="grid sm:grid-cols-2 gap-3">' +
@@ -10759,7 +11769,7 @@ function renderChangeCard(ch) {
           (isRemoval(ch.kind) ? 'הסר' : 'אשר') + '</button>' +
         '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (!on ? 'bg-slate-700 text-white' : 'border border-slate-300 hover:bg-white') + '" data-act="reject">' +
           (isRemoval(ch.kind) ? 'השאר' : 'דחה') + '</button>' +
-        (ch.kind === 'skill_order' || ch.kind === 'skill_drop' || ch.kind === 'line_order' || isRemoval(ch.kind) ? '' :
+        (ch.kind === 'skill_order' || ch.kind === 'skill_drop' || ch.kind === 'line_order' || isStructural(ch.kind) || isRemoval(ch.kind) ? '' :
           '<button class="tt-ch-act text-xs px-2 py-1 rounded border border-slate-300 hover:bg-white" data-act="edit">ערוך</button>') +
       '</div>' +
     '</div>' +
@@ -10933,6 +11943,42 @@ function renderAccentPicker() {
   }
 }
 
+/* The lever itself. Rendered only once the document has actually been
+   shrunk: on a resume that already fits on two pages there is nothing to
+   trade, and a control that changes nothing visible reads as a broken
+   control. */
+function renderFitBiasPicker() {
+  var el = $('fitBiasPicker');
+  if (!el) return;
+  if (!APP.finalText || (APP.fitStep || 0) === 0) { el.innerHTML = ''; return; }
+
+  var html = '<div class="text-xs text-slate-600 mb-1">' +
+    'קורות החיים כווצו כדי להיכנס לשני עמודים. מה עדיף לך לוותר עליו?</div>' +
+    '<div class="flex flex-wrap gap-2">';
+  TT_FIT_BIAS_ORDER.forEach(function (key) {
+    var b = TT_FIT_BIAS_NAMES[key];
+    var on = (APP.fitBias || 'auto') === key;
+    html += '<button class="tt-fitbtn rounded-lg border-2 px-2 py-1 text-right ' +
+      (on ? 'border-slate-800 bg-slate-50' : 'border-slate-200 bg-white hover:border-slate-400') +
+      '" data-fitbias="' + key + '">' +
+      '<span class="text-xs block">' + escapeHtml(b.label) + '</span>' +
+      '<span class="text-[11px] text-slate-500 block">' + escapeHtml(b.hint) + '</span>' +
+      '</button>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+
+  var btns = el.querySelectorAll('.tt-fitbtn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function (ev) {
+      APP.fitBias = ev.currentTarget.getAttribute('data-fitbias');
+      /* renderPreview re-runs fitPageToLimit, which now walks the chosen
+         ladder, and both exports read APP.fitStep off the same result. */
+      renderPreview();
+    });
+  }
+}
+
 function renderTemplatePicker() {
   var el = $('templatePicker');
   if (!el) return;
@@ -10994,7 +12040,7 @@ function pageMm(page) {
 }
 
 /* Walk the steps until the document fits, or until the floor is reached. The
-   loop is bounded by the length of TT_FIT_STEPS and each pass is one style
+   loop is bounded by the length of the active fit ladder and each pass is one style
    recalculation on one element, so this is cheap enough to run on every
    render. */
 function fitPageToLimit(page, tplKey) {
@@ -11010,7 +12056,8 @@ function fitPageToLimit(page, tplKey) {
   var usable = TT_CONTENT_MM * mm * TT_PAGE_SAFETY;
   var limit = TT_MARGIN_MM * 2 * mm + usable * TT_FIT_MAX_PAGES;
 
-  for (var i = 0; i < TT_FIT_STEPS.length; i++) {
+  var ladder = fitLadder();
+  for (var i = 0; i < ladder.length; i++) {
     APP.fitStep = i;
     applyTemplateVars(page, templateByKey(tplKey));
     if (page.scrollHeight <= limit + 1) break;
@@ -11042,7 +12089,7 @@ function thinLastPageNote() {
 }
 
 function fitNotice() {
-  var step = TT_FIT_STEPS[APP.fitStep || 0];
+  var step = fitLadder()[APP.fitStep || 0];
   var over = APP.fitPages > TT_FIT_MAX_PAGES + 0.02;
   if (over) {
     previewNote('קורות החיים עדיין נמשכים על כ־' + APP.fitPages.toFixed(1) + ' עמודים גם אחרי הקטנת הגופן והמרווחים למינימום הקריא. ' +
@@ -11265,6 +12312,9 @@ function renderPreview() {
 
   var html = '';
   var nameDone = false;
+  /* Computed once per render off the SAME doc the loop walks, so the rule
+     cannot be drawn against a stale block layout. */
+  var hz = horizonMap(doc);
   doc.lines.forEach(function (l, i) {
     if (!l.raw.trim()) { html += '<div class="tt-pv-gap" data-idx="' + i + '" data-blank="1"></div>'; return; }
     // the name and the contact line follow the document, not their own letters:
@@ -11297,9 +12347,15 @@ function renderPreview() {
     // the bold the candidate had in their own file, put back on the words that
     // still carry it: the sub heading of a skills group, and any line that was
     // bold end to end
-    var inner = runsToHtml(emphasisRuns(l.text, l.cat));
+    var inner = runsToHtml(emphasisRuns(l.text, l.cat), { metrics: 'screen' });
     if (l.type === 'bullet') {
-      html += '<div class="tt-pv-bulletrow"><span class="tt-pv-dot">' + escapeHtml(bulletGlyph(l.marker)) +
+      /* The rule goes BEFORE the first bullet past the horizon, so it sits
+         between what is read and what is not rather than under either. */
+      if (hz.marker[l.id]) {
+        html += '<div class="tt-pv-horizon">מכאן והלאה, סורק בקריאה ראשונה כנראה לא מגיע</div>';
+      }
+      html += '<div class="tt-pv-bulletrow' + (hz.below[l.id] ? ' tt-pv-belowfold' : '') +
+              '"><span class="tt-pv-dot">' + escapeHtml(bulletGlyph(l.marker)) +
               '</span><div class="tt-pv-bullet"' + attrs + '>' + inner + '</div></div>';
       return;
     }
@@ -11322,6 +12378,9 @@ function renderPreview() {
   fitPageToLimit(page, APP.template);
   drawPageCuts(page);
   fitNotice();
+  /* After fitPageToLimit, because the control only appears once there is
+     actually a trade to make, and that is not known until the loop has run. */
+  try { renderFitBiasPicker(); } catch (e) {}
   try { renderProgress(); } catch (e) {}
 
   var blocks = page.querySelectorAll('[contenteditable="true"]');
@@ -12456,6 +13515,7 @@ function applyPreviewEdits() {
   if (box) box.value = APP.finalText;
   renderPreview();
   scheduleSpellPass();      // the text changed, so the old proofread is stale
+  scheduleGrammarPass();    // and so is the grammar reading of it
   var msg = changed
     ? '✅ הוחלו ' + changed + ' שינויים. ההורדה תשתמש בגרסה הזו.'
     : 'לא נמצאו עריכות להחיל. מה שעל המסך הוא כבר מה שיירד לקובץ.';
@@ -12482,6 +13542,7 @@ function openPreview() {
   renderPreview();
   switchTab('final');
   scheduleSpellPass();
+  scheduleGrammarPass();
   var note = 'הגרסה מוכנה. עבור על הבדיקות, ואז ערוך והורד בתצוגה שמתחתיהן.';
   if (APP.rejectedByLanguageLock) note += ' ' + APP.rejectedByLanguageLock + ' ניסוחים נדחו כי חרגו משפת המקור.';
   setStatus(note);
@@ -12603,6 +13664,33 @@ function spellProtectedTerms(text) {
   return protectedSet;
 }
 
+/* Two words that differ only in their ending are the same word in a different
+   form, which is a grammar edit and not a typo. Deliberately narrow: it tests
+   the ENDINGS against the small closed set of inflectional suffixes in each
+   language, so "עובידם" -> "עובדים" (letters transposed in the middle) is still
+   a typo and passes, while "ניהלתי" -> "ניהל" is caught. */
+var TT_HE_VERB_SUFFIX = /(תי|נו|תם|תן|ת|ה|ו|ים|ות|י)$/;
+var TT_EN_VERB_SUFFIX = /(ing|ed|es|s|d)$/i;
+
+function verbFormChanged(before, after) {
+  var b = String(before || '').trim(), a = String(after || '').trim();
+  if (!b || !a || b === a) return false;
+  if (/\s/.test(b) || /\s/.test(a)) return false;          // pairs are judged elsewhere
+  var latin = /[A-Za-z]/.test(b);
+  var re = latin ? TT_EN_VERB_SUFFIX : TT_HE_VERB_SUFFIX;
+  function stem(w) {
+    var t = w.replace(re, '');
+    /* English: "managed" loses "ed" and "manage" keeps its silent e, so the two
+       stems would never match without this. Hebrew: an ending comes off and
+       exposes a letter that was written in its final form, ן against נ, so the
+       fold has to run AFTER the suffix and not before it. */
+    return latin ? t.replace(/e$/i, '').toLowerCase() : heFold(t);
+  }
+  var bStem = stem(b), aStem = stem(a);
+  if (!bStem || !aStem) return false;
+  return bStem === aStem && b.toLowerCase() !== a.toLowerCase();
+}
+
 /* One proposed correction, judged. Returns null when it is allowed and a
    string reason when it is not, so a refusal can be shown rather than guessed
    at. */
@@ -12617,6 +13705,11 @@ function spellFixProblem(fix, text, protectedSet) {
   if (digitsOf(before) !== digitsOf(after)) return 'נוגע במספרים';
   if (dominantLang(wordLangCounts(before)) !== dominantLang(wordLangCounts(after))) return 'מחליף שפה';
   if (protectedSet[normalizeToken(before)]) return 'מילה מוגנת: שם, מוצר או מונח מהמשרה';
+  /* The prompt forbids tense changes and the code did not check for them, so
+     "ניהלתי" -> "ניהל" passed every test above: same word count, same language,
+     one character apart. A verb quietly moved out of first person is not a
+     spelling correction, and the proofreader applies itself without asking. */
+  if (verbFormChanged(before, after)) return 'שינוי הטיה או זמן, לא שגיאת כתיב';
   var d = editDistance(before.toLowerCase(), after.toLowerCase());
   if (d > Math.max(1, Math.ceil(before.length * TT_SPELL_MAX_EDIT_SHARE))) return 'שינוי גדול מדי, זו מילה אחרת ולא תיקון';
   return null;
@@ -12661,6 +13754,349 @@ async function proofread(text) {
     applied.push({ before: proposed[i].before, after: proposed[i].after });
   }
   return { text: out, applied: applied, refused: refused };
+}
+
+/* ---------- WHAT IS ACTUALLY ABOVE THE LINE ----------
+   The horizon says where reading stops. This says what is sitting there, and
+   it is the more useful of the two, because it separates two situations that
+   look identical on the page and need opposite responses.
+
+     Relevant bullets exist, but BELOW the line   -> an ORDERING problem. The
+       evidence is in the document and nobody reaches it. This app already
+       reorders, so this is fixable and costs nothing.
+
+     No relevant bullets in the role AT ALL       -> a MATCH problem. Reordering
+       here is reordering nothing, and saying so plainly is worth more than a
+       rearrangement that changes no reader's mind.
+
+   Deliberately NOT measured by counting bullets. How many bullets somebody
+   wrote under a job is a fact about their writing, not about their fit: a
+   senior person writes three dense ones and a junior writes twelve loose ones.
+   What is measured is how many of the bullets a reader REACHES prove something
+   this posting asked for, which is a fact about the match.
+
+   Everything here reads the coverage map, which already carries evidence_ids
+   pointing at specific resume lines. Nothing new is inferred. */
+function foldRelevance(doc) {
+  var d = doc || APP.doc;
+  if (!d || !APP.coverage) return null;
+  var rows = Array.isArray(APP.coverage) ? APP.coverage : [];
+  if (!rows.length) return null;
+
+  /* Which lines prove something, and which of those prove a MUST HAVE. */
+  var proves = {}, provesMust = {}, mustProvenAbove = {}, mustTotal = {};
+  ((APP.signals && APP.signals.requirements) || []).forEach(function (r) {
+    if (r && r.must_have) mustTotal[r.id] = 1;
+  });
+  rows.forEach(function (c) {
+    if (!c || c.status === 'missing' || c.status === 'unknown') return;
+    var req = reqById(c.req_id);
+    (c.evidence_ids || []).forEach(function (id) {
+      proves[id] = 1;
+      if (req && req.must_have) { provesMust[id] = provesMust[id] || []; provesMust[id].push(c.req_id); }
+    });
+  });
+
+  var hz = horizonMap(d);
+  var blocks = experienceBlocks(d);
+  var out = [];
+  blocks.forEach(function (b, idx) {
+    var above = 0, aboveRelevant = 0, belowRelevant = 0;
+    b.lineIds.forEach(function (id) {
+      var below = !!hz.below[id];
+      if (!below) {
+        above++;
+        if (proves[id]) aboveRelevant++;
+        (provesMust[id] || []).forEach(function (rid) { mustProvenAbove[rid] = 1; });
+      } else if (proves[id]) belowRelevant++;
+    });
+    out.push({
+      index: idx, blockId: b.id, horizon: horizonFor(idx),
+      total: b.lineIds.length, above: above,
+      aboveRelevant: aboveRelevant, belowRelevant: belowRelevant,
+      current: idx === 0
+    });
+  });
+
+  var mustIds = Object.keys(mustTotal);
+  var mustAbove = mustIds.filter(function (id) { return mustProvenAbove[id]; }).length;
+  return {
+    blocks: out,
+    current: out[0] || null,
+    mustTotal: mustIds.length,
+    mustAbove: mustAbove,
+    /* "Most of the threshold items" made concrete: strictly more than half. */
+    mustMajorityAbove: mustIds.length ? (mustAbove * 2 > mustIds.length) : null
+  };
+}
+
+function foldRelevancePanel(doc) {
+  var f = foldRelevance(doc);
+  if (!f || !f.current) return '';
+  var c = f.current;
+  var rows = [];
+
+  if (c.aboveRelevant === 0 && c.above > 0) {
+    rows.push('<div class="text-amber-900"><b>אף אחד מ־' + c.above + ' הסעיפים שהקורא יגיע אליהם בתפקיד הנוכחי לא מוכיח דרישה מהמשרה.</b> ' +
+      (c.belowRelevant
+        ? 'יש ' + c.belowRelevant + ' סעיפים רלוונטיים בתפקיד הזה, אבל כולם מתחת לקו. זו בעיית סידור ואפשר לתקן אותה בלי לשנות מילה.'
+        : 'גם מתחת לקו אין סעיפים רלוונטיים בתפקיד הזה. זו לא בעיית סידור אלא פער התאמה אמיתי.') +
+      '</div>');
+  } else if (c.above) {
+    rows.push('<div class="text-slate-700">בתפקיד הנוכחי, <b>' + c.aboveRelevant + ' מתוך ' + c.above +
+      '</b> הסעיפים שהקורא מגיע אליהם מוכיחים דרישה מהמשרה.' +
+      (c.belowRelevant ? ' עוד ' + c.belowRelevant + ' סעיפים רלוונטיים יושבים מתחת לקו.' : '') + '</div>');
+  }
+
+  if (f.mustTotal) {
+    var tone = f.mustMajorityAbove ? 'text-emerald-700' : 'text-amber-900';
+    rows.push('<div class="' + tone + '">מתוך ' + f.mustTotal + ' דרישות הסף, <b>' + f.mustAbove +
+      '</b> מוכחות בשורות שהקורא מגיע אליהן' +
+      (f.mustMajorityAbove
+        ? '. זה הרוב, כלומר החלק הנקרא של המסמך נושא את מה שהמשרה באמת מסננת לפיו.'
+        : '. זה לא הרוב. רוב דרישות הסף מוכחות רק במקומות שקורא בסריקה ראשונה לא מגיע אליהם, או שאינן מוכחות כלל.') +
+      '</div>');
+  }
+
+  if (!rows.length) return '';
+  return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm space-y-1" dir="rtl">' +
+    '<div class="text-xs uppercase tracking-wide text-slate-500 mb-1">מה יושב מעל קו הקריאה</div>' +
+    rows.join('') +
+    '<div class="text-xs text-slate-500 pt-1">נמדד בדפדפן ממפת הכיסוי, בלי קריאה למודל. המדד הזה לא משנה את ציון ההתאמה.</div>' +
+    '</div>';
+}
+
+/* ---------- HOW FAR DOWN A ROLE ANYONE READS ----------
+   Attention is not spread evenly down a resume, and pretending otherwise was
+   the flaw in drawing this line at a fixed depth for every job. A reviewer
+   arrives at the current role intending to read it, and at a job from a decade
+   ago intending to check it is not missing. So the horizon decays.
+
+   These are reading habits, not rules for the document. Nothing here trims,
+   blocks or scores. It is drawn so that the ordering decisions elsewhere in
+   this app stop being abstract: a role with eleven bullets makes its own
+   argument once the candidate can see where the reading stopped. */
+var TT_HORIZON = { current: 6, second: 4, older: 3 };
+
+function horizonFor(index) {
+  return index === 0 ? TT_HORIZON.current : index === 1 ? TT_HORIZON.second : TT_HORIZON.older;
+}
+
+/* Line ids that sit past their block's horizon, plus the id of the FIRST line
+   past it in each block, which is where the rule is drawn. */
+function horizonMap(doc) {
+  var below = {}, marker = {};
+  experienceBlocks(doc || APP.doc).forEach(function (b, idx) {
+    var limit = horizonFor(idx);
+    for (var i = limit; i < b.lineIds.length; i++) {
+      below[b.lineIds[i]] = 1;
+      if (i === limit) marker[b.lineIds[i]] = limit;
+    }
+  });
+  return { below: below, marker: marker };
+}
+
+/* ---------- A NUMBER NOBODY REACHES ----------
+   "במסגרת התפקיד הייתי אחראי על הובלת פרויקט התייעלות שהביא בסופו של דבר
+   לחיסכון של 18% בעלויות ההפצה" carries its strongest fact at word fifteen.
+   Every measurement in this app counts that line as quantified. A reader who
+   stopped at word seven did not see a number at all.
+
+   metricRanges already returns character positions, so the word index of the
+   first figure is arithmetic on something that is already computed. Nothing
+   here rewrites: it reports, and the rewrite prompt is told separately to lead
+   with the figure, which is a reordering of clauses inside one sentence and so
+   the safest edit this app makes. */
+var TT_METRIC_REACH = 8;   // words a scanning reader gives a bullet
+
+function firstMetricWord(text) {
+  var s = String(text == null ? '' : text);
+  var r = metricRanges(s);
+  if (!r.length) return -1;
+  return s.slice(0, r[0].start).split(/\s+/).filter(Boolean).length + 1;
+}
+
+function buriedMetricLines(doc) {
+  var d = doc || APP.doc;
+  if (!d) return [];
+  var out = [];
+  editableLines(d, 'experience').forEach(function (l) {
+    var at = firstMetricWord(l.text);
+    if (at > TT_METRIC_REACH) out.push({ id: l.id, at: at, text: l.text });
+  });
+  return out;
+}
+
+function buriedMetricPanel(doc) {
+  var buried = buriedMetricLines(doc);
+  if (!buried.length) return '';
+  var first = buried[0];
+  return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm" dir="rtl">' +
+    '<div class="text-xs uppercase tracking-wide text-slate-500 mb-1">מספרים שקבורים בסוף השורה</div>' +
+    '<div class="text-slate-700">' + buried.length +
+    (buried.length === 1 ? ' שורה מכילה נתון מדיד' : ' שורות מכילות נתון מדיד') +
+    ' שמופיע רק אחרי המילה ה־' + first.at + '. קורא שסורק עוצר הרבה לפני זה, ' +
+    'ולכן הנתון נספר במדדים כקיים אבל בפועל לא נראה.</div>' +
+    '<div class="text-xs text-slate-500 mt-1">' + escapeHtml(first.text.slice(0, 90)) +
+    (first.text.length > 90 ? '…' : '') + '</div>' +
+    '<div class="text-xs text-slate-500 mt-1">אפשר להזיז את הנתון לתחילת המשפט בעריכה שמתחת. זו הזזה של פסוקית באותו משפט, בלי עובדה חדשה.</div>' +
+    '</div>';
+}
+
+/* ---------------- the grammar pass ----------------
+   Same shape as the spelling pass and a different contract. It may change the
+   word count, which is the whole point of it, and it therefore may not apply
+   itself. What the code still refuses is everything that is not grammar:
+
+     a number that moved          - the one thing a resume cannot afford to lose
+     a language that changed      - the language lock, applied here too
+     a script that appeared       - Arabic and the rest, same gate as everywhere
+     machine voice introduced     - a "correction" that adds a cliche is a rewrite
+     a protected term touched     - a product, a name, a term from the posting
+     a change larger than the line it claims to fix
+
+   What is left is offered to the candidate, one card each. */
+var TT_GRAMMAR_MAX_GROWTH = 6;   // words a single repair may add or remove
+
+function grammarFixProblem(fix, text, protectedSet) {
+  var before = String(fix && fix.before || '').trim();
+  var after = String(fix && fix.after || '').trim();
+  if (!before || !after) return 'ריק';
+  if (before === after) return 'זהה';
+  if (text.indexOf(before) === -1) return 'לא נמצא בטקסט';
+  if (digitsOf(before) !== digitsOf(after)) return 'נוגע במספרים';
+  if (Math.abs(wordCount(after) - wordCount(before)) > TT_GRAMMAR_MAX_GROWTH) return 'שינוי גדול מדי, זה שכתוב ולא תיקון';
+  /* A repair may not quietly rename something. Every protected token present
+     before must still be present after. Checked BEFORE the language test,
+     because a fragment like "והטמעתי WMS" is one Hebrew word and one Latin
+     word, and a two token sample is not enough to name a dominant language:
+     the honest reason for refusing that one is the dropped product name, not
+     an imagined language swap. */
+  var beforeTokens = before.split(TT_WORD_SPLIT_RE).map(normalizeToken).filter(Boolean);
+  var afterSet = {};
+  after.split(TT_WORD_SPLIT_RE).map(normalizeToken).filter(Boolean).forEach(function (t) { afterSet[t] = 1; });
+  for (var i = 0; i < beforeTokens.length; i++) {
+    if (protectedSet[beforeTokens[i]] && !afterSet[beforeTokens[i]]) return 'מסיר מונח מוגן: שם, מוצר או מונח מהמשרה';
+  }
+  /* Three words is the floor at which a majority means anything at all. */
+  if (wordCount(before) >= 3 && wordCount(after) >= 3 &&
+      dominantLang(wordLangCounts(before)) !== dominantLang(wordLangCounts(after))) return 'מחליף שפה';
+  if (alienScriptWords(after).length && !alienScriptWords(before).length) return 'הכניס כתב שאינו עברית או אנגלית';
+  if (clicheFlagsIn(after).length && !clicheFlagsIn(before).length) return 'הכניס ניסוח שמזוהה כטקסט של בינה מלאכותית';
+  var bad = offensiveWordsIn(after);
+  if (bad.length) return 'מילים פוגעניות';
+  return null;
+}
+
+async function grammarCheck(text) {
+  var raw = await callGemini(GRAMMAR_PROMPT + '\n' + text, {
+    json: true, temperature: 0, maxOutputTokens: TT_TOKENS.spell, timeoutMs: 45000
+  });
+  var obj = safeJsonParse(raw);
+  if (!obj) throw new Error('תשובת בדיקת הדקדוק לא הייתה JSON תקין.');
+  var proposed = Array.isArray(obj.fixes) ? obj.fixes : [];
+  var protectedSet = spellProtectedTerms(text);
+  var offered = [], refused = [];
+
+  for (var i = 0; i < proposed.length && offered.length < 12; i++) {
+    var problem = grammarFixProblem(proposed[i], text, protectedSet);
+    if (problem) {
+      refused.push({ before: String(proposed[i] && proposed[i].before || ''), reason: problem });
+      continue;
+    }
+    offered.push({
+      id: uid('g'),
+      before: String(proposed[i].before).trim(),
+      after: String(proposed[i].after).trim(),
+      why: String(proposed[i].why || '').trim(),
+      status: 'pending'
+    });
+  }
+  return { offered: offered, refused: refused };
+}
+
+function scheduleGrammarPass() {
+  var text = APP.finalText;
+  if (!text || !text.trim()) return;
+  if (APP.grammar.forText === text && APP.grammar.state === 'done') return;
+  if (!getApiKey()) { APP.grammar = { state: 'nokey', fixes: [], refused: [], forText: text, error: '', promise: null }; renderGrammarPanel(); return; }
+
+  APP.grammar = { state: 'running', fixes: [], refused: [], forText: text, error: '', promise: null };
+  renderGrammarPanel();
+  APP.grammar.promise = grammarCheck(text).then(function (r) {
+    if (APP.grammar.forText !== text) return;            // superseded, drop it
+    APP.grammar.state = 'done';
+    APP.grammar.fixes = r.offered;
+    APP.grammar.refused = r.refused;
+    renderGrammarPanel();
+  }).catch(function (e) {
+    if (APP.grammar.forText !== text) return;
+    APP.grammar.state = 'failed';
+    APP.grammar.error = (e && e.message) || 'בדיקת הדקדוק נכשלה.';
+    renderGrammarPanel();
+  });
+}
+
+/* Applied one at a time, by the candidate, on the finished text. */
+function applyGrammarFix(id) {
+  var f = null;
+  for (var i = 0; i < APP.grammar.fixes.length; i++) if (APP.grammar.fixes[i].id === id) f = APP.grammar.fixes[i];
+  if (!f || f.status !== 'pending') return;
+  if (APP.finalText.indexOf(f.before) === -1) { f.status = 'gone'; renderGrammarPanel(); return; }
+  APP.finalText = APP.finalText.replace(f.before, f.after);
+  f.status = 'applied';
+  /* The text moved, so the record of what was checked moves with it. Without
+     this the next pass would be asked to re-find a line that no longer exists. */
+  APP.grammar.forText = APP.finalText;
+  APP.spell.forText = APP.finalText;
+  var box = $('finalOutput');
+  if (box) box.value = APP.finalText;
+  renderPreview();
+  renderGrammarPanel();
+}
+
+function renderGrammarPanel() {
+  var el = $('grammarOut');
+  if (!el) return;
+  var g = APP.grammar;
+  if (g.state === 'idle' || g.state === 'nokey') { el.innerHTML = ''; return; }
+  if (g.state === 'running') {
+    el.innerHTML = '<div class="text-xs text-slate-500" dir="rtl">בודק דקדוק והטיות...</div>';
+    return;
+  }
+  if (g.state === 'failed') {
+    el.innerHTML = '<div class="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900" dir="rtl">' +
+      'בדיקת הדקדוק לא רצה: ' + escapeHtml(g.error) + ' הטקסט לא שונה.</div>';
+    return;
+  }
+  var pending = g.fixes.filter(function (f) { return f.status === 'pending'; });
+  var applied = g.fixes.filter(function (f) { return f.status === 'applied'; });
+  if (!g.fixes.length) {
+    el.innerHTML = '<div class="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900" dir="rtl">' +
+      'בדיקת הדקדוק עברה נקייה. לא נמצאו שגיאות הטיה, התאמה או זמן.</div>';
+    return;
+  }
+  var html = '<div class="rounded-lg border border-slate-200 bg-white p-3 text-sm" dir="rtl">' +
+    '<div class="text-xs uppercase tracking-wide text-slate-500 mb-2">דקדוק והטיות · ' +
+    pending.length + ' לאישור' + (applied.length ? ' · ' + applied.length + ' תוקנו' : '') + '</div>' +
+    '<div class="text-xs text-slate-500 mb-2">תיקון דקדוקי יכול לשנות משמעות, ולכן הוא לא מוחל לבד. אשר אחד אחד.</div>';
+  g.fixes.forEach(function (f) {
+    var done = f.status !== 'pending';
+    html += '<div class="border-t border-slate-100 py-2">' +
+      '<div class="text-slate-500 line-through">' + escapeHtml(f.before) + '</div>' +
+      '<div class="text-slate-900">' + escapeHtml(f.after) + '</div>' +
+      (f.why ? '<div class="text-xs text-slate-500 mt-1">' + escapeHtml(f.why) + '</div>' : '') +
+      (done
+        ? '<div class="text-xs text-emerald-700 mt-1">' + (f.status === 'applied' ? '✓ הוחל' : 'השורה כבר לא קיימת בטקסט') + '</div>'
+        : '<button class="tt-gfix mt-1 rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" data-gfix="' + f.id + '">החל תיקון</button>') +
+      '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  var btns = el.querySelectorAll('.tt-gfix');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function (ev) { applyGrammarFix(ev.currentTarget.getAttribute('data-gfix')); });
+  }
 }
 
 /* Kicked off whenever the document changes and never awaited by the caller.
