@@ -989,7 +989,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v35.8</span>
+        <span class="tt-ver" id="verBadge">v35.9</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1576,7 +1576,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v35.8';
+var TT_VERSION = 'v35.9';
 
 var APP = {
   apiKey: '',
@@ -8551,7 +8551,7 @@ var TT_LAYOUTS = {
     name: '\u05e7\u05dc\u05d0\u05e1\u05d9',
     note: '\u05db\u05d5\u05ea\u05e8\u05d5\u05ea \u05de\u05d5\u05d3\u05d2\u05e9\u05d5\u05ea \u05e2\u05dd \u05e7\u05d5 \u05de\u05e4\u05e8\u05d9\u05d3. \u05d4\u05d1\u05d7\u05d9\u05e8\u05d4 \u05d4\u05e9\u05de\u05e8\u05e0\u05d9\u05ea.',
     css: "Arial, 'Arial Hebrew', sans-serif", docxFont: 'Arial',
-    nameSize: 34, headSize: 24, roleSize: 22, orgSize: 21, dateSize: 21, bodySize: 21,
+    nameSize: 34, headSize: 24, roleSize: 23, orgSize: 20, dateSize: 20, bodySize: 21,
     headRule: true, ruleSize: 6, headTrack: 0,
     headBefore: 220, headAfter: 70, bodyAfter: 40
   },
@@ -8559,7 +8559,7 @@ var TT_LAYOUTS = {
     name: '\u05e2\u05e1\u05e7\u05d9',
     note: '\u05e9\u05dd \u05d5\u05db\u05d5\u05ea\u05e8\u05d5\u05ea \u05d1\u05e6\u05d1\u05e2, \u05e7\u05d5 \u05d3\u05e7 \u05de\u05ea\u05d7\u05ea. \u05d1\u05e8\u05d9\u05e8\u05ea \u05d4\u05de\u05d7\u05d3\u05dc \u05d4\u05de\u05e7\u05e6\u05d5\u05e2\u05d9\u05ea.',
     css: "Calibri, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif", docxFont: 'Calibri',
-    nameSize: 40, headSize: 25, roleSize: 23, orgSize: 21, dateSize: 21, bodySize: 21,
+    nameSize: 40, headSize: 25, roleSize: 23, orgSize: 20, dateSize: 20, bodySize: 21,
     headRule: true, ruleSize: 8, headTrack: 0,
     headBefore: 260, headAfter: 80, bodyAfter: 40
   },
@@ -8567,7 +8567,7 @@ var TT_LAYOUTS = {
     name: '\u05e8\u05e6\u05d5\u05e2\u05d4',
     note: '\u05db\u05d5\u05ea\u05e8\u05d5\u05ea \u05e2\u05dc \u05e8\u05e6\u05d5\u05e2\u05ea \u05e8\u05e7\u05e2 \u05d1\u05d4\u05d9\u05e8\u05d4, \u05d8\u05e7\u05e1\u05d8 \u05e9\u05d7\u05d5\u05e8 \u05d1\u05ea\u05d5\u05db\u05d4.',
     css: "Calibri, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif", docxFont: 'Calibri',
-    nameSize: 40, headSize: 23, roleSize: 23, orgSize: 21, dateSize: 21, bodySize: 21,
+    nameSize: 40, headSize: 23, roleSize: 23, orgSize: 20, dateSize: 20, bodySize: 21,
     headRule: false, ruleSize: 6, headTrack: 16, headShade: true, headPad: 70,
     /* black text inside a tinted block, which is what the guidance requires:
        a coloured background with coloured text on it is the one combination
@@ -8869,10 +8869,12 @@ function templateFromDocxXml(xml) {
     nameSize: Math.min(48, Math.max(body + 8, maxSize)),
     headSize: Math.max(body + 2, Math.min(28, Math.round(body * 1.15))),
     roleSize: Math.max(body, body + 1),
-    /* the employer and the dates were not part of this shape before, so a
-       template read out of a file would have fallen back to bodySize and lost
-       the new hierarchy; they are pinned to the body size of that document */
-    orgSize: body, dateSize: body,
+    /* The employer and the dates sit one step UNDER the body, as they do in
+       the three built in layouts. A job title that is merely bold at the same
+       size as everything around it is not what an eye lands on first in a six
+       second scan, and the employer and the date are reference data: needed,
+       read second, and no reason to compete for the same attention. */
+    orgSize: Math.max(TT_BODY_FLOOR, body - 1), dateSize: Math.max(TT_BODY_FLOOR, body - 1),
     bodySize: body,
     nameColor: accent, headColor: accent, roleColor: '111111',
     orgColor: '555555', dateColor: '555555',
@@ -9021,8 +9023,13 @@ function templateFromPdfStyle(style) {
     nameSize: Math.min(48, Math.max(half(bodyPt) + 8, half(maxPt))),
     headSize: Math.max(half(bodyPt) + 2, Math.min(28, Math.round(half(bodyPt) * 1.15))),
     roleSize: half(bodyPt) + 1,
+    /* absent here until now, which meant a resume read out of a PDF fell back
+       to bodySize for both and was the one path with no hierarchy at all */
+    orgSize: Math.max(TT_BODY_FLOOR, half(bodyPt) - 1),
+    dateSize: Math.max(TT_BODY_FLOOR, half(bodyPt) - 1),
     bodySize: half(bodyPt),
     nameColor: '111111', headColor: '111111', roleColor: '111111',
+    orgColor: '555555', dateColor: '555555',
     headRule: true, ruleColor: '999999', headTrack: 0,
     headBefore: 220, headAfter: 70, bodyAfter: 45, contactColor: '444444',
     fromFile: true
@@ -10671,6 +10678,24 @@ function fitPageToLimit(page, tplKey) {
    third case is the important one: it does not shrink further and it does not
    delete anything, it names the amount of overflow and points at the only
    honest remedy, which the candidate controls. */
+/* A last page holding almost nothing. Not an error and not something to fix
+   automatically: shrinking further to close it would cost readability on every
+   line of the document to save one nearly empty sheet, and deciding what to cut
+   is the candidate's call, not this app's. So it is reported, with the number of
+   lines involved, and the two things that actually close it.
+
+   The threshold is deliberately tight. Half a page left over is a normal
+   looking document. Four lines or fewer is the case where a reader turns a page
+   for a sentence and a half. */
+function thinLastPageNote() {
+  if (!APP.pageBreaks || !APP.pageBreaks.length) return '';
+  var lines = APP.lastPageLines || 0;
+  if (!lines || lines > 4 || (APP.lastPageFill || 1) > 0.15) return '';
+  return 'רק כ־' + lines + ' שורות נשפכות לעמוד ' + (APP.lastPageNumber === 2 ? 'השני' : String(APP.lastPageNumber)) +
+    ', והשאר נשאר ריק. קיצור קטן — משפט אחד או שניים — יסגור את הפער, והמסמך ייקרא כמסמך אחד שלם. ' +
+    'אפשר לערוך ישירות כאן בתצוגה, או לחזור לשלב 5 ולוותר על שורה שאינה משרתת את המשרה.';
+}
+
 function fitNotice() {
   var step = TT_FIT_STEPS[APP.fitStep || 0];
   var over = APP.fitPages > TT_FIT_MAX_PAGES + 0.02;
@@ -10679,13 +10704,20 @@ function fitNotice() {
       'הקטנה נוספת תפגע בקריאוּת, ולכן היא נעצרת כאן. כדי לרדת לשני עמודים צריך להסיר תוכן: חזור לשלב 5 ואשר את הסעיפים או התפקידים שסומנו כלא רלוונטיים למשרה.', 'warn');
     return;
   }
-  if (!step || (step.font === 1 && step.space === 1)) return;
-  if (step.font === 1) {
-    previewNote('כדי להיכנס לשני עמודים, המרווחים בין הסעיפים הוקטנו. גודל הגופן לא השתנה.', 'ok');
-    return;
+
+  var shrink = '';
+  if (step && !(step.font === 1 && step.space === 1)) {
+    shrink = step.font === 1
+      ? 'כדי להיכנס לשני עמודים, המרווחים בין הסעיפים הוקטנו. גודל הגופן לא השתנה.'
+      : 'כדי להיכנס לשני עמודים, הגופן הוקטן ב־' + Math.round((1 - step.font) * 100) + '% והמרווחים צומצמו. ' +
+        'גודל הטקסט לא יורד מתחת ל־9.5 נקודות, כדי שהמסמך יישאר קריא. ההקטנה חלה גם על קובץ ה־Word וגם על ה־PDF.';
   }
-  previewNote('כדי להיכנס לשני עמודים, הגופן הוקטן ב־' + Math.round((1 - step.font) * 100) + '% והמרווחים צומצמו. ' +
-    'גודל הטקסט לא יורד מתחת ל־9.5 נקודות, כדי שהמסמך יישאר קריא. ההקטנה חלה גם על קובץ ה־Word וגם על ה־PDF.', 'ok');
+
+  /* The thin page comes first when both apply: one is an explanation of what
+     already happened, the other is something the candidate can still act on. */
+  var thin = thinLastPageNote();
+  if (thin) { previewNote(thin + (shrink ? ' ' + shrink : ''), 'warn'); return; }
+  if (shrink) previewNote(shrink, 'ok');
 }
 
 /* ---------------- where the page actually breaks ----------------
@@ -10843,6 +10875,30 @@ function drawPageCuts(page) {
     cut.setAttribute('data-label', 'עמוד ' + (c + 2));
     page.appendChild(cut);
   }
+
+  /* How much actually lands on the LAST page. The fit loop only ever asked one
+     question - does this fit inside two pages - and answered yes for a document
+     that spills three lines past the first one. That answer is correct and
+     useless: what the reader gets is a second sheet holding a line and a half,
+     which looks like a mistake, and the candidate is never told that trimming a
+     sentence would have closed it. Nothing here shrinks or deletes anything; it
+     measures, and fitNotice says what it found.
+
+     The line unit is the shortest non blank block on the page, which is a date
+     range or a one line bullet. Deriving it from the computed line height would
+     mean trusting a value the page does not always set. */
+  var last = blocks[blocks.length - 1];
+  var bottom = last.el.offsetTop + last.el.offsetHeight;
+  var lastTop = cuts.length ? cuts[cuts.length - 1].top : contentTop;
+  var unit = 0;
+  for (var u = 0; u < blocks.length; u++) {
+    var h = blocks[u].el.offsetHeight;
+    if (blocks[u].blank || !h) continue;
+    unit = unit ? Math.min(unit, h) : h;
+  }
+  APP.lastPageFill = cap > 0 ? (bottom - lastTop) / cap : 1;
+  APP.lastPageLines = unit ? Math.max(1, Math.round((bottom - lastTop) / unit)) : 0;
+  APP.lastPageNumber = cuts.length + 1;
 }
 
 function renderPreview() {
