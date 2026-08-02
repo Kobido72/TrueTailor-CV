@@ -3,65 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TrueTailor CV - v35.9</title>
+    <title>TrueTailor CV - v37.0</title>
     <style>
-        /* Base Application Styles */
+        /* Base & Layout Styles */
+        :root {
+            --primary-color: #0b4f6c;
+            --primary-hover: #083b52;
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #cccccc;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f6f9;
+            background-color: var(--bg-color);
             margin: 0;
             padding: 20px;
-            color: #333;
+            color: var(--text-color);
+            direction: rtl;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
-            background: #ffffff;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--primary-color);
+        }
+
+        .version-tag {
+            background-color: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        /* Form Controls & Inputs */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        textarea, input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 140px;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        /* Modal Dialogs */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #fff;
             padding: 25px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
 
-        /* Stage 6 & Preview Layout */
+        /* --- TrueTailor CV v37.0 UI & Preview Extensions --- */
         .preview-container {
             border: 1px solid #ddd;
-            padding: 30px;
+            padding: 40px;
             background: #fff;
             min-height: 800px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+            margin-top: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.03);
+            line-height: 1.5;
         }
 
-        /* --- TrueTailor CV v35.9 Visual Hierarchy & Preview Enhancements --- */
-        
-        /* Dynamic Role & Title Hierarchy */
+        /* Hierarchy & Metric Highlight */
         .tt-pv-role {
             font-weight: 700 !important;
             font-size: 1.05em !important;
             color: #1a252f !important;
         }
 
-        .tt-pv-org, .tt-pv-date {
-            font-weight: 400;
-            color: #555555;
-        }
-
-        /* Soft Accent Metric Highlighting for 6-Second Scan */
         .tt-metric-highlight {
             font-weight: 600;
             color: #0b4f6c;
-            background-color: rgba(11, 79, 108, 0.05);
-            padding: 0 2px;
+            background-color: rgba(11, 79, 108, 0.06);
+            padding: 0 3px;
             border-radius: 2px;
         }
 
-        /* Target Match Scorecard Component (UI Only - Will Not Print) */
+        /* Target Match Scorecard Component */
         #tt-match-scorecard-panel {
             background: #f8f9fa;
             border: 1px solid #e9ecef;
             border-radius: 6px;
-            padding: 12px 16px;
-            margin-bottom: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
 
         .tt-score-badge {
@@ -75,16 +183,16 @@
         .tt-score-mid { background-color: #ffc107; color: #212529; }
         .tt-score-low { background-color: #dc3545; }
 
-        /* Page Break Guard Alert Styling */
+        /* Page Overflow Alert Banner */
         #tt-page-overflow-banner {
             display: none;
             background-color: #fff3cd;
             border: 1px solid #ffeeba;
             color: #856404;
-            padding: 10px 15px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-            font-size: 0.9rem;
+            padding: 12px 18px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-size: 0.95rem;
             align-items: center;
             justify-content: space-between;
         }
@@ -93,30 +201,28 @@
             background-color: #856404;
             color: #ffffff;
             border: none;
-            padding: 6px 12px;
+            padding: 6px 14px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 0.88rem;
         }
 
-        /* Tight Spacing Layout Mode for Page Overflow Optimization */
-        .tt-tight-layout .tt-pv-item {
-            margin-bottom: 6px !important;
-        }
-        .tt-tight-layout .tt-pv-section {
-            margin-bottom: 10px !important;
-        }
-        .tt-tight-layout p, .tt-tight-layout li {
-            line-height: 1.3 !important;
-        }
+        /* Tight Spacing Layout Mode */
+        .tt-tight-layout .tt-pv-item { margin-bottom: 6px !important; }
+        .tt-tight-layout .tt-pv-section { margin-bottom: 10px !important; }
+        .tt-tight-layout p, .tt-tight-layout li { line-height: 1.3 !important; }
 
-        /* Print Override: Completely Strip Highlighting and UI Panels for Clean ATS/PDF */
+        /* Print Override */
         @media print {
             #tt-match-scorecard-panel,
             #tt-page-overflow-banner,
+            .form-section,
+            header,
             .no-print {
                 display: none !important;
             }
+            .container { padding: 0; box-shadow: none; }
+            .preview-container { border: none; padding: 0; }
             .tt-metric-highlight {
                 background-color: transparent !important;
                 color: inherit !important;
@@ -128,26 +234,70 @@
 <body>
 
 <div class="container">
-    <h2>TrueTailor CV - התאמת קורות חיים מתקדמת (v35.9)</h2>
-    
-    <!-- Target Match Scorecard UI Placeholder (Stage 6) -->
-    <div id="tt-scorecard-container"></div>
+    <header>
+        <h1>TrueTailor CV</h1>
+        <span class="version-tag">v37.0</span>
+    </header>
 
-    <!-- Page Overflow Alert Banner -->
-    <div id="tt-page-overflow-banner"></div>
+    <!-- Configuration & Inputs Section -->
+    <section class="form-section">
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="apiKey">Gemini API Key:</label>
+            <input type="password" id="apiKey" placeholder="הכנס את המפתח שלך כאן...">
+        </div>
 
-    <!-- Live Preview Container -->
-    <div id="tt-cv-preview-content" class="preview-container">
-        <!-- Content dynamically generated here -->
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="originalCv">קורות חיים מקוריים (טקסט):</label>
+                <textarea id="originalCv" placeholder="הדבק כאן את קורות החיים המקוריים..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="jobDescription">תיאור משרת היעד (JD):</label>
+                <textarea id="jobDescription" placeholder="הדבק כאן את תיאור המשרה..."></textarea>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 25px;">
+            <button class="btn" onclick="runTailorPipeline()">התחל התאמת קורות חיים</button>
+            <button class="btn btn-secondary" onclick="clearFields()">איפוס</button>
+        </div>
+    </section>
+
+    <!-- Output & Live Preview Section -->
+    <main>
+        <!-- Target Match Scorecard UI -->
+        <div id="tt-scorecard-container"></div>
+
+        <!-- Page Overflow Warning Banner -->
+        <div id="tt-page-overflow-banner"></div>
+
+        <!-- CV Live Preview Display -->
+        <div id="tt-cv-preview-content" class="preview-container">
+            <p style="color: #888; text-align: center; margin-top: 100px;">
+                קורות החיים המותאמים יופיעו כאן לאחר סיום העיבוד.
+            </p>
+        </div>
+    </main>
+</div>
+
+<!-- Modal Dialog for Approval Proposals -->
+<div id="approvalModal" class="modal">
+    <div class="modal-content">
+        <h3 id="modalTitle">הצעת אופטימיזציה למבנה המסמך</h3>
+        <p id="modalMessage"></p>
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button class="btn btn-secondary" onclick="handleUserApproval(false)">השאר כפי שזה</button>
+            <button class="btn" onclick="handleUserApproval(true)">אשר שינוי</button>
+        </div>
     </div>
 </div>
 
 <script>
 /**
- * TrueTailor CV Engine - v35.9 Architecture & Logic
+ * TrueTailor CV Engine v37.0 Core Execution Script
  */
 
-// 1. STAGE 4 SYSTEM PROMPT DIRECTIVES
+// Stage 4 System Prompt Directives
 const STAGE4_ADAPTIVE_PROMPT_ADDITION = `
 CRITICAL 6-SECOND RECRUITER RULE & ADAPTIVE STRUCTURE DIRECTIVES:
 
@@ -155,26 +305,64 @@ CRITICAL 6-SECOND RECRUITER RULE & ADAPTIVE STRUCTURE DIRECTIVES:
    - Analyze the structural pattern of the summary block in the user's ORIGINAL CV:
      * PARAGRAPH STRUCTURE: If the original CV utilizes a narrative paragraph, generate a tightly edited, high-impact narrative paragraph summary (3-4 lines max).
      * BULLET STRUCTURE: If the original CV utilizes bullet points, generate concise, high-relevance bullet points.
-     * NO SUMMARY: If no summary exists, default to the structure best suited for the CV depth, BUT trigger a user recommendation proposing to add/format a summary.
-   - STRUCTURAL CHANGE APPROVAL: If your analysis indicates that switching formats (e.g., Paragraph -> Bullets) significantly improves 6-second recruiter scannability, mark this suggestion in the structural output JSON so the UI can request explicit user approval before rendering.
+     * NO SUMMARY: Default to best structure, BUT flag a proposal if adding one benefits the document.
+   - STRUCTURAL CHANGE APPROVAL: If changing format (e.g. Paragraph -> Bullets) improves 6-second recruiter scannability, generate a proposal in JSON for explicit user approval.
 
-2. STRATEGIC BULLET POINT FRONT-LOADING & RE-ORDERING:
-   - Within each work experience role, strictly prioritize and rank the top 1-2 bullet points that demonstrate the highest alignment with the target Job Description (JD).
-   - Ensure these top bullets begin with powerful, action-first verbs (e.g., Managed, Architected, Streamlined, Led, Optimized).
-   - Maintain internal chronological and organizational hierarchy—DO NOT shift bullets between different roles or dates.
-   - Utilize standardized industry terminology to match JD concepts ONLY where equivalent past experience exists, adhering strictly to Zero-Hallucination guidelines.
+2. STRATEGIC BULLET POINT FRONT-LOADING:
+   - Within each work experience role, strictly prioritize and rank top 1-2 bullet points with highest JD alignment.
+   - Begin top bullets with strong, action-first verbs (e.g., Managed, Architected, Streamlined, Led).
+   - Maintain internal chronological and organizational hierarchy—DO NOT shift bullets between different roles.
+   - Adhere strictly to Zero-Hallucination guidelines.
 
-3. CONTEXT-AWARE METRIC & ACHIEVEMENT HIGHLIGHTING:
-   - Identify measurable outcomes, percentages, metrics, and core JD keyword alignments.
-   - Wrap ONLY genuine achievement metrics in <strong class="tt-metric-highlight">...</strong> tags for live preview visual emphasis.
-   - DO NOT highlight arbitrary numbers or non-impact words.
+3. METRIC & ACHIEVEMENT HIGHLIGHTING:
+   - Wrap ONLY genuine achievement metrics or impact outcomes in <strong class="tt-metric-highlight">...</strong> tags for preview emphasis.
 
-4. REDUNDANT CONTENT & GAP TRIMMING PROPOSALS:
-   - If older roles, irrelevant skills, or non-contributing bullets are detected that dilute focus or cause awkward overflow, generate a "trimming_proposals" array in the output JSON.
-   - DO NOT delete content automatically; wait for user approval via the UI.
+4. REDUNDANT CONTENT TRIMMING PROPOSALS:
+   - If older roles or irrelevant skills do not contribute to target JD, generate "trimming_proposals" array in JSON for user confirmation. DO NOT delete automatically.
 `;
 
-// 2. EARLY RELEVANCE & FEASIBILITY CHECK (Stage 2/3 Guardrail)
+let currentApprovalCallback = null;
+
+// Pipeline Execution Controller
+async function runTailorPipeline() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const cvText = document.getElementById('originalCv').value.trim();
+    const jdText = document.getElementById('jobDescription').value.trim();
+
+    if (!apiKey || !cvText || !jdText) {
+        alert("נא למלא את מפתח ה-API, קורות החיים ותיאור המשרה.");
+        return;
+    }
+
+    // Step 1: Early Relevance Guardrail Check
+    const isFeasible = checkEarlyRelevanceFeasibility(cvText, jdText);
+    if (!isFeasible) return;
+
+    // Simulate API Processing & Adaptation (Stage 4 Engine Simulation)
+    document.getElementById('tt-cv-preview-content').innerHTML = "<p style='text-align:center;'>מעבד ומתאים קורות חיים בטיפול זהיר ומדויק...</p>";
+
+    setTimeout(() => {
+        // Example logic execution output rendering
+        const matchedKeywords = extractKeywords(jdText).slice(0, 5);
+        const missingKeywords = ["Kubernetes", "GraphQL"]; 
+        const matchScore = 82;
+
+        renderMatchScorecard(matchedKeywords, missingKeywords, matchScore);
+        
+        // Mocking adapted HTML generation output
+        const formattedPreviewHTML = generateSamplePreviewHTML(cvText);
+        document.getElementById('tt-cv-preview-content').innerHTML = formattedPreviewHTML;
+
+        // Check overflow for A4 layout optimization
+        checkPreviewPageOverflow();
+
+        // Check if trimming proposal exists
+        promptUserForTrimmingProposal("זיהינו תיאורי תפקיד מיושנים או כישורים שאינם תורמים למשרת היעד. האם תרצה להסירם כדי לייעל את השורות במסמך?");
+
+    }, 1500);
+}
+
+// Early Relevance Check (Guardrail)
 function checkEarlyRelevanceFeasibility(originalCvText, jdText) {
     const cvTokens = extractKeywords(originalCvText.toLowerCase());
     const jdTokens = extractKeywords(jdText.toLowerCase());
@@ -182,20 +370,19 @@ function checkEarlyRelevanceFeasibility(originalCvText, jdText) {
     const matched = jdTokens.filter(token => cvTokens.includes(token));
     const overlapRatio = matched.length / Math.max(jdTokens.length, 1);
 
-    // Trigger warning strictly when mismatch confidence is extremely high (< 10% keyword match)
     if (overlapRatio < 0.10) {
         alert(
             "⚠️ זיהוי אי-התאמה קריטית במשרה\n\n" +
             "נראה כי קיים פער משמעותי מאוד בין תחום העיסוק בקורות החיים המקוריים לבין דרישות משרה זו.\n" +
             "מכיוון שהמערכת פועלת על פי עקרון אמינות מוחלטת (Zero-Hallucination) וללא המצאת ניסיון שלא קיים, הסיכוי לייצר התאמה איכותית נמוך ביותר.\n\n" +
-            "מומלץ לבחור תיאור משרה תואם יותר לפני עדכון המסמך."
+            "מומלץ לבחור תיאור משרה תואם יותר."
         );
-        return false; // Stop pipeline execution
+        return false;
     }
-    return true; // Proceed with alignment
+    return true;
 }
 
-// 3. TARGET MATCH SCORECARD UI RENDERER (Stage 6)
+// Match Scorecard Renderer
 function renderMatchScorecard(matchedKeywords, missingKeywords, scorePercentage) {
     const container = document.getElementById('tt-scorecard-container');
     if (!container) return;
@@ -218,18 +405,16 @@ function renderMatchScorecard(matchedKeywords, missingKeywords, scorePercentage)
     `;
 }
 
-// 4. ADAPTIVE PAGE-BREAK GUARD & OVERFLOW DETECTOR
+// Overflow Detection & Responsive Tight Layout Toggle
 function checkPreviewPageOverflow() {
     const previewEl = document.getElementById('tt-cv-preview-content');
     const banner = document.getElementById('tt-page-overflow-banner');
     if (!previewEl || !banner) return;
 
-    // Standard A4 pixel height baseline (~1122px at standard rendering)
     const pageHeightPx = 1122; 
     const currentHeight = previewEl.scrollHeight;
     const overflowPixels = currentHeight % pageHeightPx;
 
-    // Detect minor overflow (awkward 1 to 5 line overflow into next page)
     if (currentHeight > pageHeightPx && overflowPixels > 5 && overflowPixels < 180) {
         banner.style.display = 'flex';
         banner.innerHTML = `
@@ -245,14 +430,61 @@ function toggleTightLayout() {
     const previewEl = document.getElementById('tt-cv-preview-content');
     if (previewEl) {
         previewEl.classList.toggle('tt-tight-layout');
-        checkPreviewPageOverflow(); // Re-evaluate layout status
+        checkPreviewPageOverflow();
     }
 }
 
-// Basic Keyword Extractor Helper
+// Dialog Confirmation Handlers
+function promptUserForTrimmingProposal(message) {
+    document.getElementById('modalMessage').innerText = message;
+    document.getElementById('approvalModal').style.display = 'flex';
+    currentApprovalCallback = (approved) => {
+        if (approved) {
+            console.log("User approved removal of redundant skills/roles.");
+            // Apply trimming logic
+        }
+    };
+}
+
+function handleUserApproval(approved) {
+    document.getElementById('approvalModal').style.display = 'none';
+    if (currentApprovalCallback) {
+        currentApprovalCallback(approved);
+        currentApprovalCallback = null;
+    }
+}
+
 function extractKeywords(text) {
     if (!text) return [];
     return text.match(/\b[A-Za-z0-9א-ת]{3,}\b/g) || [];
+}
+
+function clearFields() {
+    document.getElementById('originalCv').value = '';
+    document.getElementById('jobDescription').value = '';
+    document.getElementById('tt-cv-preview-content').innerHTML = '<p style="color: #888; text-align: center; margin-top: 100px;">קורות החיים המותאמים יופיעו כאן לאחר סיום העיבוד.</p>';
+    document.getElementById('tt-scorecard-container').innerHTML = '';
+    document.getElementById('tt-page-overflow-banner').style.display = 'none';
+}
+
+function generateSamplePreviewHTML(rawCvText) {
+    return `
+        <div class="tt-pv-section">
+            <h2 style="border-bottom: 2px solid #333; padding-bottom: 5px;">תמצית מנהלים</h2>
+            <p>מומחה IT וניהול מערכות ייצור בעל ניסיון עשיר בהובלת פרויקטים טכנולוגיים, אופטימיזציה של תהליכים וייעול תשתיות enterprise. מתמחה בעבודה בסביבות רגולטוריות מורכבות תוך שיפור ביצועים ב-<strong class="tt-metric-highlight">30%</strong>.</p>
+        </div>
+        <div class="tt-pv-section" style="margin-top:20px;">
+            <h2 style="border-bottom: 2px solid #333; padding-bottom: 5px;">ניסיון מקצועי</h2>
+            <div class="tt-pv-item" style="margin-bottom: 15px;">
+                <div class="tt-pv-role">מנהל מערכות מידע ותשתיות | החברה הבינלאומית</div>
+                <div class="tt-pv-date" style="font-size:0.85rem; color:#666;">2020 - הווה</div>
+                <ul style="margin-top:5px; padding-right:20px;">
+                    <li><strong class="tt-metric-highlight">ניהל ואינטגרט</strong> מערכות מורכבות תוך עמידה מלאה בדרישות תקן מחמירות.</li>
+                    <li>הוביל תהליכי ייעול שהביאו לחיסכון של <strong class="tt-metric-highlight">25%</strong> בזמני התגובה של השרתים.</li>
+                </ul>
+            </div>
+        </div>
+    `;
 }
 </script>
 
