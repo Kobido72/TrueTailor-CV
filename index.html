@@ -160,6 +160,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700&family=Heebo:wght@500;700;800;900&display=swap" rel="stylesheet">
+<!-- v38, decision 10. Assistant and Heebo carry Hebrew and Latin and nothing
+     else, so Arabic, Cyrillic, Devanagari, kana and kanji fell back to whatever
+     the operating system happened to have. Noto covers all of them.
+
+     These cost a Hebrew or English user nothing. Google serves each family in
+     chunks keyed by unicode-range, and a browser downloads a chunk only when
+     the page actually contains characters from it, so a page with no Japanese
+     on it never fetches the Japanese chunk. -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
 <!-- =====================================================================
      SUBRESOURCE INTEGRITY, NOT YET APPLIED. READ BEFORE EDITING.
 
@@ -506,8 +515,12 @@
      looks like.
      ===================================================================== */
   :root {
-    --tt-ui: "Assistant", "Segoe UI", "Arial Hebrew", Arial, sans-serif;
-    --tt-display: "Heebo", "Assistant", "Segoe UI", Arial, sans-serif;
+    /* v38: the Noto families are listed AFTER the Hebrew and Latin faces, so
+       Hebrew and Latin still render in Assistant and Heebo exactly as before.
+       A browser walks the stack per CHARACTER, not per element, so the Noto
+       entries are consulted only for characters the earlier faces cannot draw. */
+    --tt-ui: "Assistant", "Segoe UI", "Arial Hebrew", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans JP", Arial, sans-serif;
+    --tt-display: "Heebo", "Assistant", "Segoe UI", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans JP", Arial, sans-serif;
 
     /* the shell — light now, so sh-0 is the page and sh-3 the strongest line */
     --sh-0:  #F4F7F8;
@@ -1014,7 +1027,29 @@
     background: #fff; color: var(--c-ink);
     box-shadow: 0 1px 3px rgba(12,38,48,.16); border-color: var(--sh-hair);
   }
-  .tt-langbtn svg { display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.18); }
+  .tt-langbtn svg { display: block; }
+  .tt-langsw { position: relative; }
+  .tt-langbadge-link {
+    background: none; border: 0; padding: 0; cursor: pointer; font: inherit;
+    color: var(--c-accent, #0f766e); text-decoration: underline; text-underline-offset: 2px;
+  }
+  .tt-langbadge-sel {
+    font: inherit; font-size: .74rem; padding: 1px 4px; border-radius: 6px;
+    border: 1px solid var(--c-line-2, #cbd5e1); background: #fff; color: var(--c-ink);
+  }
+  .tt-langmenu {
+    position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 60;
+    background: #fff; border: 1px solid var(--sh-hair); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(12,38,48,.16); padding: 5px; min-width: 178px;
+    max-height: 60vh; overflow: auto;
+  }
+  .tt-langmenu button {
+    display: block; width: 100%; text-align: start; padding: 6px 10px; border-radius: 7px;
+    background: transparent; border: 0; cursor: pointer; font-size: .82rem; color: var(--c-ink);
+    line-height: 1.3;
+  }
+  .tt-langmenu button:hover { background: rgba(12,38,48,.07); }
+  .tt-langmenu button[aria-selected="true"] { background: #eef6f8; font-weight: 700; }
   .tt-about-h { font-weight: 800; font-size: 1.05rem; margin-bottom: 2px; color: var(--c-ink); }
   .tt-about-sub { font-size: .82rem; color: #64748b; margin-bottom: 14px; }
   .tt-about-sec { margin-bottom: 13px; }
@@ -1039,7 +1074,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v37.0</span>
+        <span class="tt-ver" id="verBadge">v38.0-pre</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1139,37 +1174,24 @@
                it would punish the candidate for wanting a clean sheet. -->
           <button id="btnStartOver" class="tt-btn tt-btn-ghost tt-btn-sm" title="מנקה הכל ומתחיל מחדש, המפתח נשמר">↺ התחל מחדש</button>
         </div>
-        <div class="tt-langsw" id="langSwitch" role="group" aria-label="שפת הממשק / Interface language">
-          <button id="btnUiHe" class="tt-langbtn" data-uilang="he" title="עברית" aria-label="עברית">
-            <svg viewBox="0 0 22 16" width="19" height="14" aria-hidden="true" focusable="false">
-              <rect width="22" height="16" fill="#fff"></rect>
-              <rect y="2" width="22" height="2.1" fill="#0038b8"></rect>
-              <rect y="11.9" width="22" height="2.1" fill="#0038b8"></rect>
-              <path d="M11 5.3 L13.05 8.85 L8.95 8.85 Z" fill="none" stroke="#0038b8" stroke-width=".85"></path>
-              <path d="M11 10.7 L8.95 7.15 L13.05 7.15 Z" fill="none" stroke="#0038b8" stroke-width=".85"></path>
+        <!-- v38, decisions 15 and 21. The two flag buttons that used to sit here are
+             gone. A flag names a COUNTRY, and a language is not a country: the English
+             button carried the flag of the United States, which tells a candidate in
+             India or Nigeria that English belongs to somebody else, and Arabic has no
+             single country to draw at all. The native name is the stronger signal
+             anyway, because 日本語 is written in the script of the person looking for
+             it. One globe, one list, twelve names. -->
+        <div class="tt-langsw" id="langSwitch">
+          <button id="btnUiLang" class="tt-langbtn" aria-haspopup="listbox" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" focusable="false"
+                 fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M3 12h18M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"></path>
             </svg>
-            <span>עברית</span>
+            <span id="btnUiLangName">עברית</span>
+            <span aria-hidden="true" style="font-size:.62rem;opacity:.65">▾</span>
           </button>
-          <button id="btnUiEn" class="tt-langbtn" data-uilang="en" title="English" aria-label="English">
-            <svg viewBox="0 0 22 16" width="19" height="14" aria-hidden="true" focusable="false">
-              <rect width="22" height="16" fill="#fff"></rect>
-              <g fill="#b22234">
-                <rect width="22" height="1.75"></rect>
-                <rect y="3.5" width="22" height="1.75"></rect>
-                <rect y="7" width="22" height="1.75"></rect>
-                <rect y="10.5" width="22" height="1.75"></rect>
-                <rect y="14" width="22" height="1.75"></rect>
-              </g>
-              <rect width="9.4" height="8.75" fill="#3c3b6e"></rect>
-              <g fill="#fff">
-                <circle cx="1.9" cy="1.7" r=".62"></circle><circle cx="4.7" cy="1.7" r=".62"></circle><circle cx="7.5" cy="1.7" r=".62"></circle>
-                <circle cx="3.3" cy="3.5" r=".62"></circle><circle cx="6.1" cy="3.5" r=".62"></circle>
-                <circle cx="1.9" cy="5.3" r=".62"></circle><circle cx="4.7" cy="5.3" r=".62"></circle><circle cx="7.5" cy="5.3" r=".62"></circle>
-                <circle cx="3.3" cy="7.1" r=".62"></circle><circle cx="6.1" cy="7.1" r=".62"></circle>
-              </g>
-            </svg>
-            <span>English</span>
-          </button>
+          <div id="uiLangMenu" class="tt-langmenu tt-hidden" role="listbox" tabindex="-1"></div>
         </div>
       </div>
     </div>
@@ -1421,9 +1443,18 @@
       <h2 class="tt-card-title"><span class="tt-tag">שלב 3</span>שאלות התאמה ממוקדות</h2>
       <div class="flex items-center gap-2 text-sm">
         <span class="text-slate-500">שפת השאלות:</span>
-        <div class="tt-seg">
-          <button id="btnLangHe" data-lang="he" class="tt-langbtn">עברית</button>
-          <button id="btnLangEn" data-lang="en" class="tt-langbtn">English</button>
+        <!-- v38, decisions 8 and 20. A segmented pair works for two languages
+             and not for twelve, but a bare list of twelve is friction for a
+             choice the app can already guess: the resume's language, the
+             posting's language and the interface language cover almost every
+             real case. Those are offered directly, with the reason written
+             under each, and the rest sit behind one more click. -->
+        <div class="tt-langpick" id="qLangPick">
+          <span id="qLangSuggest" class="tt-seg"></span>
+          <div class="tt-langsw" style="display:inline-block">
+            <button id="btnQLangMore" class="tt-langbtn" aria-haspopup="listbox" aria-expanded="false">שפות נוספות ▾</button>
+            <div id="qLangMenu" class="tt-langmenu tt-hidden" role="listbox"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1634,7 +1665,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v37.0';
+var TT_VERSION = 'v38.0-pre';
 
 var APP = {
   apiKey: '',
@@ -1813,40 +1844,672 @@ var TT_HEBREW_RE = new RegExp('[' + TT_HEBREW_CLASS + ']', 'g');
 var TT_WORD_END = '(?![' + TT_HEBREW_CLASS + 'a-zA-Z0-9])';
 
 /* ---------- which language, and therefore which way the page runs ----------
-   Two languages, Hebrew and English, and that is the whole list. It used to be
-   three: Cyrillic was recognised as its own language so that a Russian resume
-   would not be laid out backwards. That support is gone by decision, and
-   Cyrillic now sits with the other unsupported scripts in TT_ALIEN_CLASS, where
-   a Cyrillic word coming back from the model is refused rather than rendered.
+   Twelve languages across six writing systems, and two directions. The list
+   and every rule about it live in TT_LANG, immediately below, which is the
+   single source of truth: nothing in this file may decide a language by
+   counting letters on its own any more.
 
-   What stays is the DIRECTION handling further down, which still knows that
-   Cyrillic reads left to right. The two are different questions: what this app
-   is willing to WRITE is Hebrew and English, but what it has to RENDER is
-   whatever the candidate's own file already contains, and a stray Cyrillic line
-   in an uploaded document should not flip the paragraph around it.
+   Two questions are kept apart here, and they were kept apart before for good
+   reason. What the app is willing to WRITE is one of the twelve supported
+   languages. What it has to RENDER is whatever the candidate's own file
+   contains, including a Greek symbol or a Korean employer name that this app
+   would never produce itself but must not destroy.
 
-   'neutral' is what text with none of these comes back as, and every caller
-   resolves neutral by falling back to the surrounding document. That fallback
-   is right for what it was written for: a line with no letters at all,
-   "2019 - 2023", belongs to whatever is around it. */
+   'neutral' survives as a return value. Every caller resolves it by falling
+   back to the surrounding document, and that is still right: a line with no
+   letters at all, "2019 - 2023", belongs to whatever is around it. */
 
-function detectLang(text) {
-  var s = String(text || '');
-  var hebrewChars = (s.match(TT_HEBREW_RE) || []).length;
-  var latinChars = (s.match(/[A-Za-z]/g) || []).length;
-  if (!hebrewChars && !latinChars) return 'neutral';
-  return hebrewChars > latinChars ? 'he' : 'en';
+/* ============================================================
+   v38 language layer. TT_LANG and TT_LOCK replace the two
+   language helpers that used to live below this point.
+   ============================================================ */
+
+/* ============================================================================
+   TT_LANG  -  the single source of truth for language in TrueTailor CV.
+
+   Replaces detectLang(), langName(), wordLangCounts(), dominantLang(),
+   dirLangFor(), docLanguage() and every ad hoc split(/\s+/) word count.
+
+   Two resolutions, on purpose:
+
+     detectLine(text)  local only, never touches the network. Runs on every
+                       line that comes back from a rewrite, dozens of times
+                       per run, so a model call here is not an option.
+
+     detectDoc(text)   script from code, always. The exact language inside the
+                       Latin cluster comes from the model when a key exists,
+                       because seven Latin script languages cannot be told
+                       apart by counting letters.
+
+   The line level classifier reports confidence and the caller is expected to
+   respect it. A guard that rejects on a guess is worse than a guard that
+   admits it does not know: refusing a correct rewrite is a visible failure,
+   while a missed ambiguous case is caught later by the document level check.
+   ========================================================================= */
+
+var TT_LANG = (function () {
+  'use strict';
+
+  /* ---- the supported set -------------------------------------------------
+     13 languages, 6 writing systems, 2 directions. Order here is the order
+     shown in every picker. Native names only, decision 15. */
+  var LANGS = [
+    { code: 'he', script: 'hebrew',     dir: 'rtl', name: 'Hebrew',              native: 'עברית'      },
+    { code: 'ar', script: 'arabic',     dir: 'rtl', name: 'Arabic',              native: 'العربية'    },
+    { code: 'en', script: 'latin',      dir: 'ltr', name: 'English',             native: 'English'    },
+    { code: 'fr', script: 'latin',      dir: 'ltr', name: 'French',              native: 'Français'   },
+    { code: 'es', script: 'latin',      dir: 'ltr', name: 'Spanish (Latin American)', native: 'Español' },
+    { code: 'de', script: 'latin',      dir: 'ltr', name: 'German',              native: 'Deutsch'    },
+    { code: 'it', script: 'latin',      dir: 'ltr', name: 'Italian',             native: 'Italiano'   },
+    { code: 'pt', script: 'latin',      dir: 'ltr', name: 'Portuguese (Brazilian)', native: 'Português' },
+    { code: 'hr', script: 'latin',      dir: 'ltr', name: 'Croatian',            native: 'Hrvatski'   },
+    { code: 'ru', script: 'cyrillic',   dir: 'ltr', name: 'Russian',             native: 'Русский'    },
+    { code: 'ja', script: 'japanese',   dir: 'ltr', name: 'Japanese',            native: '日本語'      },
+    { code: 'hi', script: 'devanagari', dir: 'ltr', name: 'Hindi',               native: 'हिन्दी'      }
+  ];
+
+  var BY_CODE = {};
+  LANGS.forEach(function (l) { BY_CODE[l.code] = l; });
+
+  /* ---- script ranges -----------------------------------------------------
+     Japanese is kana plus han. Any kana at all decides Japanese over Chinese,
+     because Chinese never uses kana while Japanese prose is full of it. */
+  var RANGES = {
+    hebrew:     /[\u0590-\u05FF]/g,
+    arabic:     /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g,
+    latin:      /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/g,
+    cyrillic:   /[\u0400-\u04FF\u0500-\u052F]/g,
+    devanagari: /[\u0900-\u097F]/g,
+    han:        /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/g,
+    kana:       /[\u3040-\u309F\u30A0-\u30FF]/g,
+    hangul:     /[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/g,
+    thai:       /[\u0E00-\u0E7F]/g,
+    greek:      /[\u0370-\u03FF\u1F00-\u1FFF]/g,
+    armenian:   /[\u0530-\u058F]/g,
+    georgian:   /[\u10A0-\u10FF]/g,
+    bengali:    /[\u0980-\u09FF]/g,
+    tamil:      /[\u0B80-\u0BFF]/g
+  };
+
+  /* Scripts that no supported language uses. Naming them lets the app tell a
+     user which language it is turning away instead of failing silently or,
+     worse, guessing a supported language and running the whole pipeline on
+     the wrong assumption. */
+  var UNSUPPORTED_SCRIPT_LABEL = {
+    hangul: 'Korean', thai: 'Thai', greek: 'Greek', armenian: 'Armenian',
+    georgian: 'Georgian', bengali: 'Bengali', tamil: 'Tamil'
+  };
+
+  var SCRIPT_ORDER = ['hebrew', 'arabic', 'cyrillic', 'devanagari', 'kana', 'han',
+                      'hangul', 'thai', 'greek', 'armenian', 'georgian', 'bengali',
+                      'tamil', 'latin'];
+
+  function count(text, re) {
+    var m = String(text || '').match(re);
+    return m ? m.length : 0;
+  }
+
+  /* Character counts per script. Digits, punctuation and whitespace are not
+     counted anywhere: they are script neutral and would only add noise. */
+  function scriptCounts(text) {
+    var out = {};
+    SCRIPT_ORDER.forEach(function (s) { out[s] = count(text, RANGES[s]); });
+    return out;
+  }
+
+  /* The dominant script. 'none' when there are no letters at all, which
+     happens on a line that is only digits, dates or bullet symbols. */
+  function script(text) {
+    var c = scriptCounts(text);
+    if (c.kana > 0) return 'japanese';
+    var best = 'none', bestN = 0;
+    SCRIPT_ORDER.forEach(function (s) {
+      if (c[s] > bestN) { bestN = c[s]; best = s; }
+    });
+    return bestN === 0 ? 'none' : best;
+  }
+
+  /* Every script that carries a real share of the text, not just a stray
+     character. Used by the relative legality check: a document in one
+     language may legitimately contain Latin product names, and nothing else. */
+  function scriptsPresent(text, minShare) {
+    var c = scriptCounts(text), total = 0, out = [];
+    SCRIPT_ORDER.forEach(function (s) { total += c[s]; });
+    if (!total) return [];
+    var floor = (minShare == null ? 0.02 : minShare) * total;
+    SCRIPT_ORDER.forEach(function (s) { if (c[s] > 0 && c[s] >= floor) out.push(s); });
+    if (c.kana > 0 && out.indexOf('kana') === -1) out.push('kana');
+    return out;
+  }
+
+  /* ---- the Latin cluster -------------------------------------------------
+     Seven languages share the Latin alphabet, so letter counting is useless
+     here. Two signals, deliberately cheap, deliberately honest about doubt:
+
+       diacritics  a few marks belong to one language and almost nowhere else
+       stopwords   short function words carry the strongest signal per token
+
+     The result always carries a confidence. Callers must not treat a guess
+     as a fact. */
+  /* Only marks that belong to ONE language in this set are listed. Shared
+     accents carry no signal and actively mislead: é is everywhere in French,
+     Spanish, Italian and Portuguese, so scoring it for any single one of them
+     swamps the real evidence. This was a live bug, caught by the corpus. */
+  var DIACRITIC = {
+    hr: /[čćžšđČĆŽŠĐ]/g,
+    de: /[äößÄÖ]/g,
+    es: /[ñÑ¿¡]/g,
+    pt: /[ãõÃÕ]/g,
+    fr: /[œëïÿŒËÏŸ]/g,
+    it: /[ìÌ]/g
+  };
+
+  var STOP = {
+    en: ['the','and','of','to','in','with','for','was','were','from','that','at','on','by','as','managed','team','years','experience'],
+    fr: ['le','la','les','des','du','et','dans','pour','avec','une','sur','aux','qui','que','est','sont','cette','chez','ans','équipe','entrepôt'],
+    es: ['el','los','las','y','en','con','para','un','una','del','por','años','gestión','equipo','sobre','almacén'],
+    pt: ['os','as','em','com','para','um','uma','do','da','no','na','anos','gestão','equipe','sobre','armazém','pelo','pela'],
+    it: ['il','lo','gli','di','con','per','un','una','del','della','delle','nel','nella','anni','gestione','squadra','sul','magazzino','ho'],
+    de: ['der','die','das','und','von','mit','für','ein','eine','im','zu','bei','jahre','leitung','team','durch'],
+    hr: ['i','u','na','za','se','je','od','do','koji','sa','godina','upravljanje','tim','te','sam','skladištu']
+  };
+
+  /* Suffixes that are near decisive inside the cluster. -ção and -ões are
+     Portuguese and essentially nothing else; -ung and -keit are German. */
+  var SUFFIX = {
+    pt: /\w+(ção|ções|ão|ões)\b/gi,
+    es: /\w+(ción|ciones|dad)\b/gi,
+    de: /\w+(ung|ungen|keit|heit|schaft)\b/gi,
+    fr: /\w+(tion|ment|ité)\b/gi,
+    it: /\w+(zione|mente|ità)\b/gi,
+    hr: /\w+(anje|enje|ost)\b/gi
+  };
+
+  function latinGuess(text) {
+    var t = String(text || '');
+    var lower = t.toLowerCase();
+    var scores = { en: 0, fr: 0, es: 0, de: 0, it: 0, pt: 0, hr: 0 };
+
+    Object.keys(DIACRITIC).forEach(function (k) {
+      var n = count(t, DIACRITIC[k]);
+      if (n) scores[k] += n * 3;
+    });
+
+    var words = lower.split(/[^a-z\u00C0-\u024F]+/).filter(Boolean);
+    var wset = {};
+    words.forEach(function (w) { wset[w] = (wset[w] || 0) + 1; });
+    Object.keys(STOP).forEach(function (k) {
+      STOP[k].forEach(function (w) { if (wset[w]) scores[k] += wset[w] * 2; });
+    });
+
+    Object.keys(SUFFIX).forEach(function (k) {
+      var n = count(lower, SUFFIX[k]);
+      if (n) scores[k] += n * 2;
+    });
+
+    var ranked = Object.keys(scores).sort(function (a, b) { return scores[b] - scores[a]; });
+    var top = ranked[0], second = ranked[1];
+    var lead = scores[top] - scores[second];
+
+    /* No signal at all means a line of names, numbers or product codes.
+       English is the safe assumption for the Latin script, but it is a
+       default and not a finding, so confidence stays false. */
+    if (scores[top] === 0) return { code: 'en', confident: false, reason: 'no-signal' };
+    if (words.length < 4 && lead < 4) return { code: top, confident: false, reason: 'too-short' };
+    if (lead < 2) return { code: top, confident: false, reason: 'ambiguous' };
+    return { code: top, confident: true, reason: 'ok' };
+  }
+
+  /* ---- line level --------------------------------------------------------
+     Local, synchronous, no network. This is what the language lock uses. */
+  /* hint is the language of the document this line belongs to. It is used for
+     exactly one thing: Han without kana.
+
+     Japanese and Chinese share Han characters, and a Japanese job title is
+     routinely pure kanji with no kana at all - 主任看護師 is a real example.
+     The script carries no evidence either way there, so answering confidently
+     is a coin flip dressed as a finding, and the corpus caught it.
+
+     The hint is deliberately NOT used for the Latin cluster. Low confidence
+     there means too little evidence, not inherent ambiguity, and defaulting to
+     the document language would make the language lock blind to exactly the
+     switch it exists to catch: a French line that came back English. */
+  function detectLine(text, hint) {
+    var s = script(text);
+    if (s === 'none')       return { code: null, script: 'none', confident: false, reason: 'no-letters' };
+    if (s === 'hebrew')     return { code: 'he', script: s, confident: true,  reason: 'script' };
+    if (s === 'arabic')     return { code: 'ar', script: s, confident: true,  reason: 'script' };
+    if (s === 'cyrillic')   return { code: 'ru', script: s, confident: true,  reason: 'script' };
+    if (s === 'devanagari') return { code: 'hi', script: s, confident: true,  reason: 'script' };
+    if (s === 'japanese')   return { code: 'ja', script: s, confident: true,  reason: 'kana' };
+    if (s === 'han') {
+      /* Japanese is now the only supported language that uses Han, but Han
+         without kana is still Chinese as often as it is a Japanese job title.
+         Inside a Japanese document it resolves; on its own it does not, and
+         saying so is the honest answer. */
+      if (hint === 'ja') return { code: 'ja', script: s, confident: true, reason: 'han-resolved-by-document' };
+      return { code: 'ja', script: s, confident: false, reason: 'han-ambiguous' };
+    }
+    if (UNSUPPORTED_SCRIPT_LABEL[s]) {
+      return { code: null, script: s, confident: true, unsupported: true,
+               label: UNSUPPORTED_SCRIPT_LABEL[s], reason: 'unsupported-script' };
+    }
+    var g = latinGuess(text);
+    return { code: g.code, script: 'latin', confident: g.confident, reason: g.reason };
+  }
+
+  /* ---- document level ----------------------------------------------------
+     Script always comes from code. Inside the Latin cluster the model is
+     asked, because that is the only place the code cannot decide. Without a
+     key the local guess stands and confident stays false, so the manual
+     override shows itself. Cached by content: a call per keystroke would be
+     absurd. */
+  var docCache = {};
+
+  function cacheKey(text) {
+    var t = String(text || '');
+    var h = 5381, i = 0;
+    for (i = 0; i < t.length; i++) { h = ((h << 5) + h + t.charCodeAt(i)) | 0; }
+    return t.length + ':' + h;
+  }
+
+  function detectDocLocal(text) {
+    var s = script(text);
+    if (s === 'none') return { code: null, script: 'none', confident: false, reason: 'no-letters' };
+    if (s !== 'latin') return detectLine(text);
+    var g = latinGuess(text);
+    return { code: g.code, script: 'latin', confident: false, reason: 'latin-needs-model:' + g.reason };
+  }
+
+  /* Two cases the code cannot settle on its own: which of the seven Latin
+     languages this is, and whether Han without kana is Japanese or a language
+     we do not support at all. Both go to the model. */
+  function needsModel(local) {
+    return local.script === 'latin' || local.reason === 'han-ambiguous';
+  }
+
+  /* askModel is injected by the app so this module stays testable offline.
+     It receives the sample text and must resolve to a language code or null. */
+  var askModel = null;
+  function setModelResolver(fn) { askModel = fn; }
+
+  async function detectDoc(text, opts) {
+    opts = opts || {};
+    var key = cacheKey(text);
+    if (docCache[key] && !opts.force) return docCache[key];
+
+    var local = detectDocLocal(text);
+    var result = local;
+
+    if (needsModel(local) && askModel && !opts.localOnly) {
+      try {
+        var sample = String(text || '').slice(0, 1200);
+        var code = await askModel(sample);
+        if (code && BY_CODE[code] && BY_CODE[code].script === local.script) {
+          result = { code: code, script: local.script, confident: true, reason: 'model' };
+        } else if (code && !BY_CODE[code]) {
+          /* The model named a real language that this app does not support.
+             Saying so beats running the whole pipeline on a wrong assumption. */
+          result = { code: null, script: local.script, confident: true,
+                     unsupported: true, label: String(code), reason: 'model-unsupported' };
+        }
+      } catch (e) {
+        /* The model is an improvement, not a dependency. A failure here
+           leaves the local guess in place with confident false. */
+        result = local;
+      }
+    }
+    docCache[key] = result;
+    return result;
+  }
+
+  /* ---- relative script legality -----------------------------------------
+     The old TT_ALIEN_CLASS was an absolute blocklist. It cannot survive a
+     language set that legalises Cyrillic, Devanagari, Han, kana and Arabic:
+     almost nothing would be left to block. Legality becomes relative to the
+     document instead.
+
+     Latin is legal everywhere, and only there, because product and standard
+     names are written in Latin in every one of these languages: SAP, ISO,
+     AWS. Nothing else crosses. */
+  function legalScripts(code) {
+    var l = BY_CODE[code];
+    if (!l) return ['latin'];
+    if (l.script === 'japanese') return ['kana', 'han', 'latin'];
+    if (l.script === 'latin')    return ['latin'];
+    return [l.script, 'latin'];
+  }
+
+  /* Words written in a script that has no business in this document.
+     Hebrew against Arabic is the pair that actually happens, and now that
+     both are supported languages it is the pair this function exists for. */
+  /* Deliberately NOT a dominant script test. The bug that actually happens is
+     a single character spliced into the middle of an otherwise correct word:
+     one Arabic noon inside a Hebrew word leaves Hebrew dominant four to one,
+     so a dominant test reports nothing while the word is visibly broken.
+     Every character is checked against the legal set instead. */
+  function alienWords(text, code) {
+    var legal = legalScripts(code);
+    var list = words(text, code) || String(text || '').split(/\s+/);
+    var out = [];
+    list.forEach(function (w) {
+      var c = scriptCounts(w);
+      var bad = SCRIPT_ORDER.some(function (s) {
+        return c[s] > 0 && legal.indexOf(s) === -1;
+      });
+      if (bad && out.indexOf(w) === -1) out.push(w);
+    });
+    return out;
+  }
+
+  /* ---- words -------------------------------------------------------------
+     Japanese and Chinese put no spaces between words. Every word count in
+     the app used split(/\s+/), which returns 1 for an entire CJK bullet.
+     Intl.Segmenter is built into the browser and into Node, so this costs
+     nothing in file size. */
+  var segCache = {};
+  function segmenter(code) {
+    if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') return null;
+    var key = code || 'und';
+    if (!(key in segCache)) {
+      try { segCache[key] = new Intl.Segmenter(key, { granularity: 'word' }); }
+      catch (e) { segCache[key] = null; }
+    }
+    return segCache[key];
+  }
+
+  function spaceSeparated(code) {
+    var l = BY_CODE[code];
+    return !l || (l.script !== 'japanese' && l.script !== 'han');
+  }
+
+  function words(text, code) {
+    var t = String(text || '').trim();
+    if (!t) return [];
+    var seg = segmenter(code);
+    if (seg) {
+      var out = [];
+      var it = seg.segment(t);
+      for (var part of it) { if (part.isWordLike) out.push(part.segment); }
+      return out;
+    }
+    /* Fallback for an engine without Intl.Segmenter. Space separated
+       languages keep working exactly as before. CJK cannot be measured this
+       way and the caller is told so rather than being handed a wrong number. */
+    if (!spaceSeparated(code)) return null;
+    return t.split(/\s+/).filter(Boolean);
+  }
+
+  function wordCount(text, code) {
+    var w = words(text, code);
+    return w === null ? null : w.length;
+  }
+
+  function hasSegmenter() {
+    return typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function';
+  }
+
+  /* ---- misc lookups ------------------------------------------------------ */
+  function name(code)       { return (BY_CODE[code] || {}).name || 'English'; }
+  function nativeName(code) { return (BY_CODE[code] || {}).native || 'English'; }
+  function dir(code)        { return (BY_CODE[code] || {}).dir || 'ltr'; }
+  function isSupported(code){ return !!BY_CODE[code]; }
+  function all()            { return LANGS.slice(); }
+  function codes()          { return LANGS.map(function (l) { return l.code; }); }
+
+  /* Direction of a piece of text, driven by script rather than by a fallback.
+     Hebrew is no longer the only right to left language, so the old
+     "is there Hebrew, otherwise assume left to right" shape is gone. */
+  function dirOf(text, fallbackCode) {
+    var s = script(text);
+    if (s === 'hebrew' || s === 'arabic') return 'rtl';
+    if (s === 'none') return dir(fallbackCode || 'en');
+    return 'ltr';
+  }
+
+  function clearCache() { docCache = {}; }
+
+  return {
+    LANGS: LANGS,
+    all: all, codes: codes, isSupported: isSupported,
+    name: name, nativeName: nativeName, dir: dir, dirOf: dirOf,
+    script: script, scriptCounts: scriptCounts, scriptsPresent: scriptsPresent,
+    detectLine: detectLine, detectDoc: detectDoc, detectDocLocal: detectDocLocal,
+    setModelResolver: setModelResolver, clearCache: clearCache,
+    legalScripts: legalScripts, alienWords: alienWords,
+    unsupportedScripts: UNSUPPORTED_SCRIPT_LABEL,
+    words: words, wordCount: wordCount, spaceSeparated: spaceSeparated,
+    hasSegmenter: hasSegmenter
+  };
+})();
+
+
+/* ============================================================================
+   TT_LOCK  -  the language lock, generalised from two languages to twelve.
+
+   Replaces foreignScriptSpliceReason and languageLockVerdict, and adds the
+   guard that decision 17 puts on the fit questions.
+
+   Two checks, deliberately in this order and deliberately different in kind:
+
+     1. SCRIPT   hard and certain. A script that has no business in this
+                 document is refused outright, with no share to negotiate.
+                 Counting characters is exact, so this check never guesses.
+
+     2. LANGUAGE soft. Inside one script the classifier is a heuristic, so a
+                 line is refused only when the classifier is CONFIDENT the
+                 language changed. Refusing a correct rewrite on a guess is a
+                 visible failure; letting an ambiguous one through is caught
+                 later by the document level check.
+
+   Every refusal returns a CODE and its parameters rather than a sentence.
+   The reason is shown to the user, so under decision 5 it has to be rendered
+   in the interface language, and a Hebrew string baked in here could never be.
+   ========================================================================= */
+
+var TT_LOCK = (function (LANG) {
+  'use strict';
+
+  /* How much of a line the original language still has to carry. Kept at the
+     value the two language version used, because it was tuned against real
+     rewrites and nothing about adding languages changes what it measures. */
+  var SHARE = 0.35;
+
+  function scriptOfLang(code) {
+    var l = LANG.all().filter(function (x) { return x.code === code; })[0];
+    return l ? l.script : 'latin';
+  }
+
+  /* Scripts allowed in this document: the document's own, Latin for product
+     and standard names, plus anything the candidate's ORIGINAL line already
+     contained. That last clause matters. A resume that legitimately carries a
+     Greek formula or a Korean employer name keeps it; this refuses what the
+     app INTRODUCED, never what the person wrote. */
+  function allowedScripts(docLang, originalText) {
+    var out = LANG.legalScripts(docLang).slice();
+    LANG.scriptsPresent(String(originalText || ''), 0).forEach(function (s) {
+      if (out.indexOf(s) === -1) out.push(s);
+    });
+    return out;
+  }
+
+  function introducedAlienWords(original, candidate, docLang) {
+    var allowed = allowedScripts(docLang, original);
+    var counts, bad = [];
+    (LANG.words(candidate, docLang) || String(candidate || '').split(/\s+/))
+      .forEach(function (w) {
+        counts = LANG.scriptCounts(w);
+        var offends = Object.keys(counts).some(function (s) {
+          return counts[s] > 0 && allowed.indexOf(s) === -1;
+        });
+        if (offends && bad.indexOf(w) === -1) bad.push(w);
+      });
+    return bad;
+  }
+
+  /* The asymmetry the two language version got right, generalised.
+
+     Latin words inside a Hebrew line are usually the whole point of the
+     tailoring: SAP, ISO 13485, ERP. The document's OWN script appearing
+     inside a line that was written in Latin is never a technical term - it is
+     the candidate's answer pasted in as it was typed. An English resume with
+     one Hebrew clause spliced into a bullet is the most visible way this app
+     can embarrass someone, and the same is now true of Cyrillic inside an
+     English line of a Russian resume, or Devanagari inside one of a Hindi
+     resume. */
+  function nativeScriptSplice(original, candidate, docLang) {
+    var native = scriptOfLang(docLang);
+    if (native === 'latin') return false;
+    var o = LANG.scriptCounts(original), c = LANG.scriptCounts(candidate);
+    var keys = native === 'japanese' ? ['kana', 'han'] : [native];
+    var inOriginal = keys.some(function (k) { return o[k] > 0; });
+    var inCandidate = keys.some(function (k) { return c[k] > 0; });
+    var originalIsLatin = o.latin > 0;
+    return !inOriginal && inCandidate && originalIsLatin;
+  }
+
+  /* Share of the candidate's words still written in the original's script. */
+  function scriptShare(candidate, scriptName, docLang) {
+    var list = LANG.words(candidate, docLang) || [];
+    if (!list.length) return 1;
+    var keys = scriptName === 'japanese' ? ['kana', 'han'] : [scriptName];
+    var kept = 0, counted = 0;
+    list.forEach(function (w) {
+      var c = LANG.scriptCounts(w);
+      var total = Object.keys(c).reduce(function (a, k) { return a + c[k]; }, 0);
+      if (!total) return;                       // digits and symbols carry no language
+      counted++;
+      if (keys.some(function (k) { return c[k] > 0; })) kept++;
+    });
+    return counted ? kept / counted : 1;
+  }
+
+  /* ---- the verdict ------------------------------------------------------ */
+  function verdict(original, candidate, docLang) {
+    var o = String(original == null ? '' : original);
+    var c = String(candidate == null ? '' : candidate);
+
+    var alien = introducedAlienWords(o, c, docLang);
+    if (alien.length) {
+      return { ok: false, code: 'alien_script', words: alien.slice(0, 3) };
+    }
+
+    if (nativeScriptSplice(o, c, docLang)) {
+      return { ok: false, code: 'native_spliced_into_latin', lang: docLang };
+    }
+
+    var ol = LANG.detectLine(o, docLang);
+    if (!ol.code) return { ok: true };            // digits, dates, symbols only
+
+    var oScript = ol.script === 'japanese' ? 'japanese' : ol.script;
+    var share = scriptShare(c, oScript, docLang);
+    var minWords = Math.max(2, Math.ceil((LANG.words(c, docLang) || []).length * SHARE));
+    var keptWords = Math.round(share * (LANG.words(c, docLang) || []).length);
+
+    if (share < SHARE && keptWords < minWords) {
+      return { ok: false, code: 'script_changed', from: ol.code };
+    }
+
+    /* Inside one script the classifier is a heuristic, so it may only refuse
+       when it is sure about BOTH sides. A French line that came back English
+       is caught here; a two word title that could be either is not, and that
+       is the intended trade. */
+    if (ol.script === 'latin' && ol.confident) {
+      var cl = LANG.detectLine(c, docLang);
+      if (cl.script === 'latin' && cl.confident && cl.code !== ol.code) {
+        return { ok: false, code: 'language_changed', from: ol.code, to: cl.code };
+      }
+    }
+
+    return { ok: true };
+  }
+
+  /* ---- the fit questions, decision 17 -----------------------------------
+     askNextQuestion already refuses a question containing a third script, but
+     it never checked for a language MIX: a Hebrew clause inside an English
+     question passed untouched, because both scripts were on the old allow
+     list. That is the bleed that was actually seen. Same machinery, applied
+     to a question instead of to a resume line. */
+  function questionVerdict(question, askLang) {
+    var q = String(question == null ? '' : question);
+    if (!q.trim()) return { ok: false, code: 'empty' };
+
+    var alien = introducedAlienWords('', q, askLang);
+    if (alien.length) return { ok: false, code: 'alien_script', words: alien.slice(0, 3) };
+
+    var want = scriptOfLang(askLang);
+    var share = scriptShare(q, want, askLang);
+    if (share < SHARE) return { ok: false, code: 'wrong_language', expected: askLang };
+
+    if (want === 'latin') {
+      var g = LANG.detectLine(q, askLang);
+      if (g.confident && g.code !== askLang) {
+        return { ok: false, code: 'wrong_language', expected: askLang, got: g.code };
+      }
+    }
+    return { ok: true };
+  }
+
+  /* ---- rule 1b for the prompt -------------------------------------------
+     The old text told the model that only Hebrew and Latin may ever appear,
+     and named Arabic, Cyrillic, Devanagari and CJK as forbidden. Every one of
+     those is now a supported language, so the rule is rebuilt per document
+     rather than fixed. */
+  function scriptRuleFor(docLang) {
+    var native = scriptOfLang(docLang);
+    var label = {
+      hebrew: 'the Hebrew alphabet', arabic: 'the Arabic alphabet',
+      cyrillic: 'the Cyrillic alphabet', devanagari: 'the Devanagari alphabet',
+      japanese: 'kana and kanji', latin: 'the Latin alphabet'
+    }[native] || 'the Latin alphabet';
+
+    return [
+      'Every line of this document is written in ' + LANG.name(docLang) + ', using ' + label + '.',
+      'Latin letters are allowed anywhere, and only for product, standard and organisation names',
+      'that are written that way in every language: SAP, ISO 13485, AWS.',
+      'No other writing system may appear in your output at all. Not one word, not one character.',
+      'A line that mixes a second writing system into ' + LANG.name(docLang) + ' is discarded and the',
+      'original is kept, so writing one costs the candidate the improvement and gains nothing.'
+    ].join('\n');
+  }
+
+  return {
+    SHARE: SHARE,
+    verdict: verdict,
+    questionVerdict: questionVerdict,
+    scriptRuleFor: scriptRuleFor,
+    allowedScripts: allowedScripts,
+    introducedAlienWords: introducedAlienWords
+  };
+})(TT_LANG);
+
+
+/* v38: the letter counting body is gone. It could only ever answer 'he' or
+   'en', and seven of the twelve supported languages share the Latin alphabet,
+   so it would have reported French as English and the language lock would
+   have waved a French line that came back in English straight through.
+   'neutral' is preserved because every caller resolves it by falling back to
+   the surrounding document, and that behaviour is still right. */
+function detectLang(text, hint) {
+  var r = TT_LANG.detectLine(text, hint);
+  return r.code || 'neutral';
+}
+
+/* Whether the answer above can be trusted, for the callers that must not act
+   on a guess. Script based findings are certain; the Latin cluster is not. */
+function detectLangSure(text, hint) {
+  return TT_LANG.detectLine(text, hint).confident === true;
 }
 
 /* The one place that turns a detected language into a name the model will
    understand. Kept in a single function so the list is one line rather than
    eight scattered ternaries, which is what this replaced. */
 function langName(lang) {
-  return lang === 'he' ? 'Hebrew' : 'English';
+  return TT_LANG.name(lang);
 }
 
-function dirFor(lang) { return lang === 'he' ? 'rtl' : 'ltr'; }
-function alignFor(lang) { return lang === 'he' ? 'text-right' : 'text-left'; }
+function dirFor(lang) { return TT_LANG.dir(lang) === 'rtl' ? 'rtl' : 'ltr'; }
+function alignFor(lang) { return TT_LANG.dir(lang) === 'rtl' ? 'text-right' : 'text-left'; }
 
 /* Direction of a piece of text, falling back to a caller supplied language for
    text that carries no letters at all. Used by every bubble and every preview
@@ -1878,23 +2541,35 @@ function alignForText(text, fallbackLang) {
 var TT_HEBREW_ONE = new RegExp('[' + TT_HEBREW_CLASS + ']');
 var TT_WORD_SPLIT_RE = new RegExp('[^A-Za-z0-9' + TT_HEBREW_CLASS + "']+");
 
-function wordLangCounts(text) {
-  var words = String(text || '').split(TT_WORD_SPLIT_RE);
-  var he = 0, en = 0, neutral = 0;
+/* v38: still word based, which was the hard won part, but the buckets are no
+   longer he and en. Words are counted per SCRIPT, and Japanese is measured
+   with Intl.Segmenter because a whole Japanese bullet is one word to a
+   whitespace split. The he and en keys are kept so the callers that still
+   read them keep working. */
+function wordLangCounts(text, langHint) {
+  var words = TT_LANG.words(text, langHint) || String(text || '').split(TT_WORD_SPLIT_RE);
+  var out = { he: 0, en: 0, neutral: 0, total: 0, byScript: {} };
   for (var i = 0; i < words.length; i++) {
     var w = words[i];
     if (!w) continue;
-    if (TT_HEBREW_ONE.test(w)) he++;
-    else if (/[A-Za-z]/.test(w)) en++;
-    else neutral++;
+    var sc = TT_LANG.script(w);
+    if (sc === 'none') { out.neutral++; }
+    else {
+      out.byScript[sc] = (out.byScript[sc] || 0) + 1;
+      if (sc === 'hebrew') out.he++; else out.en++;
+    }
+    out.total++;
   }
-  return { he: he, en: en, neutral: neutral, total: he + en + neutral };
+  return out;
 }
 
 function dominantLang(counts) {
-  if (counts.he > counts.en) return 'he';
-  if (counts.en > counts.he) return 'en';
-  return 'neutral';
+  var best = null, bestN = 0;
+  Object.keys(counts.byScript || {}).forEach(function (k) {
+    if (counts.byScript[k] > bestN) { bestN = counts.byScript[k]; best = k; }
+  });
+  if (!best) return 'neutral';
+  return best === 'hebrew' ? 'he' : best;
 }
 
 /* ---------- WHICH WAY A LINE IS READ ----------
@@ -1926,20 +2601,41 @@ function dominantLang(counts) {
    rather than being folded into 'en' here, where only the direction is wanted
    and Cyrillic reads left to right exactly as Latin does. */
 var TT_LATIN_OR_CYRILLIC_RE = /[A-Za-z\u0400-\u04FF\u0500-\u052F]/;
-var TT_FIRST_STRONG_RE = new RegExp('[' + TT_HEBREW_CLASS + ']|[A-Za-z\\u0400-\\u04FF\\u0500-\\u052F]');
+var TT_FIRST_STRONG_RE = new RegExp('[' + TT_HEBREW_CLASS + ']|[\\u0600-\\u06FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]|[A-Za-z\\u0400-\\u04FF\\u0500-\\u052F\\u0900-\\u097F\\u3040-\\u30FF\\u4E00-\\u9FFF]');
+
+/* v38: the reasoning above is unchanged and it is the part that mattered.
+   Direction is still decided on WORDS rather than on letters, because a Hebrew
+   sentence that earned the posting's English terms has more Latin letters than
+   Hebrew ones and used to be laid out left to right for exactly that reason.
+
+   What changed is that Hebrew is no longer the only right to left language.
+   Arabic joins it, so the test is "does a right to left script carry this
+   line" rather than "is there Hebrew in it". Everything else, Latin, Cyrillic,
+   Devanagari, kana and kanji, reads left to right. */
+var TT_RTL_SCRIPTS = ['hebrew', 'arabic'];
 
 function dirLangFor(text, fallbackLang) {
   var s = String(text == null ? '' : text);
   var fb = (fallbackLang && fallbackLang !== 'neutral') ? fallbackLang : 'he';
-  if (!TT_HEBREW_ONE.test(s)) {
-    // no Hebrew at all: Latin and Cyrillic both read left to right, and a line
-    // with no letters in it belongs to the document around it
-    return TT_LATIN_OR_CYRILLIC_RE.test(s) ? 'en' : fb;
+  var c = wordLangCounts(s, fallbackLang);
+  var rtlWords = 0, ltrWords = 0;
+  Object.keys(c.byScript).forEach(function (k) {
+    if (TT_RTL_SCRIPTS.indexOf(k) !== -1) rtlWords += c.byScript[k];
+    else ltrWords += c.byScript[k];
+  });
+  if (!rtlWords && !ltrWords) return fb;              // no letters: belongs to the document
+  if (!rtlWords) return TT_LANG.dir(fb) === 'rtl' ? 'en' : fb;
+  if (rtlWords >= ltrWords) {
+    return TT_LANG.dir(fb) === 'rtl' ? fb : (c.byScript.arabic > c.byScript.hebrew ? 'ar' : 'he');
   }
-  var c = wordLangCounts(s);
-  if (c.he >= c.en) return 'he';
+  /* Latin genuinely carries the line, so the first strong letter decides,
+     which is the Unicode rule and what dir="auto" would have done. */
   var m = s.match(TT_FIRST_STRONG_RE);
-  return (m && TT_HEBREW_ONE.test(m[0])) ? 'he' : 'en';
+  if (m) {
+    var sc = TT_LANG.script(m[0]);
+    if (TT_RTL_SCRIPTS.indexOf(sc) !== -1) return sc === 'arabic' ? 'ar' : 'he';
+  }
+  return 'en';
 }
 
 // How much of a line one language has to still carry for the line to count as
@@ -1968,63 +2664,81 @@ var TT_LANG_LOCK_SHARE = 0.35;
    for all of them and enumerating one script would leave it open for the next.
    Hebrew presentation forms end at FB4F and Arabic presentation forms A begin
    at FB50, so the two ranges do not touch. */
-var TT_ALIEN_CLASS =
-  '\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF' +  /* Arabic, and its presentation forms */
-  '\\u0370-\\u03FF\\u1F00-\\u1FFF' +                                              /* Greek */
-  '\\u0400-\\u04FF\\u0500-\\u052F' +                                              /* Cyrillic: supported until Russian was dropped */
-  '\\u0530-\\u058F' +                                                             /* Armenian */
-  '\\u0900-\\u097F\\u0980-\\u09FF' +                                              /* Devanagari, Bengali */
-  '\\u0E00-\\u0E7F' +                                                             /* Thai */
-  '\\u3040-\\u30FF\\u4E00-\\u9FFF\\uAC00-\\uD7AF';                                /* Japanese, Chinese, Korean */
-var TT_ALIEN_RE = new RegExp('[' + TT_ALIEN_CLASS + ']');
+/* v38: the absolute block list that used to live here is gone. It named
+   Arabic, Cyrillic, Devanagari and CJK as scripts that must never appear, and
+   every one of those is now a supported language, so the list would have been
+   almost empty and the protection almost nothing.
 
-/* The offending words themselves, because a refusal that cannot name what it
-   refused is a refusal nobody can act on. */
-function alienScriptWords(text) {
-  var words = String(text == null ? '' : text).split(/\s+/);
-  var out = [];
-  for (var i = 0; i < words.length; i++) {
-    if (words[i] && TT_ALIEN_RE.test(words[i]) && out.indexOf(words[i]) === -1) out.push(words[i]);
+   Legality is relative to the document instead: the document's own script,
+   Latin for product and standard names, and anything the candidate's original
+   line already contained. TT_LOCK owns that rule. What is kept here is the
+   ability to NAME what was refused, because a refusal nobody can act on is
+   not a refusal. */
+/* The four language axes, decision 6. Created here rather than inside APP so
+   that anything reading them before the first detection gets a defined shape
+   instead of undefined. */
+var TT_LANG_STATE = {
+  doc: null, docManual: false, docSure: false,
+  job: null, jobManual: false, jobSure: false
+};
+
+function ttLangState() {
+  if (typeof APP !== 'undefined' && APP) {
+    if (!APP.lang) APP.lang = TT_LANG_STATE;
+    return APP.lang;
   }
-  return out;
+  return TT_LANG_STATE;
 }
 
-function foreignScriptSpliceReason(original, candidate) {
-  var o = String(original == null ? '' : original);
-  var c = String(candidate == null ? '' : candidate);
-
-  /* Checked first and separately from everything below it. This one does not
-     ask which language carries the line, because there is no share of Arabic
-     that is acceptable inside a Hebrew resume. The original is consulted only
-     so that a candidate whose own file legitimately contains another script
-     keeps what they wrote. */
-  var alien = alienScriptWords(c);
-  if (alien.length && !alienScriptWords(o).length) {
-    return 'הניסוח שחזר הכיל מילים בכתב שאינו עברית או אנגלית: ' + alien.slice(0, 3).join(', ') + '.';
-  }
-
-  if (TT_HEBREW_ONE.test(o)) return '';            // the line already had Hebrew in it
-  if (!TT_HEBREW_ONE.test(c)) return '';           // nothing Hebrew came back
-  if (!/[A-Za-z]/.test(o)) return '';              // nothing to contaminate
-  return 'השורה המקורית באנגלית והניסוח שחזר שתל בתוכה מילים בעברית.';
+function currentDocLang() {
+  var st = ttLangState();
+  if (st.doc) return st.doc;
+  if (typeof APP !== 'undefined' && APP && APP.doc) { try { return docLanguage(APP.doc); } catch (e) {} }
+  return 'he';
 }
 
-function languageLockVerdict(original, candidate) {
-  var splice = foreignScriptSpliceReason(original, candidate);
-  if (splice) return { ok: false, reason: splice };
-  var o = wordLangCounts(original);
-  var oLang = dominantLang(o);
-  if (oLang === 'neutral') return { ok: true };
-  var c = wordLangCounts(candidate);
-  if (dominantLang(c) === oLang) return { ok: true };
-  var kept = oLang === 'he' ? c.he : c.en;
-  var need = Math.max(2, Math.ceil(c.total * TT_LANG_LOCK_SHARE));
-  if (kept >= need) return { ok: true };          // still carried by the original language
-  return {
-    ok: false,
-    reason: 'השורה המקורית ' + (oLang === 'he' ? 'בעברית' : 'באנגלית') +
-            ' והניסוח שחזר נכתב ' + (oLang === 'he' ? 'באנגלית' : 'בעברית') + '.'
-  };
+function currentJobLang() {
+  var st = ttLangState();
+  if (st.job) return st.job;
+  var j = (typeof $ === 'function' && $('jobInput')) ? $('jobInput').value : '';
+  return j.trim() ? detectLang(j) : currentDocLang();
+}
+
+function alienScriptWords(text, docLang) {
+  return TT_LOCK.introducedAlienWords('', text, docLang || currentDocLang());
+}
+
+/* Refusals travel as a code plus its parameters, never as a finished sentence.
+   Under decision 5 the reason is shown in the interface language, and a
+   Hebrew string baked into the engine could never be rendered in Croatian.
+   This function is the temporary renderer; it moves into the string catalogue
+   in the next step and nothing above it has to change when it does. */
+function lockReasonText(v) {
+  if (!v || v.ok) return '';
+  switch (v.code) {
+    case 'alien_script':
+      return 'הניסוח שחזר הכיל מילים בכתב שאינו שייך למסמך: ' + (v.words || []).join(', ') + '.';
+    case 'native_spliced_into_latin':
+      return 'השורה המקורית נכתבה באותיות לטיניות והניסוח שחזר שתל בתוכה מילים בשפת המסמך.';
+    case 'script_changed':
+      return 'השורה המקורית נכתבה ב' + langName(v.from) + ' והניסוח שחזר נכתב בכתב אחר.';
+    case 'language_changed':
+      return 'השורה המקורית נכתבה ב' + langName(v.from) + ' והניסוח שחזר נכתב ב' + langName(v.to) + '.';
+    default:
+      return 'הניסוח שחזר לא נכתב בשפת השורה המקורית.';
+  }
+}
+
+function foreignScriptSpliceReason(original, candidate, docLang) {
+  var v = TT_LOCK.verdict(original, candidate, docLang || currentDocLang());
+  if (v.ok) return '';
+  if (v.code === 'alien_script' || v.code === 'native_spliced_into_latin') return lockReasonText(v);
+  return '';
+}
+
+function languageLockVerdict(original, candidate, docLang) {
+  var v = TT_LOCK.verdict(original, candidate, docLang || currentDocLang());
+  return v.ok ? { ok: true } : { ok: false, code: v.code, detail: v, reason: lockReasonText(v) };
 }
 
 function enforceLanguageLock(original, candidate) {
@@ -2253,9 +2967,17 @@ function clicheFlagsIn(text) {
   return out;
 }
 
+var TT_RANGE_WORD = {
+  he: ' עד ', ar: ' إلى ', en: ' to ', fr: ' à ', es: ' a ', de: ' bis ',
+  it: ' a ', pt: ' a ', hr: ' do ', ru: ' по ', ja: '～', hi: ' से '
+};
+
 function stripHyphens(text, lang) {
   var s = String(text == null ? '' : text);
-  var rangeWord = lang === 'he' ? ' עד ' : ' to ';
+  /* The word that replaces a dash in "2017-2020". It has to be in the
+     language of the LINE, and folding twelve languages into Hebrew or English
+     put an English "to" inside a Japanese date range. */
+  var rangeWord = TT_RANGE_WORD[lang] || TT_RANGE_WORD.en;
   // leading list marker, the bullet glyph is added back by the renderer
   s = s.replace(/^\s*[-–—•*]\s+/, '');
   // numeric ranges: 2017-2020, 10-15%
@@ -2305,7 +3027,10 @@ function sanitizeAiText(text, lang) {
   s = s.replace(/,\s*,/g, ',');
   s = s.replace(/^\s*[,;]\s*/, '');
   s = s.trim();
-  if (lg !== 'he') s = fixSentenceCase(s);
+  /* Sentence case belongs to scripts that HAVE case. Applying it to Arabic,
+     Devanagari, kana or kanji is at best a no op and at worst mangles the
+     line, exactly as upper casing a Hebrew heading did. */
+  if (TT_CASED_SCRIPTS.indexOf(TT_LANG.script(s)) !== -1) s = fixSentenceCase(s);
   return s;
 }
 
@@ -2923,6 +3648,17 @@ function apiErrorMessage(status, json) {
   if (status === 400 && /API key not valid|API_KEY_INVALID/i.test(detail)) {
     return 'המפתח שהוזן אינו תקין. בדוק שהעתקת אותו במלואו מ־Google AI Studio.';
   }
+  /* Decision 24. Google returns the same 400 or 403 for a key that is fine but
+     used from a country the API does not serve. Left generic, the person is
+     stuck without knowing whether the fault is theirs, the app's, or
+     temporary, and there is nothing they can do about this one. Naming it is
+     the whole fix. */
+  if (/User location is not supported|location is not supported|FAILED_PRECONDITION/i.test(detail)) {
+    return L('המפתח תקין, אבל Gemini API אינו זמין במדינה שממנה אתה גולש. ' +
+             'זו מגבלה של גוגל ולא של האפליקציה, ואין דרך לעקוף אותה מכאן.',
+             'The key is valid, but the Gemini API is not available in the country you are browsing from. ' +
+             'That is a Google restriction, not an app one, and it cannot be worked around from here.');
+  }
   if (status === 403) return 'הגישה נדחתה (403). ייתכן שה־API לא מופעל בפרויקט או שהמפתח מוגבל.';
   if (status === 429) return 'חרגת ממכסת השימוש (429). נסה שוב בעוד דקה או השתמש במפתח אחר.';
   if (status === 0) return 'אין חיבור לרשת, או שהבקשה נחסמה על ידי הדפדפן.';
@@ -3312,7 +4048,16 @@ var TT_HEAD_SEP_RE = /\||\t|\s{3,}|\s[–—]\s|·|، | \/ /;
 var TT_METRIC_RE = /%|\b\d+\s*(?:users|customers|people|hours|days|projects|sites|systems)\b|משתמשים|לקוחות|אתרים|פרויקטים/i;
 var TT_PRESENT_RE = /(present|current|today|now|היום|כיום|בהווה)\s*$/i;
 
-function ttWordCount(t) { return String(t).trim().split(/\s+/).filter(Boolean).length; }
+/* v38: every word count in this file goes through TT_LANG, which uses
+   Intl.Segmenter. A whole Japanese bullet is ONE word to a whitespace split,
+   so the line length guard, the page fitting and the language lock share test
+   all measured 1 and reported nothing wrong. They did not fail, they measured
+   a falsehood, which is worse. */
+function ttWords(t, lang) {
+  var w = TT_LANG.words(t, lang || (typeof currentDocLang === 'function' ? currentDocLang() : 'en'));
+  return w || String(t == null ? '' : t).trim().split(/\s+/).filter(Boolean);
+}
+function ttWordCount(t, lang) { return ttWords(t, lang).length; }
 
 function hasDateSignal(t) { return YEAR_RE.test(t) || TT_PRESENT_RE.test(t); }
 
@@ -4014,7 +4759,8 @@ function domainModeBlock() {
    The old version of this asked for three thin lists and got three thin lists.
    It now asks for one entry per distinct requirement, with ids, because every
    later stage addresses requirements by id. */
-function promptSignals(jobText) {
+function promptSignals(jobText, docLang) {
+  var docLangName = TT_LANG.name(docLang || currentDocLang());
   return [
     'You are a senior recruiter reading a job posting on behalf of a candidate.',
     'Break the posting down completely. Being exhaustive is the whole job here: a term that is in the posting and missing from your output is a failure.',
@@ -4022,9 +4768,22 @@ function promptSignals(jobText) {
     'Do not invent requirements that are not in the text, and do not merge two different requirements into one entry.',
     'Keep every item in the language of the posting itself.',
     '',
+    /* Decision 13. Vocabulary overlap is measured by looking for the posting's
+       keywords inside the resume, literally. When the two are in different
+       languages that overlap is near zero by construction, which used to make
+       an excellent candidate fail the world gate purely for writing in another
+       language. The equivalent terms cost nothing: the model is already
+       reading the posting in this same call. */
+    'keywords_doc: the SAME keywords written in ' + docLangName + ', the language of the resume this will be',
+    'compared against. One entry per keyword in keywords, same order, same meaning. Use the term a native',
+    'speaker in that field would actually write, not a word for word translation. If the term is a product',
+    'or standard name that is written in Latin letters everywhere, repeat it unchanged: SAP is SAP.',
+    'When the posting and the resume are already in the same language, repeat keywords exactly.',
+    '',
     'Return JSON only, exactly this shape:',
     '{"role_title":"","seniority":"","domain":"",' +
       '"requirements":[{"id":"R1","text":"","kind":"hard_skill","must_have":true,"weight":85,"keywords":[""],' +
+      '"keywords_doc":[""],' +
       '"names_tool":"","module":"","system_class":"","statutory":false,"magnitude":{"value":0,"unit":""}}],' +
       '"success_signals":[{"signal":"","why":""}],' +
       '"screening_questions":[""]}',
@@ -4101,7 +4860,7 @@ function promptSignals(jobText) {
    and decides what the resume already proves, including the case the old
    version always missed: real but differently named experience. */
 function promptCoverage(surgeonText, signals, uiLang, fullResume) {
-  var lang = uiLang === 'en' ? 'English' : 'Hebrew';
+  var lang = TT_LANG.name(uiLang);
   return [
     'You are comparing one resume against one job posting, requirement by requirement.',
     'You see only the summary, experience, skills and additional sections of the resume. Line ids are given, use them.',
@@ -4308,7 +5067,12 @@ function promptAnswerSpell(text, lang) {
 }
 
 function chatTurnInstruction(questionLang, isFirst) {
-  var qLangName = langName(questionLang === 'en' ? 'en' : 'he');
+  /* This told the model 'Hebrew' for every language that was not English, so
+     a visitor who chose Croatian questions was asking the model, in writing,
+     for Hebrew ones. Nothing downstream could have recovered from that: the
+     question guard would have refused every attempt and the run would have
+     stalled on a retry loop. */
+  var qLangName = TT_LANG.name(questionLang);
   return (isFirst ? 'Ask your first question, about the first item in the queue.' : 'Ask the next question, or set done to true if the queue is exhausted.') +
     ' Write the question in ' + qLangName + '.' +
     ' The question language is a display choice by the user and says nothing about the resume language: the resume lines keep their own language regardless.';
@@ -4650,7 +5414,7 @@ function promptSynthesis(cat, sectionText, signals, coverage, qa, uiHint) {
    three different decisions, so they are asked for separately and each one is
    approved separately by the candidate. */
 function promptSkillPlan(groups, signals, coverage, qa, uiLang) {
-  var lang = uiLang === 'en' ? 'English' : 'Hebrew';
+  var lang = TT_LANG.name(uiLang);
   var answers = answerBlock(qa, reqTextMap(signals));
 
   return ttPromptJoin([
@@ -4913,7 +5677,7 @@ function normalizeSignals(obj) {
 var TT_TOKENS = { signals: 16000, coverage: 24000, synthesis: 16000, skills: 8000, spell: 4000, qtranslate: 4000, answerSpell: 1500, question: 4000 };
 
 async function stepExtractSignals(jobText) {
-  var raw = await callGemini(promptSignals(jobText), {
+  var raw = await callGemini(promptSignals(jobText, currentDocLang()), {
     json: true, temperature: 0.2, maxOutputTokens: TT_TOKENS.signals, timeoutMs: 90000,
     failOnTruncation: true
   });
@@ -5037,7 +5801,7 @@ function allKeywords() {
        here, and because this runs inside the queue build, the whole of stage 3
        died on a posting that was otherwise perfectly normal. Every other reader
        of this field already guarded it; this one did not. */
-    (Array.isArray(r && r.keywords) ? r.keywords : []).forEach(function (k) {
+    ttReqKeywords(r || {}).forEach(function (k) {
       var n = normalizeToken(k);
       if (!n || seen[n]) return;
       seen[n] = 1;
@@ -5201,7 +5965,7 @@ function summaryShape(doc) {
   var bullets = 0, words = 0;
   lines.forEach(function (l) {
     if (l.isBullet || /^\s*[•\-–*]/.test(l.text)) bullets++;
-    words += String(l.text).trim().split(/\s+/).length;
+    words += ttWordCount(l.text, l.lang);
   });
   /* One long line is a paragraph however it was typed. Several short ones that
      are not marked as bullets are still a list to the eye that reads them. */
@@ -5233,7 +5997,7 @@ function postingFragmentation() {
     /* A requirement stated in a handful of words is a name whatever its kind:
        "Excel מתקדם" and "בקרת איכות" are items, "אחריות על שרשרת האספקה מקצה
        לקצה מול ספקים בארץ ובחו\'ל" is a description of a job. */
-    var short = String(r.text || '').trim().split(/\s+/).length <= 5;
+    var short = ttWordCount(r.text) <= 5;
     if (named || short) atomic += w;
   });
   if (!total) return null;
@@ -5285,10 +6049,10 @@ function postingLayout() {
   if (lines.length < TT_JD_MIN_LINES) return null;
   var bullets = 0, bulletWords = 0, allWords = 0;
   lines.forEach(function (l) {
-    allWords += l.split(/\s+/).filter(Boolean).length;
+    allWords += ttWordCount(l);
     if (!TT_JD_BULLET_RE.test(l)) return;
     bullets++;
-    bulletWords += l.replace(TT_JD_BULLET_RE, '').split(/\s+/).filter(Boolean).length;
+    bulletWords += ttWordCount(l.replace(TT_JD_BULLET_RE, ''));
   });
   return {
     lines: lines.length,
@@ -5654,7 +6418,7 @@ var TT_DISTANCE = {
 };
 
 async function stepCoverage() {
-  var raw = await callGemini(promptCoverage(surgeonView(APP.doc), APP.signals, 'he', APP.resumeRaw), {
+  var raw = await callGemini(promptCoverage(surgeonView(APP.doc), APP.signals, TT_UI_LANG, APP.resumeRaw), {
     json: true, temperature: 0.25, maxOutputTokens: TT_TOKENS.coverage, timeoutMs: 110000,
     failOnTruncation: true
   });
@@ -6756,12 +7520,24 @@ var TT_JSON_REPAIR = [
    this app does not support. Deliberately names the words rather than saying
    "use Hebrew", because the model wrote the rest of the sentence in Hebrew
    already and a general instruction would read as satisfied. */
-var TT_SCRIPT_REPAIR = [
-  'That question contained one or more words written in a script that is neither Hebrew nor Latin.',
-  'This application supports Hebrew and English only. Arabic, Cyrillic, Greek, Devanagari, Thai and CJK characters must never appear in your output.',
-  'Write the question again, in the language you were asked to use, with every word in that language\'s own alphabet.',
-  'Same JSON shape, nothing before it and nothing after it.'
-].join('\n');
+/* v38: built per run rather than fixed, because the old text told the model
+   that Arabic, Cyrillic, Devanagari and CJK must never appear, and four of
+   those are now supported languages. */
+function ttScriptRepair(askLang, verdict) {
+  var lines = [];
+  if (verdict && verdict.code === 'alien_script') {
+    lines.push('That question contained words written in a script that does not belong to ' +
+               langName(askLang) + ': ' + (verdict.words || []).join(', ') + '.');
+  } else {
+    lines.push('That question was not written in ' + langName(askLang) + '.');
+  }
+  lines.push('Write the question again, entirely in ' + langName(askLang) +
+             ', with every word in that language\'s own alphabet.');
+  lines.push('Latin letters are allowed only for product, standard and organisation names ' +
+             'that are written that way in every language: SAP, ISO 13485, AWS.');
+  lines.push('Same JSON shape, nothing before it and nothing after it.');
+  return lines.join('\n');
+}
 
 /* Three failures used to look identical from the outside, and all three ended
    the conversation without a single question and without a word of complaint:
@@ -6801,15 +7577,24 @@ async function askNextQuestion(userMessage) {
        rather than to edit it out: deleting a word from the middle of a question
        leaves a sentence that reads as broken rather than as foreign. One retry,
        because a second failure on the same turn is not a slip. */
-    var alien = alienScriptWords(String(obj.question || ''));
-    if (alien.length) {
+    /* v38, decision 17. The old check only looked for a THIRD script, so a
+       Hebrew clause inside an English question passed untouched: both scripts
+       were on the allow list. That is the bleed that was actually seen. The
+       question now goes through the same verdict the rewritten resume lines
+       go through, which catches a mixed language question as well as a
+       foreign script one. */
+    var qv = TT_LOCK.questionVerdict(String(obj.question || ''), APP.chat.lang);
+    if (!qv.ok && qv.code !== 'empty') {
       if (!scriptRetried) {
         scriptRetried = true;
         obj = null;
-        APP.chat.history.push({ role: 'user', parts: [{ text: TT_SCRIPT_REPAIR }] });
+        APP.chat.history.push({ role: 'user', parts: [{ text: ttScriptRepair(APP.chat.lang, qv) }] });
         continue;
       }
-      transportError = 'השאלה חזרה עם מילים בכתב שאינו עברית או אנגלית (' + alien.slice(0, 3).join(', ') + ').';
+      transportError = qv.code === 'alien_script'
+        ? 'השאלה חזרה עם מילים בכתב שאינו שייך ל' + langName(APP.chat.lang) +
+          ' (' + (qv.words || []).join(', ') + ').'
+        : 'השאלה לא חזרה בשפה שנבחרה (' + langName(APP.chat.lang) + ').';
       obj = null;
       break;
     }
@@ -6922,7 +7707,14 @@ async function translateAnswerForResume(entry) {
     /* A translation that came back in the language it started in is not a
        translation, and handing it over as one would put the exact text this
        whole path exists to keep out in front of the writer. */
-    if (detectLang(out) !== docLang) throw new Error('התרגום לא חזר בשפת קורות החיים.');
+    /* v38: only refuse when the reading is CERTAIN. Inside the Latin cluster
+       the classifier is a heuristic, and throwing away a correct Portuguese
+       translation because the detector was unsure between Portuguese and
+       Spanish would be a worse failure than the one this gate prevents. */
+    var outRead = TT_LANG.detectLine(out, docLang);
+    if (outRead.confident && outRead.code && outRead.code !== docLang) {
+      throw new Error('התרגום לא חזר בשפת קורות החיים.');
+    }
     /* The same two gates every other piece of model text passes: the AI
        punctuation and the AI vocabulary come out, and an insult means the
        whole thing is refused. This sentence is about to become resume text. */
@@ -6961,7 +7753,17 @@ async function translateAnswerForResume(entry) {
    factual summary, just without the argument on top of it. */
 var TT_CLOSING_Q = {
   he: 'שאלה אחרונה, והיא שונה מכל הקודמות. אם המגייס היה מתקשר אליך עכשיו ושואל "למה דווקא אתה למשרה הזו?" — מה היית עונה לו, במשפט או שניים? זו הנקודה היחידה שרק אתה יודע; קורות החיים לבדם לא יכולים לגזור אותה. אפשר גם לדלג.',
-  en: 'One last question, and it is different from the others. If the recruiter called you right now and asked "why you for this job?" — what would you say, in a sentence or two? This is the one thing only you know; the resume on its own cannot produce it. Feel free to skip.'
+  ar: 'سؤال أخير، وهو مختلف عن كل ما سبق. لو اتصل بك المسؤول عن التوظيف الآن وسألك "لماذا أنت تحديدًا لهذه الوظيفة؟" — بماذا كنت سترد، في جملة أو جملتين؟ هذه النقطة الوحيدة التي تعرفها أنت وحدك؛ السيرة الذاتية وحدها لا تستطيع استنتاجها. يمكنك التخطي.',
+  en: 'One last question, and it is different from the others. If the recruiter called you right now and asked "why you for this job?" — what would you say, in a sentence or two? This is the one thing only you know; the resume on its own cannot produce it. Feel free to skip.',
+  fr: 'Une dernière question, différente de toutes les précédentes. Si le recruteur vous appelait maintenant et demandait « pourquoi vous pour ce poste ? » — que répondriez-vous, en une phrase ou deux ? C\'est la seule chose que vous seul savez ; le CV à lui seul ne peut pas la produire. Vous pouvez aussi passer.',
+  es: 'Una última pregunta, distinta de todas las anteriores. Si el reclutador te llamara ahora y preguntara "¿por qué tú para este puesto?" — ¿qué le responderías, en una o dos frases? Es lo único que solo tú sabes; el currículum por sí solo no puede deducirlo. También puedes saltarla.',
+  de: 'Eine letzte Frage, und sie ist anders als alle vorherigen. Wenn die Personalerin Sie jetzt anriefe und fragte: „Warum gerade Sie für diese Stelle?“ — was würden Sie antworten, in ein bis zwei Sätzen? Das ist das Einzige, was nur Sie wissen; der Lebenslauf allein kann es nicht liefern. Sie dürfen auch überspringen.',
+  it: 'Un\'ultima domanda, diversa da tutte le precedenti. Se il selezionatore ti chiamasse adesso e chiedesse "perché proprio tu per questa posizione?" — che cosa risponderesti, in una o due frasi? È l\'unica cosa che sai soltanto tu; il CV da solo non può ricavarla. Puoi anche saltarla.',
+  pt: 'Uma última pergunta, e ela é diferente de todas as anteriores. Se o recrutador ligasse para você agora e perguntasse "por que você para esta vaga?" — o que você responderia, em uma ou duas frases? É a única coisa que só você sabe; o currículo sozinho não consegue produzir isso. Você também pode pular.',
+  hr: 'Posljednje pitanje, drukčije od svih prethodnih. Da vas regruter sada nazove i pita "zašto baš vi za ovaj posao?" — što biste odgovorili, u rečenici ili dvije? To je jedino što znate samo vi; životopis sam po sebi to ne može izvesti. Možete i preskočiti.',
+  ru: 'Последний вопрос, и он не похож на предыдущие. Если бы рекрутер позвонил вам прямо сейчас и спросил «почему именно вы на эту должность?» — что бы вы ответили, в одну-две фразы? Это единственное, что знаете только вы; резюме само по себе этого не даст. Можно и пропустить.',
+  ja: '最後の質問です。これまでとは性質が違います。もし採用担当者が今あなたに電話をかけてきて「なぜこの仕事にあなたなのですか」と尋ねたら、一言か二言で何と答えますか。これはあなたにしか分からない唯一の点で、履歴書だけからは導けません。とばしても構いません。',
+  hi: 'आखिरी सवाल, और यह बाकी सबसे अलग है। अगर भर्तीकर्ता अभी आपको फ़ोन करके पूछे "इस नौकरी के लिए आप ही क्यों?" — तो आप एक या दो वाक्य में क्या कहेंगे? यही एक बात है जो केवल आप जानते हैं; बायोडाटा अकेले इसे नहीं निकाल सकता। चाहें तो छोड़ भी सकते हैं।'
 };
 
 function finishChat(note) {
@@ -6973,7 +7775,11 @@ function finishChat(note) {
     APP.chat.closingAsked = true;
     APP.chat.isClosing = true;
     APP.chat.finishNote = note || '';
-    var q = TT_CLOSING_Q[APP.chat.lang === 'en' ? 'en' : 'he'];
+    /* The one question the app writes itself rather than asking the model
+       for. It has to exist in every language the questions can be asked in,
+       and falling back to English is better than asking a Croatian speaker a
+       question in Hebrew. */
+    var q = TT_CLOSING_Q[APP.chat.lang] || TT_CLOSING_Q.en;
     APP.chat.pendingQuestion = q;
     APP.chat.pendingReqId = '';
     APP.chat.pendingReqIds = [];
@@ -7134,8 +7940,20 @@ function renderChat() {
 
    The answers are never touched. Those are the candidate's own words and
    translating them would be rewriting what they said. */
+/* A language named inside a Hebrew sentence needs its Hebrew name, not its
+   English one and not its native one: "מתרגם את השאלות לEnglish" reads badly
+   and "מתרגם את השאלות ל日本語" reads worse. These move into the catalogue
+   with the rest of the runtime strings. */
+var TT_LANG_LABEL_HE = {
+  he: 'עברית', ar: 'ערבית', en: 'אנגלית', fr: 'צרפתית', es: 'ספרדית', de: 'גרמנית',
+  it: 'איטלקית', pt: 'פורטוגזית', hr: 'קרואטית', ru: 'רוסית', ja: 'יפנית', hi: 'הינדית'
+};
+function ttLangLabel(code) {
+  return TT_UI_LANG === 'he' ? (TT_LANG_LABEL_HE[code] || code) : TT_LANG.name(code);
+}
+
 async function setQuestionLang(lang) {
-  lang = lang === 'en' ? 'en' : 'he';
+  if (!TT_LANG.isSupported(lang)) return;
   var changed = APP.chat.lang !== lang;
   APP.chat.lang = lang;
   updateLangButtons();
@@ -7144,10 +7962,8 @@ async function setQuestionLang(lang) {
 }
 
 function setLangButtonsBusy(busy) {
-  ['btnLangHe', 'btnLangEn'].forEach(function (id) {
-    var b = $(id);
-    if (b) b.disabled = !!busy;
-  });
+  var els = document.querySelectorAll('#qLangPick button');
+  for (var i = 0; i < els.length; i++) els[i].disabled = !!busy;
 }
 
 async function retranslateQuestions(lang) {
@@ -7155,13 +7971,17 @@ async function retranslateQuestions(lang) {
   var idx = [], list = [];
   APP.chat.turns.forEach(function (t, i) {
     if (t.role !== 'model' || !t.text) return;
-    if (detectLang(t.text) === lang) return;          // already said in that language
+    /* v38: every turn records the language it was written in, so the recorded
+       value is used instead of running the detector again. With twelve
+       languages a re-read of a short question could not tell French from
+       English reliably, and a wrong skip leaves the panel half translated. */
+    if ((t.lang || detectLang(t.text)) === lang) return;   // already said in that language
     idx.push(i); list.push(t.text);
   });
   if (!list.length) return;
   if (!getApiKey()) {
     showNotice('החלפת שפת השאלות דורשת מפתח API כדי לתרגם את השאלות שכבר על המסך. השאלות הבאות יישאלו ב' +
-               (lang === 'en' ? 'אנגלית' : 'עברית') + '.');
+               ttLangLabel(lang) + '.');
     return;
   }
 
@@ -7169,7 +7989,8 @@ async function retranslateQuestions(lang) {
   // answer is dropped rather than pasted over the newer language
   var token = (APP.chat.langSeq = (APP.chat.langSeq || 0) + 1);
   setLangButtonsBusy(true);
-  setStatus('מתרגם את השאלות ל' + (lang === 'en' ? 'אנגלית' : 'עברית') + '...', true);
+  setStatus(L('מתרגם את השאלות ל' + ttLangLabel(lang) + '...',
+                'Translating the questions into ' + TT_LANG.name(lang) + '...'), true);
   try {
     var raw = await callGemini(promptTranslateQuestions(list, lang), {
       json: true, temperature: 0, maxOutputTokens: TT_TOKENS.qtranslate, timeoutMs: 45000
@@ -7195,19 +8016,86 @@ async function retranslateQuestions(lang) {
     renderChat();
   } catch (e) {
     showNotice('לא הצלחתי לתרגם את השאלות שכבר על המסך: ' + ((e && e.message) || '') +
-               ' הן נשארו כפי שנשאלו, והשאלות הבאות יישאלו ב' + (lang === 'en' ? 'אנגלית' : 'עברית') + '.');
+               ' הן נשארו כפי שנשאלו, והשאלות הבאות יישאלו ב' + ttLangLabel(lang) + '.');
   } finally {
     setLangButtonsBusy(false);
     setStatus('');
   }
 }
 
+/* The two or three languages worth offering without opening a list, and why
+   each one is being offered. The reason is shown, because an unexplained
+   suggestion is just a shorter list. */
+function qLangSuggestions() {
+  var out = [];
+  function add(code, whyHe, whyEn) {
+    if (!code || !TT_LANG.isSupported(code)) return;
+    for (var i = 0; i < out.length; i++) if (out[i].code === code) return;
+    out.push({ code: code, why: L(whyHe, whyEn) });
+  }
+  add(currentDocLang(), 'שפת קורות החיים', 'your resume');
+  add(APP.lang && APP.lang.job, 'שפת המשרה', 'the posting');
+  add(TT_UI_LANG, 'שפת הממשק', 'the interface');
+  add('en', 'נפוץ', 'common');
+  return out.slice(0, 3);
+}
+
 function updateLangButtons() {
-  ['btnLangHe', 'btnLangEn'].forEach(function (id) {
-    var b = $(id);
-    if (!b) return;
-    var on = b.getAttribute('data-lang') === APP.chat.lang;
-    b.className = 'tt-langbtn' + (on ? ' is-on' : '');
+  var row = $('qLangSuggest');
+  if (row) {
+    row.innerHTML = '';
+    qLangSuggestions().forEach(function (sug) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-lang', sug.code);
+      b.className = 'tt-langbtn' + (sug.code === APP.chat.lang ? ' is-on' : '');
+      b.setAttribute('dir', TT_LANG.dir(sug.code));
+      b.innerHTML = '<span>' + TT_LANG.nativeName(sug.code) + '</span>' +
+                    '<span style="opacity:.6;font-weight:500;font-size:.72rem">' + sug.why + '</span>';
+      b.addEventListener('click', function () { setQuestionLang(sug.code); });
+      row.appendChild(b);
+    });
+  }
+
+  var menu = $('qLangMenu');
+  if (menu) {
+    menu.innerHTML = '';
+    TT_LANG.all().forEach(function (l) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-lang', l.code);
+      b.setAttribute('role', 'option');
+      b.setAttribute('dir', l.dir);
+      b.setAttribute('lang', l.code);
+      b.setAttribute('aria-selected', l.code === APP.chat.lang ? 'true' : 'false');
+      b.textContent = l.native;
+      b.addEventListener('click', function () {
+        menu.classList.add('tt-hidden');
+        var m = $('btnQLangMore');
+        if (m) m.setAttribute('aria-expanded', 'false');
+        setQuestionLang(l.code);
+      });
+      menu.appendChild(b);
+    });
+  }
+}
+
+function bindQLangMenu() {
+  var more = $('btnQLangMore');
+  if (!more) return;
+  more.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var m = $('qLangMenu');
+    var open = m.classList.contains('tt-hidden');
+    m.classList.toggle('tt-hidden', !open);
+    more.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function (ev) {
+    var m = $('qLangMenu');
+    if (!m || m.classList.contains('tt-hidden')) return;
+    if (ev.target.closest && ev.target.closest('#qLangPick')) return;
+    m.classList.add('tt-hidden');
+    more.setAttribute('aria-expanded', 'false');
   });
 }
 
@@ -7277,7 +8165,7 @@ async function runSynthesis() {
       cat: 'skills',
       label: 'הכישורים',
       run: function () {
-        return callGemini(promptSkillPlan(APP.skillModel.groups, APP.signals, APP.coverage, APP.chat.qa, 'he'), {
+        return callGemini(promptSkillPlan(APP.skillModel.groups, APP.signals, APP.coverage, APP.chat.qa, TT_UI_LANG), {
           json: true, temperature: 0.25, maxOutputTokens: TT_TOKENS.skills, timeoutMs: 60000,
           failOnTruncation: true
         });
@@ -8714,6 +9602,19 @@ function langLockPanel() {
 
    A requirement is covered when any of its keywords appears, and it counts for
    what the posting shows it is worth. */
+/* Decision 13. Each requirement carries its keywords twice: as the posting
+   wrote them, and as they would be written in the resume's language. Both are
+   searched, and a hit on either counts, so a Hebrew resume can cover a French
+   posting without the candidate having to guess which words to use. */
+function ttReqKeywords(r) {
+  var out = (r.keywords || []).slice();
+  (r.keywords_doc || []).forEach(function (k) {
+    if (k && out.indexOf(k) === -1) out.push(k);
+  });
+  if (!out.length && r.text) out.push(r.text);
+  return out;
+}
+
 function keywordReport(text) {
   var hay = normalizeToken(text);
   var terms = allKeywords();
@@ -8971,7 +9872,7 @@ function atsAudit(text) {
     add('metrics', 'ok', 'יש נתונים מדידים בניסיון', '');
   }
 
-  var long = editableLines(doc).filter(function (l) { return l.text.split(/\s+/).length > 34; });
+  var long = editableLines(doc).filter(function (l) { return ttWordCount(l.text, l.lang) > 34; });
   if (long.length) {
     add('length', 'warn', long.length + ' שורות ארוכות מדי',
         'שורה מעל 34 מילים לא נקראת, היא נסרקת. פיצול לשתי שורות קצרות מחזיר אותה לקריאה.',
@@ -9228,7 +10129,9 @@ async function startQuestions() {
   setStage(3);
   APP.queue = buildQueue();
   APP.chat.max = questionBudget(APP.queue);
-  APP.chat.lang = docLanguage(APP.doc) === 'en' ? 'en' : 'he';
+  /* v38: the questions open in the language of the resume, whichever of the
+     twelve that is, rather than being folded into Hebrew or English. */
+  APP.chat.lang = docLanguage(APP.doc) || 'he';
   APP.chat.qa = [];
   updateLangButtons();
   renderQueue();
@@ -9276,14 +10179,14 @@ function promptWorldCheck(resumeHead, signals, uiLang) {
     '  different  unrelated occupations. A lawyer and a production worker. An accountant and a medical clown. Nothing carries over but general competence.',
     '',
     'Judge the OCCUPATION, not the seniority gap and not whether they would get the job. A junior applying far above their level is still "same" if it is the same work.',
-    'why: one short sentence in ' + (uiLang === 'en' ? 'English' : 'Hebrew') + ', naming the two worlds.',
+    'why: one short sentence in ' + TT_LANG.name(uiLang) + ', naming the two worlds.',
     'Be honest in both directions. Calling a real stretch "same" sends someone into a wall; calling a normal career step "different" costs them a job they would have got.'
   ].join('\n');
 }
 
 async function stepWorldCheck() {
   var head = String(APP.resumeRaw || '').slice(0, 2500);
-  var raw = await callGemini(promptWorldCheck(head, APP.signals || {}, 'he'), { maxOutputTokens: 400, json: true });
+  var raw = await callGemini(promptWorldCheck(head, APP.signals || {}, TT_UI_LANG), { maxOutputTokens: 400, json: true });
   var j = safeJsonParse(raw) || {};
   var rel = String(j.relation || '').trim();
   APP.world = {
@@ -9650,14 +10553,19 @@ function bindStageUi() {
   var dBroad = $('btnDomainBroad');
   if (dBroad) dBroad.addEventListener('click', function () { chooseDomainMode('broad'); });
 
-  var btns = document.querySelectorAll('.tt-langbtn');
-  for (var i = 0; i < btns.length; i++) {
-    btns[i].addEventListener('click', function (ev) { setQuestionLang(ev.currentTarget.getAttribute('data-lang')); });
+  /* Scoped to the chat card on purpose. The interface language button shares
+     the .tt-langbtn class, and an unscoped query used to hand it to
+     setQuestionLang, which would have changed the questions when the visitor
+     only meant to change the chrome. */
+  var qBtns = document.querySelectorAll('#chatCard [data-lang]');
+  for (var i = 0; i < qBtns.length; i++) {
+    qBtns[i].addEventListener('click', function (ev) { setQuestionLang(ev.currentTarget.getAttribute('data-lang')); });
   }
   var tabs = document.querySelectorAll('.tt-tab');
   for (var t = 0; t < tabs.length; t++) {
     tabs[t].addEventListener('click', function (ev) { switchTab(ev.currentTarget.getAttribute('data-tab')); });
   }
+  bindQLangMenu();
   updateLangButtons();
   switchTab('final');
   bindReviewUi();
@@ -10032,11 +10940,17 @@ function accentApplies() { return !TT_TEMPLATES[APP.template]; }
 
 function currentTemplate() { return templateByKey(APP.template); }
 
-/* Headings are only upper cased where the template asks for it, and never in
-   Hebrew, which has no case and would just get mangled. */
+/* Headings are only upper cased where the template asks for it, and only in
+   scripts that HAVE upper case. Hebrew has none and would just get mangled,
+   and the same is true of Arabic, Devanagari, kana and kanji: toUpperCase is
+   a no op on some of them and produces nonsense on others, while Latin and
+   Cyrillic both case correctly. So the test is the script, not the language. */
+var TT_CASED_SCRIPTS = ['latin', 'cyrillic', 'greek'];
+
 function headingText(text, tpl) {
   if (!tpl || !tpl.headUpper) return text;
-  return detectLang(text) === 'he' ? text : String(text).toUpperCase();
+  var sc = TT_LANG.script(text);
+  return TT_CASED_SCRIPTS.indexOf(sc) === -1 ? text : String(text).toUpperCase();
 }
 
 /* ---------------- file readers ---------------- */
@@ -10421,15 +11335,16 @@ var DOCX_DOC_RELS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
    never actually said otherwise: it only ever said "rtl" when it wanted rtl
    and stayed silent when it wanted ltr, and silence is not a direction.
    Every direction is now stated outright, here and on every paragraph. */
-function docxStyles(tpl, rtlDoc) {
+function docxStyles(tpl, rtlDoc, docLang) {
+  docLang = docLang || currentDocLang();
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
     '<w:docDefaults>' +
       '<w:rPrDefault><w:rPr>' +
-        '<w:rFonts w:ascii="' + xmlEscape(tpl.docxFont) + '" w:hAnsi="' + xmlEscape(tpl.docxFont) + '" w:cs="' + xmlEscape(tpl.docxFont) + '"/>' +
+        '<w:rFonts' + docxFontAttrs(docLang, tpl.docxFont) + '/>' +
         '<w:sz w:val="' + tpl.bodySize + '"/><w:szCs w:val="' + tpl.bodySize + '"/>' +
         '<w:rtl w:val="' + (rtlDoc ? '1' : '0') + '"/>' +
-        '<w:lang w:val="en-US" w:bidi="he-IL"/>' +
+        '<w:lang' + docxLangTag(docLang) + '/>' +
       '</w:rPr></w:rPrDefault>' +
       '<w:pPrDefault><w:pPr>' +
         /* Word's widow and orphan control defaults to ON when a file says
@@ -10459,12 +11374,58 @@ function xmlEscape(s) {
    opts.runs, when given, splits the line into several runs so part of it can
    be bold. It is still one paragraph and still ordinary text: a parser reads
    exactly the same characters in exactly the same order either way. */
+
+/* ---------- DOCX FONTS AND LANGUAGE TAGS PER SCRIPT, decision 10 ----------
+   The file used to write one font name into w:ascii, w:hAnsi and w:cs, and
+   nothing at all into w:eastAsia. Arial has no Japanese glyphs and no
+   Devanagari glyphs, so a Japanese or Hindi resume reached the recruiter with
+   whatever that copy of Word happened to substitute, which differs between
+   installations. The candidate never sees it, because it happens after the
+   download.
+
+   w:ascii and w:hAnsi cover Latin. w:cs covers complex scripts: Hebrew,
+   Arabic, Devanagari. w:eastAsia covers kana and kanji. And w:bidi was hard
+   coded to he-IL, so every Arabic document declared itself Hebrew. */
+var TT_DOCX_SCRIPT_FONT = {
+  hebrew:     { cs: 'Arial' },
+  arabic:     { cs: 'Arial' },
+  devanagari: { cs: 'Nirmala UI' },
+  japanese:   { eastAsia: 'Yu Gothic' }
+};
+var TT_DOCX_LANG_TAG = {
+  he: 'he-IL', ar: 'ar-SA', en: 'en-US', fr: 'fr-FR', es: 'es-419',
+  de: 'de-DE', it: 'it-IT', pt: 'pt-BR', hr: 'hr-HR', ru: 'ru-RU',
+  ja: 'ja-JP', hi: 'hi-IN'
+};
+
+function docxScriptOf(docLang) {
+  var l = TT_LANG.all().filter(function (x) { return x.code === docLang; })[0];
+  return l ? l.script : 'latin';
+}
+
+function docxFontAttrs(docLang, docxFont) {
+  var f = TT_DOCX_SCRIPT_FONT[docxScriptOf(docLang)] || {};
+  return ' w:ascii="' + xmlEscape(docxFont) + '"' +
+         ' w:hAnsi="' + xmlEscape(docxFont) + '"' +
+         ' w:cs="' + xmlEscape(f.cs || docxFont) + '"' +
+         (f.eastAsia ? ' w:eastAsia="' + xmlEscape(f.eastAsia) + '"' : '');
+}
+
+function docxLangTag(docLang) {
+  var tag = TT_DOCX_LANG_TAG[docLang] || 'en-US';
+  var rtl = TT_LANG.dir(docLang) === 'rtl';
+  var ea  = docxScriptOf(docLang) === 'japanese';
+  return ' w:val="' + (rtl || ea ? 'en-US' : tag) + '"' +
+         ' w:bidi="' + (rtl ? tag : 'he-IL') + '"' +
+         (ea ? ' w:eastAsia="' + tag + '"' : '');
+}
+
 function docxParagraph(text, opts) {
   opts = opts || {};
   var tpl = opts.tpl || currentTemplate();
   var lang = opts.lang || dirLangFor(text, opts.fallbackLang);
   if (lang === 'neutral') lang = opts.fallbackLang || 'he';
-  var rtl = lang === 'he';
+  var rtl = TT_LANG.dir(lang) === 'rtl';
 
   /* The schema fixes the order inside pBdr: top, then left, then bottom, then
      right. A bottom element written before a top one is not a different look,
@@ -10538,7 +11499,7 @@ function docxParagraph(text, opts) {
   // element order inside rPr is fixed by the schema: rFonts, b, bCs, i, iCs, color, spacing, u, sz
   function runProps(run) {
     return '<w:rPr>' +
-      '<w:rFonts w:ascii="' + xmlEscape(tpl.docxFont) + '" w:hAnsi="' + xmlEscape(tpl.docxFont) + '" w:cs="' + xmlEscape(tpl.docxFont) + '"/>' +
+      '<w:rFonts' + docxFontAttrs(opts.fallbackLang || lang, tpl.docxFont) + '/>' +
       (run.bold ? '<w:b/><w:bCs/>' : '') +
       (run.italic ? '<w:i/><w:iCs/>' : '') +
       (opts.color ? '<w:color w:val="' + opts.color + '"/>' : '') +
@@ -10546,7 +11507,7 @@ function docxParagraph(text, opts) {
       (run.underline ? '<w:u w:val="single"/>' : '') +
       '<w:sz w:val="' + size + '"/><w:szCs w:val="' + size + '"/>' +
       '<w:rtl w:val="' + (rtl ? '1' : '0') + '"/>' +
-      '<w:lang w:val="en-US" w:bidi="he-IL"/>' + '</w:rPr>';
+      '<w:lang' + docxLangTag(opts.fallbackLang || lang) + '/>' + '</w:rPr>';
   }
 
   var runs = opts.runs && opts.runs.length ? opts.runs : [{ text: text, bold: !!opts.bold }];
@@ -10669,7 +11630,7 @@ function buildDocxXml(text, tplKey) {
     });
   }
 
-  var rtlDoc = docLang === 'he';
+  var rtlDoc = TT_LANG.dir(docLang) === 'rtl';
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
     '<w:body>' + body +
@@ -10700,7 +11661,7 @@ function buildDocxXml(text, tplKey) {
    it, so the two can never disagree. */
 function docxIsRtl(text) {
   var lang = docDirLang(parseResume(text));
-  return lang === 'he';
+  return TT_LANG.dir(lang) === 'rtl';
 }
 
 async function exportDocx(text, filename, tplKey) {
@@ -10710,7 +11671,7 @@ async function exportDocx(text, filename, tplKey) {
   zip.folder('_rels').file('.rels', DOCX_RELS);
   var word = zip.folder('word');
   word.file('document.xml', buildDocxXml(text, tplKey));
-  word.file('styles.xml', docxStyles(templateByKey(tplKey || APP.template), docxIsRtl(text)));
+  word.file('styles.xml', docxStyles(templateByKey(tplKey || APP.template), docxIsRtl(text), docDirLang(parseResume(text))));
   word.folder('_rels').file('document.xml.rels', DOCX_DOC_RELS);
   var blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   triggerDownload(blob, filename || 'TrueTailor_CV.docx');
@@ -10917,6 +11878,100 @@ function exportPdf(text, tplKey) {
 }
 
 /* ---------------- wiring ---------------- */
+/* ---------- CHOOSING A TRANSLATION TARGET, decision 20 ----------
+   The old rule was one line: "if it is Hebrew make it English, otherwise make
+   it Hebrew". That is not a choice, it is the only other option there was,
+   and with twelve languages it means nothing at all.
+
+   A flat list of twelve for a choice the app can usually guess is friction, so
+   the likely targets come first with the reason written next to each. The
+   posting's language is the single most likely target a resume gets
+   translated into, and the app already knows it. */
+function ttTranslateTargets(sourceLang) {
+  var out = [];
+  function add(code, whyHe, whyEn) {
+    if (!code || code === sourceLang || !TT_LANG.isSupported(code)) return;
+    for (var i = 0; i < out.length; i++) if (out[i].code === code) return;
+    out.push({ code: code, why: L(whyHe, whyEn) });
+  }
+  add(APP.lang && APP.lang.job, 'שפת המשרה', 'the posting');
+  add(TT_UI_LANG, 'שפת הממשק', 'the interface');
+  add('en', 'נפוץ', 'common');
+  return out.slice(0, 3);
+}
+
+/* Resolves to a language code, or to null when the person closed it. The
+   choice IS the confirmation, so the old window.confirm is gone: it asked
+   about a decision that had already been made for the person. */
+function ttAskTranslateTarget(sourceLang, titleText) {
+  return new Promise(function (resolve) {
+    var wrap = document.createElement('div');
+    wrap.className = 'tt-modal';
+    var box = document.createElement('div');
+    box.className = 'tt-modal-box';
+    box.style.maxWidth = '360px';
+    box.setAttribute('dir', TT_LANG.dir(TT_UI_LANG));
+
+    var h = document.createElement('h3');
+    h.className = 'tt-about-h';
+    h.textContent = titleText;
+    box.appendChild(h);
+
+    var sub = document.createElement('p');
+    sub.className = 'tt-about-sub';
+    sub.textContent = L('הטקסט בתיבה יוחלף בתרגום.',
+                        'The text in the box will be replaced by the translation.');
+    box.appendChild(sub);
+
+    function row(code, why) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tt-btn tt-btn-ghost';
+      b.style.cssText = 'display:block;width:100%;text-align:start;margin-bottom:6px';
+      b.setAttribute('dir', TT_LANG.dir(code));
+      b.setAttribute('lang', code);
+      b.innerHTML = '<b>' + TT_LANG.nativeName(code) + '</b>' +
+        (why ? '<span style="opacity:.6;font-weight:500"> · ' + why + '</span>' : '');
+      b.addEventListener('click', function () { close(code); });
+      return b;
+    }
+
+    ttTranslateTargets(sourceLang).forEach(function (t) { box.appendChild(row(t.code, t.why)); });
+
+    var more = document.createElement('details');
+    more.style.marginTop = '4px';
+    var sum = document.createElement('summary');
+    sum.style.cssText = 'cursor:pointer;font-size:.82rem;color:#5A6B72';
+    sum.textContent = L('שפות נוספות', 'More languages');
+    more.appendChild(sum);
+    TT_LANG.all().forEach(function (l) {
+      if (l.code === sourceLang) return;
+      more.appendChild(row(l.code, ''));
+    });
+    box.appendChild(more);
+
+    var cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'tt-btn tt-btn-ghost tt-btn-sm';
+    cancel.style.marginTop = '8px';
+    cancel.textContent = L('ביטול', 'Cancel');
+    cancel.addEventListener('click', function () { close(null); });
+    box.appendChild(cancel);
+
+    function close(val) {
+      document.removeEventListener('keydown', onKey);
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+      resolve(val);
+    }
+    function onKey(ev) { if (ev.key === 'Escape') close(null); }
+    document.addEventListener('keydown', onKey);
+    wrap.addEventListener('click', function (ev) { if (ev.target === wrap) close(null); });
+
+    wrap.appendChild(box);
+    document.body.appendChild(wrap);
+  });
+}
+
 function bindIoUi() {
   $('resumeFile').addEventListener('change', async function (ev) {
     var f = ev.target.files && ev.target.files[0];
@@ -10957,15 +12012,21 @@ function bindIoUi() {
     ev.target.value = '';
   });
 
+
   $('btnTranslateResume').addEventListener('click', async function () {
     var text = $('resumeInput').value.trim();
     if (!text) { showError('אין טקסט לתרגום.'); return; }
     if (!requireKeyOrOnboard()) return;
-    var target = detectLang(text) === 'he' ? 'en' : 'he';
-    if (!window.confirm(target === 'en' ? 'לתרגם את הקלט לאנגלית? הטקסט בתיבה יוחלף.' : 'לתרגם את הקלט לעברית? הטקסט בתיבה יוחלף.')) return;
-    setStatus('מתרגם את הקלט...', true);
+    var target = await ttAskTranslateTarget(detectLang(text),
+      L('לאיזו שפה לתרגם את הקלט?', 'Translate the input into which language?'));
+    if (!target) return;
+    setStatus(L('מתרגם את הקלט...', 'Translating the input...'), true);
     try {
       $('resumeInput').value = await translateText(text, target);
+      /* The app chose the target, so it KNOWS the language now and has no
+         reason to detect it again. A manual override falls away with it,
+         because the text really did change. */
+      if (APP.lang) { APP.lang.doc = target; APP.lang.docManual = false; }
       updateLangBadges();
       setStatus('התרגום הושלם. עבור עליו לפני שממשיכים.');
     } catch (e) { setStatus(''); showError('התרגום נכשל: ' + e.message); }
@@ -10975,9 +12036,10 @@ function bindIoUi() {
     var text = $('finalOutput').value.trim();
     if (!text) { showError('אין טקסט לתרגום.'); return; }
     if (!requireKeyOrOnboard()) return;
-    var target = detectLang(text) === 'he' ? 'en' : 'he';
-    if (!window.confirm(target === 'en' ? 'לתרגם את הגרסה הסופית לאנגלית?' : 'לתרגם את הגרסה הסופית לעברית?')) return;
-    setStatus('מתרגם את הגרסה הסופית...', true);
+    var target = await ttAskTranslateTarget(detectLang(text),
+      L('לאיזו שפה לתרגם את הגרסה?', 'Translate this version into which language?'));
+    if (!target) return;
+    setStatus(L('מתרגם את הגרסה הסופית...', 'Translating the final version...'), true);
     try {
       APP.finalText = await translateText(text, target);
       $('finalOutput').value = APP.finalText;
@@ -11229,14 +12291,86 @@ function bindStructurePanel() {
   });
 }
 
+/* ---------- THE LANGUAGE BADGES, decision 14 ----------
+   Three states, not one, and the difference is not cosmetic.
+
+     certain    a quiet line with a small "change" link
+     unsure     the picker is OPEN, with wording that admits the doubt
+     overridden says so, because an app that keeps printing "language
+                detected" after the person corrected it is reporting a
+                detection it did not make
+
+   A manual choice survives edits to the text and falls away only when the box
+   is emptied or refilled, so fixing a comma cannot silently undo it. */
+function ttRenderLangBadge(el, axis, text) {
+  if (!el) return;
+  var st = ttLangState();
+  if (!text.trim()) { el.innerHTML = ''; st[axis] = null; st[axis + 'Manual'] = false; return; }
+
+  var manual = st[axis + 'Manual'];
+  var code = manual ? st[axis] : detectLang(text);
+  var read = TT_LANG.detectLine(text, code);
+  var sure = manual || read.confident;
+  if (!manual) { st[axis] = read.unsupported ? null : code; st[axis + 'Sure'] = !!read.confident; }
+
+  el.innerHTML = '';
+  var line = document.createElement('span');
+
+  if (read.unsupported && !manual) {
+    line.textContent = L('האפליקציה לא תומכת ב' + (read.label || '') + '. ',
+                         'This app does not support ' + (read.label || '') + '. ');
+    line.style.color = '#b45309';
+  } else if (manual) {
+    line.textContent = L('שפה שנקבעה ידנית: ' + ttLangLabel(code) + ' · ',
+                         'Language set by hand: ' + TT_LANG.name(code) + ' · ');
+  } else if (sure) {
+    line.textContent = L('זוהתה שפה: ' + ttLangLabel(code) + ' · ',
+                         'Language detected: ' + TT_LANG.name(code) + ' · ');
+  } else {
+    line.textContent = L('לא הצלחתי לקבוע בוודאות. ' + ttLangLabel(code) + '?',
+                         'I could not tell for certain. ' + TT_LANG.name(code) + '?');
+    line.style.color = '#b45309';
+  }
+  el.appendChild(line);
+
+  var sel = document.createElement('select');
+  sel.className = 'tt-langbadge-sel';
+  sel.setAttribute('aria-label', L('שפת המסמך', 'Document language'));
+  TT_LANG.all().forEach(function (l) {
+    var o = document.createElement('option');
+    o.value = l.code; o.textContent = l.native;
+    if (l.code === code) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', function () {
+    st[axis] = sel.value;
+    st[axis + 'Manual'] = true;
+    updateLangBadges();
+  });
+
+  if (sure && !read.unsupported) {
+    /* Quiet by default: a link, not a control that invites fiddling with a
+       decision that is almost always right. */
+    var link = document.createElement('button');
+    link.type = 'button';
+    link.className = 'tt-langbadge-link';
+    link.textContent = L('שנה', 'change');
+    link.addEventListener('click', function () {
+      link.replaceWith(sel);
+      sel.focus();
+    });
+    el.appendChild(link);
+  } else {
+    el.appendChild(sel);
+  }
+}
+
 function updateLangBadges() {
   var r = $('resumeInput').value, j = $('jobInput').value;
-  var rb = $('resumeLangBadge'), jb = $('jobLangBadge');
-  var names = { he: 'עברית', en: 'אנגלית', neutral: '' };
-  if (rb) rb.textContent = r.trim() ? 'זוהתה שפה: ' + names[detectLang(r)] : '';
-  if (jb) jb.textContent = j.trim() ? 'זוהתה שפה: ' + names[detectLang(j)] : '';
-  $('resumeInput').setAttribute('dir', r.trim() ? dirForText(r) : 'rtl');
-  $('jobInput').setAttribute('dir', j.trim() ? dirForText(j) : 'rtl');
+  ttRenderLangBadge($('resumeLangBadge'), 'doc', r);
+  ttRenderLangBadge($('jobLangBadge'), 'job', j);
+  $('resumeInput').setAttribute('dir', r.trim() ? dirForText(r) : TT_LANG.dir(TT_UI_LANG));
+  $('jobInput').setAttribute('dir', j.trim() ? dirForText(j) : TT_LANG.dir(TT_UI_LANG));
   // every path that fills the resume box (paste, file, translation) ends here,
   // so the structure panel is refreshed in one place
   renderStructurePanel();
@@ -11297,10 +12431,31 @@ function bindUi() {
 
   /* Interface language. Nothing here reaches APP, the prompts or the document:
      applyUiLang swaps chrome text and the direction of the shell, full stop. */
-  var langBtns = document.querySelectorAll('.tt-langbtn');
-  for (var lb = 0; lb < langBtns.length; lb++) {
-    langBtns[lb].addEventListener('click', function (ev) {
-      applyUiLang(ev.currentTarget.getAttribute('data-uilang'));
+  buildUiLangMenu();
+  var globe = $('btnUiLang');
+  if (globe) {
+    globe.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var m = $('uiLangMenu');
+      var open = m.classList.contains('tt-hidden');
+      m.classList.toggle('tt-hidden', !open);
+      globe.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function (ev) {
+      var m = $('uiLangMenu');
+      if (!m || m.classList.contains('tt-hidden')) return;
+      if (ev.target.closest && ev.target.closest('#langSwitch')) return;
+      m.classList.add('tt-hidden');
+      globe.setAttribute('aria-expanded', 'false');
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape') return;
+      var m = $('uiLangMenu');
+      if (m && !m.classList.contains('tt-hidden')) {
+        m.classList.add('tt-hidden');
+        globe.setAttribute('aria-expanded', 'false');
+        globe.focus();
+      }
     });
   }
 
@@ -11500,11 +12655,13 @@ document.addEventListener('DOMContentLoaded', function () {
   updateLangBadges();
   bindUi();
   /* After bindUi so the buttons exist, and before the version badge so the
-     About panel is built with a version that is already set. A stored choice
-     is read back here; the default stays Hebrew. */
-  var savedLang = 'he';
-  try { savedLang = localStorage.getItem('tt_ui_lang') || 'he'; } catch (e) {}
-  applyUiLang(savedLang);
+     About panel is built with a version that is already set.
+
+     v38: the default is no longer Hebrew. ttPickUiLang reads ?lang= first, then
+     the stored choice, then the browser, then falls back to English, which is
+     decision 12 and decision 22. A visitor from Brazil no longer lands on a
+     Hebrew interface. */
+  applyUiLang(ttPickUiLang());
   checkUiStrings();
   setStage(1);
   var vb = $('verBadge');
@@ -12425,131 +13582,570 @@ function renderPreview() {
    the markup on first use and cached, so the Hebrew interface cannot be
    degraded by a typo in a translation table, and a selector that stops
    matching costs an English string rather than a Hebrew one. */
-var TT_UI_LANG = 'he';
-var TT_UI_HE = null;
+/* ============================================================================
+   TT_I18N  -  the string catalogue.
 
-/* [selector, the English markup]. Only elements whose text is static.
-   Anything JS writes into at runtime is deliberately absent: #globalStatus,
-   #keyStatus, #qCount, #qHint, #finalViewNote and #bulletToggleNote are all
-   overwritten by their own renderers, and a translation table that fights a
-   renderer loses in whichever order happens to run last. */
-var TT_UI_STRINGS = [
-  ['.tt-brandsub', 'Resume tailoring for one job, with nothing invented'],
-  ['#btnAbout', 'About'],
-  ['#btnStartOver', '↺ Start over'],
-  ['#structureCard .tt-card-title', '<span class="tt-tag">Structure</span>What counts as a tailorable point'],
-  ['#btnSettings', '⚙️ Settings'],
-  ['#stageRail .tt-step[data-stage="1"] b', 'Input'],
-  ['#stageRail .tt-step[data-stage="2"] b', 'Job analysis'],
-  ['#stageRail .tt-step[data-stage="3"] b', 'Fit questions'],
-  ['#stageRail .tt-step[data-stage="4"] b', 'Rewrite'],
-  ['#stageRail .tt-step[data-stage="5"] b', 'Approval'],
-  ['#stageRail .tt-step[data-stage="6"] b', 'Checks and download'],
-  ['.tt-hero h2', 'Your resume, <span>aimed at one job</span>.'],
-  ['.tt-hero p', 'Every line is rewritten against a named requirement in the posting, and no fact goes in until you approve it line by line.'],
-  ['.tt-facts .tt-fact:nth-of-type(1)', '<b>Local</b> · everything runs in your browser'],
-  ['.tt-facts .tt-fact:nth-of-type(2)', '<b>Nothing invented</b> · only what is proved or what you said'],
-  ['.tt-facts .tt-fact:nth-of-type(3)', '<b>ATS friendly</b> · one column, no tables'],
-  ['#onboardBanner p:nth-of-type(1)', 'API key missing'],
-  ['#onboardBanner p:nth-of-type(2)', 'Tailoring a resume needs a Google Gemini key. It is free and takes a minute.'],
-  ['#btnOnboardOpen', 'Open the key panel'],
-  ['#settingsCard .tt-card-title', 'Google Gemini API key'],
-  ['#keyPersistToggle + span', 'Remember the key on this computer'],
-  ['#btnSaveKey', 'Save'],
-  ['#btnTestKey', 'Test connection'],
-  ['#btnGetKey', '🔑 Get a free API key'],
-  ['#btnHowKey', 'How is that done?'],
-  ['#howKeyModal h3', 'How to get a free API key'],
-  ['#howKeyModal > div > p', 'There is no way to create a key from inside this app, Google does not allow it. The only route is the official page:'],
-  ['#howKeyModal ol li:nth-of-type(1)', 'Press "🔑 Get a free API key". A new tab opens on Google AI Studio.'],
-  ['#howKeyModal ol li:nth-of-type(2)', 'Press <b>Create API key</b>.'],
-  ['#howKeyModal ol li:nth-of-type(3)', 'Pick an existing Google Cloud project or create one in a click.'],
-  ['#howKeyModal ol li:nth-of-type(4)', 'Copy the key you were given.'],
-  ['#howKeyModal ol li:nth-of-type(5)', 'Come back here, paste it in the box above, press <b>Save</b> and then <b>Test connection</b>.'],
-  ['#btnModalGetKey', 'Open AI Studio'],
-  ['#btnHowKeyClose', 'Close'],
-  ['#btnTranslateResume', '🌐 Translate the input'],
-  ['#btnResetResume', '🗑️ Clear the resume'],
-  ['#btnResetJob', '🗑️ Clear the posting'],
-  ['#btnStart', 'Start tailoring ⟶'],
-  ['#analysisCard .tt-card-title .tt-tag', 'Stages 1 and 2'],
-  ['#noRelationCard h2', 'There is nothing to tailor here'],
-  ['#btnNoRelationStop', 'Understood, I will load a different posting'],
-  ['#btnNoRelationGo', 'Continue anyway'],
-  ['#domainCard h2', 'How wide to read you, your call'],
-  ['#btnDomainStrict', 'Stay inside my own field'],
-  ['#btnDomainBroad', 'Widen to cross industry wording'],
-  ['#chatCard .tt-card-title .tt-tag', 'Stage 3'],
-  ['#btnSendAnswer', 'Send answer'],
-  ['#btnSkipQ', 'Skip this question'],
-  ['#btnDoneQ', 'Done, build the version'],
-  ['#btnRetryQ', '↻ Try again'],
-  ['#answersCard .tt-card-title .tt-tag', 'Stage 4'],
-  ['#reviewCard .tt-card-title .tt-tag', 'Stage 5'],
-  ['#btnApproveAll', 'Approve all'],
-  ['#btnRejectAll', 'Reject all'],
-  ['#btnToPreview', 'Continue to the checks and the preview ⟶'],
-  ['#resultCard .tt-card-title .tt-tag', 'Stage 6'],
-  ['#resultCard .tt-tab[data-tab="final"]', 'Result'],
-  ['#resultCard .tt-tab[data-tab="diff"]', 'What changed'],
-  ['#resultCard .tt-tab[data-tab="keywords"]', 'Keywords'],
-  ['#resultCard .tt-tab[data-tab="ats"]', 'ATS check'],
-  ['#finalViewSeg button[data-view="struct"]', 'Resume structure'],
-  ['#finalViewSeg button[data-view="text"]', 'Raw text'],
-  ['#btnBackToText', 'Refresh the view from this text'],
-  ['#previewCard .tt-card-title .tt-tag', 'Download'],
-  ['#previewCard > p:nth-of-type(1)', 'The sheet below is a real A4 page, and the dashed rule marks where a new page starts in the file.'],
-  ['#previewCard .tt-editbar span:nth-of-type(2)', '<b>The page below is editable.</b> Click any line and type straight onto it, exactly as you would in a document. When you are done press <b>"Apply changes"</b> at the bottom, otherwise your edits never reach the file.'],
-  ['#previewDirtyBar', 'There are edits that were not applied. Press "Apply changes" to fix them in place.'],
-  ['#btnApplyPreview', '✅ Apply changes'],
-  ['#btnExportDocx', '⬇️ Download as Word'],
-  ['#btnExportPdf', '🖨️ Print or save as PDF'],
-  ['#btnTranslateFinal', '🌐 Translate this version'],
-  ['#btnBackToReview', '↩ Back to approving the changes'],
-  ['#previewCard > p:nth-of-type(2)', 'Word is the safer file for an ATS. Every template is a single column of ordinary paragraphs, with no tables and no text boxes, so the layout cannot confuse the system. Uploading a Word resume adds one more template that reproduces the font, the sizes and the colour of your own file.'],
-  ['#interviewCard .tt-card-title .tt-tag', 'Stage 7'],
-  ['#interviewCard > p', 'This screen is for you alone and it does not go into the downloaded file. It sums up what moved to the top of each job and why, and what the posting asks for that your resume does not cover. All of it is read from this run, with no extra call to the model.'],
-  ['#btnPrepCopy', 'Copy the sheet'],
-  ['#btnPrepRefresh', 'Refresh'],
-  ['#btnAboutContact', 'Send feedback'],
-  ['#btnAboutShare', 'Share the app'],
-  ['#btnAboutClose', 'Close'],
-  ['#btnShareClose', 'Close']
-];
+   Replaces TT_UI_STRINGS, which was a list of [selector, englishHTML] pairs
+   with the Hebrew read out of the markup at boot. That shape carried exactly
+   two languages and could not carry twelve.
+
+   Values are an ARRAY in TT_ORDER, not an object per key. Two reasons: the
+   file is one HTML document and 12 keys per entry would add about a third
+   again in size, and a missing translation shows up as a wrong array length,
+   which an audit can find without knowing anything about the content.
+
+   Fallback chain: requested language, then English, then Hebrew, then the key
+   itself. The key is deliberately last and deliberately ugly, because a screen
+   showing 'btn.approve_all' is a bug report; a screen silently showing Hebrew
+   to a Croatian user is not.
+   ========================================================================= */
+
+var TT_I18N = (function () {
+  'use strict';
+
+  var ORDER = ['he', 'ar', 'en', 'fr', 'es', 'de', 'it', 'pt', 'hr', 'ru', 'ja', 'hi'];
+  var IDX = {}; ORDER.forEach(function (c, i) { IDX[c] = i; });
+
+  /* Which CSS selector each key writes into. Kept beside the strings rather
+     than in a second list, so a key and its target cannot drift apart. */
+  var SEL = {};
+
+  var S = {};
+  function put(key, sel, arr) { S[key] = arr; if (sel) SEL[key] = sel; }
+
+  /* ---- brand and chrome -------------------------------------------------- */
+  put('brand.sub', '.tt-brandsub', [
+    'התאמת קורות חיים למשרה, בלי להמציא כלום',
+    'تخصيص السيرة الذاتية لوظيفة واحدة، دون اختلاق أي شيء',
+    'Resume tailoring for one job, with nothing invented',
+    'Adaptation de CV pour un poste, sans rien inventer',
+    'Adaptación de tu currículum a un puesto, sin inventar nada',
+    'Lebenslauf gezielt für eine Stelle, ohne etwas zu erfinden',
+    'Adattamento del CV a una posizione, senza inventare nulla',
+    'Adaptação do currículo para uma vaga, sem inventar nada',
+    'Prilagodba životopisa jednom oglasu, bez izmišljanja',
+    'Адаптация резюме под одну вакансию, ничего не выдумывая',
+    '一つの求人に合わせた履歴書の調整。事実を作りません',
+    'एक नौकरी के लिए बायोडाटा तैयार, बिना कुछ गढ़े'
+  ]);
+  put('btn.about', '#btnAbout',
+    ['אודות', 'حول', 'About', 'À propos', 'Acerca de', 'Über', 'Informazioni', 'Sobre', 'O aplikaciji', 'О приложении', 'このアプリについて', 'परिचय']);
+  put('btn.start_over', '#btnStartOver',
+    ['↺ התחל מחדש', '↺ ابدأ من جديد', '↺ Start over', '↺ Recommencer', '↺ Empezar de nuevo', '↺ Neu beginnen', '↺ Ricomincia', '↺ Começar de novo', '↺ Počni ispočetka', '↺ Начать заново', '↺ 最初からやり直す', '↺ फिर से शुरू करें']);
+  put('btn.settings', '#btnSettings',
+    ['⚙️ הגדרות', '⚙️ الإعدادات', '⚙️ Settings', '⚙️ Paramètres', '⚙️ Configuración', '⚙️ Einstellungen', '⚙️ Impostazioni', '⚙️ Configurações', '⚙️ Postavke', '⚙️ Настройки', '⚙️ 設定', '⚙️ सेटिंग्स']);
+
+  /* ---- the stage rail ---------------------------------------------------- */
+  put('stage.1', '#stageRail .tt-step[data-stage="1"] b',
+    ['קלט', 'الإدخال', 'Input', 'Saisie', 'Entrada', 'Eingabe', 'Inserimento', 'Entrada', 'Unos', 'Ввод', '入力', 'इनपुट']);
+  put('stage.2', '#stageRail .tt-step[data-stage="2"] b',
+    ['ניתוח המשרה', 'تحليل الوظيفة', 'Job analysis', 'Analyse du poste', 'Análisis del puesto', 'Stellenanalyse', 'Analisi della posizione', 'Análise da vaga', 'Analiza oglasa', 'Анализ вакансии', '求人の分析', 'नौकरी विश्लेषण']);
+  put('stage.3', '#stageRail .tt-step[data-stage="3"] b',
+    ['שאלות התאמה', 'أسئلة الملاءمة', 'Fit questions', 'Questions d\'adéquation', 'Preguntas de ajuste', 'Passungsfragen', 'Domande di corrispondenza', 'Perguntas de aderência', 'Pitanja o podudarnosti', 'Вопросы соответствия', '適合性の質問', 'उपयुक्तता प्रश्न']);
+  put('stage.4', '#stageRail .tt-step[data-stage="4"] b',
+    ['שכתוב מחדש', 'إعادة الصياغة', 'Rewrite', 'Réécriture', 'Reescritura', 'Neufassung', 'Riscrittura', 'Reescrita', 'Ponovno pisanje', 'Переписывание', '書き直し', 'पुनर्लेखन']);
+  put('stage.5', '#stageRail .tt-step[data-stage="5"] b',
+    ['אישור', 'الموافقة', 'Approval', 'Validation', 'Aprobación', 'Freigabe', 'Approvazione', 'Aprovação', 'Odobrenje', 'Утверждение', '承認', 'स्वीकृति']);
+  put('stage.6', '#stageRail .tt-step[data-stage="6"] b',
+    ['בדיקות והורדה', 'الفحوصات والتنزيل', 'Checks and download', 'Vérifications et téléchargement', 'Comprobaciones y descarga', 'Prüfungen und Download', 'Controlli e download', 'Verificações e download', 'Provjere i preuzimanje', 'Проверки и загрузка', 'チェックとダウンロード', 'जाँच और डाउनलोड']);
+
+  /* ---- hero -------------------------------------------------------------- */
+  put('hero.title', '.tt-hero h2', [
+    'קורות החיים שלך, <span>מכוונים למשרה אחת</span>.',
+    'سيرتك الذاتية، <span>موجّهة إلى وظيفة واحدة</span>.',
+    'Your resume, <span>aimed at one job</span>.',
+    'Votre CV, <span>ciblé sur un seul poste</span>.',
+    'Tu currículum, <span>dirigido a un solo puesto</span>.',
+    'Ihr Lebenslauf, <span>auf eine Stelle ausgerichtet</span>.',
+    'Il tuo CV, <span>mirato a una sola posizione</span>.',
+    'Seu currículo, <span>direcionado a uma única vaga</span>.',
+    'Vaš životopis, <span>usmjeren na jedan oglas</span>.',
+    'Ваше резюме, <span>нацеленное на одну вакансию</span>.',
+    'あなたの履歴書を、<span>一つの求人に照準を合わせて</span>。',
+    'आपका बायोडाटा, <span>एक नौकरी के लिए लक्षित</span>।'
+  ]);
+  put('hero.body', '.tt-hero p', [
+    'כל שורה נכתבת מחדש מול דרישה מסוימת במודעה, ואף עובדה לא נכנסת בלי שאתה מאשר אותה שורה אחר שורה.',
+    'تُعاد كتابة كل سطر مقابل متطلب محدّد في الإعلان، ولا تدخل أي معلومة قبل أن توافق عليها سطرًا بسطر.',
+    'Every line is rewritten against a named requirement in the posting, and no fact goes in until you approve it line by line.',
+    'Chaque ligne est réécrite face à une exigence précise de l\'annonce, et aucun fait n\'entre avant que vous ne l\'approuviez ligne par ligne.',
+    'Cada línea se reescribe frente a un requisito concreto del anuncio, y ningún dato entra hasta que lo apruebas línea por línea.',
+    'Jede Zeile wird gegen eine konkrete Anforderung der Anzeige neu geschrieben, und keine Angabe kommt hinein, bevor Sie sie Zeile für Zeile freigeben.',
+    'Ogni riga viene riscritta a fronte di un requisito preciso dell\'annuncio, e nessun dato entra finché non lo approvi riga per riga.',
+    'Cada linha é reescrita diante de um requisito específico do anúncio, e nenhum dado entra antes de você aprovar linha por linha.',
+    'Svaki redak piše se iznova prema određenom zahtjevu iz oglasa, i nijedna činjenica ne ulazi dok je ne odobrite redak po redak.',
+    'Каждая строка переписывается под конкретное требование вакансии, и ни один факт не попадает внутрь, пока вы не одобрите его построчно.',
+    '各行は求人票の特定の要件に対して書き直され、あなたが一行ずつ承認するまで、いかなる事実も入りません。',
+    'हर पंक्ति विज्ञापन की एक निर्दिष्ट आवश्यकता के सामने दोबारा लिखी जाती है, और कोई भी तथ्य तब तक नहीं जुड़ता जब तक आप उसे पंक्ति दर पंक्ति स्वीकृत न करें।'
+  ]);
+  put('fact.local', '.tt-facts .tt-fact:nth-of-type(1)', [
+    '<b>בלי שרת</b> · רק הדפדפן שלך ו-Google',
+    '<b>بلا خادم</b> · متصفحك و‏Google فقط',
+    '<b>Local</b> · everything runs in your browser',
+    '<b>Sans serveur</b> · uniquement votre navigateur et Google',
+    '<b>Sin servidor</b> · solo tu navegador y Google',
+    '<b>Ohne Server</b> · nur Ihr Browser und Google',
+    '<b>Senza server</b> · solo il tuo browser e Google',
+    '<b>Sem servidor</b> · apenas seu navegador e o Google',
+    '<b>Bez poslužitelja</b> · samo vaš preglednik i Google',
+    '<b>Без сервера</b> · только ваш браузер и Google',
+    '<b>サーバー不要</b> · ブラウザと Google だけ',
+    '<b>बिना सर्वर</b> · केवल आपका ब्राउज़र और Google'
+  ]);
+  put('fact.nothing_invented', '.tt-facts .tt-fact:nth-of-type(2)', [
+    '<b>בלי המצאות</b> · רק מה שהוכח או שאמרת',
+    '<b>بلا اختلاق</b> · فقط ما ثبت أو ما قلته',
+    '<b>Nothing invented</b> · only what is proved or what you said',
+    '<b>Rien d\'inventé</b> · seulement ce qui est prouvé ou ce que vous avez dit',
+    '<b>Nada inventado</b> · solo lo comprobado o lo que dijiste',
+    '<b>Nichts erfunden</b> · nur Belegtes oder von Ihnen Gesagtes',
+    '<b>Niente di inventato</b> · solo ciò che è provato o che hai detto',
+    '<b>Nada inventado</b> · apenas o comprovado ou o que você disse',
+    '<b>Ništa izmišljeno</b> · samo dokazano ili ono što ste rekli',
+    '<b>Ничего не выдумано</b> · только доказанное или сказанное вами',
+    '<b>作り話なし</b> · 証明されたこと、あなたが述べたことだけ',
+    '<b>कुछ नहीं गढ़ा</b> · केवल सिद्ध या आपका कहा हुआ'
+  ]);
+  put('fact.ats', '.tt-facts .tt-fact:nth-of-type(3)', [
+    '<b>ידידותי ל־ATS</b> · עמודה אחת, בלי טבלאות',
+    '<b>متوافق مع أنظمة ATS</b> · عمود واحد، بلا جداول',
+    '<b>ATS friendly</b> · one column, no tables',
+    '<b>Compatible ATS</b> · une colonne, sans tableaux',
+    '<b>Compatible con ATS</b> · una columna, sin tablas',
+    '<b>ATS tauglich</b> · eine Spalte, keine Tabellen',
+    '<b>Compatibile con ATS</b> · una colonna, senza tabelle',
+    '<b>Compatível com ATS</b> · uma coluna, sem tabelas',
+    '<b>Prilagođeno ATS-u</b> · jedan stupac, bez tablica',
+    '<b>Совместимо с ATS</b> · одна колонка, без таблиц',
+    '<b>ATS 対応</b> · 一段組み、表なし',
+    '<b>ATS अनुकूल</b> · एक कॉलम, कोई तालिका नहीं'
+  ]);
+
+  /* ---- the API key onboarding -------------------------------------------- */
+  put('onboard.missing', '#onboardBanner p:nth-of-type(1)',
+    ['חסר מפתח API', 'مفتاح API مفقود', 'API key missing', 'Clé API manquante', 'Falta la clave API', 'API-Schlüssel fehlt', 'Chiave API mancante', 'Chave de API ausente', 'Nedostaje API ključ', 'Отсутствует ключ API', 'API キーがありません', 'API कुंजी अनुपस्थित']);
+  put('onboard.body', '#onboardBanner p:nth-of-type(2)', [
+    'כדי להתאים קורות חיים צריך מפתח Google Gemini. זה חינם ולוקח דקה.',
+    'لتخصيص السيرة الذاتية تحتاج إلى مفتاح Google Gemini. الحصول عليه مجاني ويستغرق دقيقة.',
+    'Tailoring a resume needs a Google Gemini key. It is free and takes a minute.',
+    'Adapter un CV nécessite une clé Google Gemini. C\'est gratuit et cela prend une minute.',
+    'Adaptar un currículum requiere una clave de Google Gemini. Es gratis y toma un minuto.',
+    'Für die Anpassung eines Lebenslaufs wird ein Google-Gemini-Schlüssel benötigt. Er ist kostenlos und in einer Minute erstellt.',
+    'Per adattare un CV serve una chiave Google Gemini. È gratuita e richiede un minuto.',
+    'Adaptar um currículo exige uma chave do Google Gemini. É gratuita e leva um minuto.',
+    'Za prilagodbu životopisa potreban je Google Gemini ključ. Besplatan je i traje minutu.',
+    'Для адаптации резюме нужен ключ Google Gemini. Он бесплатный и создаётся за минуту.',
+    '履歴書の調整には Google Gemini のキーが必要です。無料で、一分ほどで取得できます。',
+    'बायोडाटा तैयार करने के लिए Google Gemini कुंजी चाहिए। यह मुफ़्त है और एक मिनट लेती है।'
+  ]);
+  put('btn.onboard_open', '#btnOnboardOpen',
+    ['פתח את אזור המפתח', 'افتح لوحة المفتاح', 'Open the key panel', 'Ouvrir le panneau de la clé', 'Abrir el panel de la clave', 'Schlüsselbereich öffnen', 'Apri il pannello della chiave', 'Abrir o painel da chave', 'Otvori ploču s ključem', 'Открыть панель ключа', 'キーのパネルを開く', 'कुंजी पैनल खोलें']);
+  put('settings.title', '#settingsCard .tt-card-title',
+    ['מפתח API של Google Gemini', 'مفتاح Google Gemini API', 'Google Gemini API key', 'Clé API Google Gemini', 'Clave API de Google Gemini', 'Google Gemini API-Schlüssel', 'Chiave API Google Gemini', 'Chave da API Google Gemini', 'Google Gemini API ključ', 'Ключ Google Gemini API', 'Google Gemini API キー', 'Google Gemini API कुंजी']);
+  put('settings.persist', '#keyPersistToggle + span',
+    ['זכור את המפתח במחשב הזה', 'تذكّر المفتاح على هذا الجهاز', 'Remember the key on this computer', 'Mémoriser la clé sur cet ordinateur', 'Recordar la clave en este equipo', 'Schlüssel auf diesem Computer merken', 'Ricorda la chiave su questo computer', 'Lembrar a chave neste computador', 'Zapamti ključ na ovom računalu', 'Запомнить ключ на этом компьютере', 'このパソコンにキーを保存する', 'इस कंप्यूटर पर कुंजी याद रखें']);
+  put('btn.save_key', '#btnSaveKey',
+    ['שמור', 'حفظ', 'Save', 'Enregistrer', 'Guardar', 'Speichern', 'Salva', 'Salvar', 'Spremi', 'Сохранить', '保存', 'सहेजें']);
+  put('btn.test_key', '#btnTestKey',
+    ['בדוק חיבור', 'اختبر الاتصال', 'Test connection', 'Tester la connexion', 'Probar la conexión', 'Verbindung testen', 'Prova la connessione', 'Testar a conexão', 'Testiraj vezu', 'Проверить соединение', '接続をテスト', 'कनेक्शन जाँचें']);
+  put('btn.get_key', '#btnGetKey',
+    ['🔑 קבל מפתח API בחינם', '🔑 احصل على مفتاح API مجاني', '🔑 Get a free API key', '🔑 Obtenir une clé API gratuite', '🔑 Consigue una clave API gratis', '🔑 Kostenlosen API-Schlüssel holen', '🔑 Ottieni una chiave API gratuita', '🔑 Obtenha uma chave de API gratuita', '🔑 Nabavi besplatan API ključ', '🔑 Получить бесплатный ключ API', '🔑 無料の API キーを取得', '🔑 मुफ़्त API कुंजी लें']);
+  put('btn.how_key', '#btnHowKey',
+    ['איך עושים את זה?', 'كيف يتم ذلك؟', 'How is that done?', 'Comment faire ?', '¿Cómo se hace?', 'Wie geht das?', 'Come si fa?', 'Como se faz?', 'Kako se to radi?', 'Как это сделать?', 'やり方は？', 'यह कैसे करें?']);
+  put('howkey.title', '#howKeyModal h3',
+    ['איך משיגים מפתח API בחינם', 'كيف تحصل على مفتاح API مجاني', 'How to get a free API key', 'Comment obtenir une clé API gratuite', 'Cómo conseguir una clave API gratis', 'So erhalten Sie einen kostenlosen API-Schlüssel', 'Come ottenere una chiave API gratuita', 'Como obter uma chave de API gratuita', 'Kako doći do besplatnog API ključa', 'Как получить бесплатный ключ API', '無料の API キーを取得する方法', 'मुफ़्त API कुंजी कैसे लें']);
+  put('howkey.body', '#howKeyModal > div > p', [
+    'אין דרך ליצור מפתח אוטומטית מתוך האפליקציה, גוגל לא מאפשרת זאת. הדרך היחידה היא דרך הדף הרשמי:',
+    'لا توجد طريقة لإنشاء مفتاح تلقائيًا من داخل التطبيق، فـ Google لا تتيح ذلك. الطريق الوحيد هو الصفحة الرسمية:',
+    'There is no way to create a key from inside this app, Google does not allow it. The only route is the official page:',
+    'Il n\'existe aucun moyen de créer une clé depuis cette application, Google ne le permet pas. La seule voie est la page officielle :',
+    'No hay forma de crear una clave desde esta aplicación, Google no lo permite. La única vía es la página oficial:',
+    'Aus dieser Anwendung heraus lässt sich kein Schlüssel erzeugen, Google erlaubt das nicht. Der einzige Weg ist die offizielle Seite:',
+    'Non è possibile creare una chiave da questa applicazione, Google non lo consente. L\'unica via è la pagina ufficiale:',
+    'Não há como criar uma chave dentro deste aplicativo, o Google não permite. O único caminho é a página oficial:',
+    'Ključ nije moguće stvoriti iz ove aplikacije, Google to ne dopušta. Jedini put je službena stranica:',
+    'Создать ключ из самого приложения нельзя, Google этого не позволяет. Единственный путь — официальная страница:',
+    'このアプリからキーを作成することはできません。Google が許可していないためです。公式ページからのみ取得できます。',
+    'इस ऐप के भीतर से कुंजी बनाना संभव नहीं है, Google इसकी अनुमति नहीं देता। एकमात्र रास्ता आधिकारिक पृष्ठ है:'
+  ]);
+  put('howkey.step1', '#howKeyModal ol li:nth-of-type(1)', [
+    'לחץ על הכפתור "🔑 קבל מפתח API בחינם", נפתח טאב חדש ב־Google AI Studio.',
+    'اضغط على "🔑 احصل على مفتاح API مجاني"، ستُفتح صفحة جديدة في Google AI Studio.',
+    'Press "🔑 Get a free API key". A new tab opens on Google AI Studio.',
+    'Appuyez sur « 🔑 Obtenir une clé API gratuite ». Un nouvel onglet s\'ouvre sur Google AI Studio.',
+    'Pulsa "🔑 Consigue una clave API gratis". Se abre una pestaña nueva en Google AI Studio.',
+    'Klicken Sie auf „🔑 Kostenlosen API-Schlüssel holen“. Ein neuer Tab in Google AI Studio öffnet sich.',
+    'Premi "🔑 Ottieni una chiave API gratuita". Si apre una nuova scheda su Google AI Studio.',
+    'Clique em "🔑 Obtenha uma chave de API gratuita". Abre-se uma nova aba no Google AI Studio.',
+    'Pritisnite "🔑 Nabavi besplatan API ključ". Otvorit će se nova kartica na Google AI Studiju.',
+    'Нажмите «🔑 Получить бесплатный ключ API». Откроется новая вкладка Google AI Studio.',
+    '「🔑 無料の API キーを取得」を押すと、Google AI Studio が新しいタブで開きます。',
+    '"🔑 मुफ़्त API कुंजी लें" दबाएँ। Google AI Studio एक नए टैब में खुलेगा।'
+  ]);
+  put('howkey.step2', '#howKeyModal ol li:nth-of-type(2)', [
+    'לחץ על <b>Create API key</b>.', 'اضغط على <b>Create API key</b>.', 'Press <b>Create API key</b>.',
+    'Appuyez sur <b>Create API key</b>.', 'Pulsa <b>Create API key</b>.', 'Klicken Sie auf <b>Create API key</b>.',
+    'Premi <b>Create API key</b>.', 'Clique em <b>Create API key</b>.', 'Pritisnite <b>Create API key</b>.',
+    'Нажмите <b>Create API key</b>.', '<b>Create API key</b> を押します。', '<b>Create API key</b> दबाएँ।'
+  ]);
+  put('howkey.step3', '#howKeyModal ol li:nth-of-type(3)', [
+    'בחר פרויקט Google Cloud קיים או צור חדש בלחיצה אחת.',
+    'اختر مشروع Google Cloud قائمًا أو أنشئ واحدًا بنقرة واحدة.',
+    'Pick an existing Google Cloud project or create one in a click.',
+    'Choisissez un projet Google Cloud existant ou créez-en un en un clic.',
+    'Elige un proyecto de Google Cloud existente o crea uno con un clic.',
+    'Wählen Sie ein vorhandenes Google-Cloud-Projekt oder erstellen Sie mit einem Klick ein neues.',
+    'Scegli un progetto Google Cloud esistente o creane uno con un clic.',
+    'Escolha um projeto do Google Cloud existente ou crie um com um clique.',
+    'Odaberite postojeći Google Cloud projekt ili ga stvorite jednim klikom.',
+    'Выберите существующий проект Google Cloud или создайте новый одним нажатием.',
+    '既存の Google Cloud プロジェクトを選ぶか、ワンクリックで新規作成します。',
+    'मौजूदा Google Cloud प्रोजेक्ट चुनें या एक क्लिक में नया बनाएँ।'
+  ]);
+  put('howkey.step4', '#howKeyModal ol li:nth-of-type(4)', [
+    'העתק את המפתח שנוצר.', 'انسخ المفتاح الذي أُنشئ.', 'Copy the key you were given.',
+    'Copiez la clé qui vous est donnée.', 'Copia la clave que se generó.', 'Kopieren Sie den erzeugten Schlüssel.',
+    'Copia la chiave che ti è stata data.', 'Copie a chave gerada.', 'Kopirajte dobiveni ključ.',
+    'Скопируйте полученный ключ.', '発行されたキーをコピーします。', 'बनी हुई कुंजी कॉपी करें।'
+  ]);
+  put('howkey.step5', '#howKeyModal ol li:nth-of-type(5)', [
+    'חזור לאפליקציה, הדבק בתיבה למעלה, לחץ <b>שמור</b> ואז <b>בדוק חיבור</b>.',
+    'عد إلى التطبيق، الصق المفتاح في الحقل أعلاه، اضغط <b>حفظ</b> ثم <b>اختبر الاتصال</b>.',
+    'Come back here, paste it in the box above, press <b>Save</b> and then <b>Test connection</b>.',
+    'Revenez ici, collez-la dans le champ ci-dessus, appuyez sur <b>Enregistrer</b> puis <b>Tester la connexion</b>.',
+    'Vuelve aquí, pégala en el campo de arriba, pulsa <b>Guardar</b> y luego <b>Probar la conexión</b>.',
+    'Kommen Sie hierher zurück, fügen Sie ihn oben ein, klicken Sie auf <b>Speichern</b> und dann auf <b>Verbindung testen</b>.',
+    'Torna qui, incollala nel campo sopra, premi <b>Salva</b> e poi <b>Prova la connessione</b>.',
+    'Volte aqui, cole no campo acima, clique em <b>Salvar</b> e depois em <b>Testar a conexão</b>.',
+    'Vratite se ovamo, zalijepite ga u polje iznad, pritisnite <b>Spremi</b> pa <b>Testiraj vezu</b>.',
+    'Вернитесь сюда, вставьте его в поле выше, нажмите <b>Сохранить</b>, затем <b>Проверить соединение</b>.',
+    'このアプリに戻り、上の欄に貼り付けて、<b>保存</b>、続いて<b>接続をテスト</b>を押します。',
+    'यहाँ लौटें, ऊपर के बॉक्स में चिपकाएँ, <b>सहेजें</b> दबाएँ और फिर <b>कनेक्शन जाँचें</b>।'
+  ]);
+  put('btn.modal_get_key', '#btnModalGetKey',
+    ['פתח את AI Studio', 'افتح AI Studio', 'Open AI Studio', 'Ouvrir AI Studio', 'Abrir AI Studio', 'AI Studio öffnen', 'Apri AI Studio', 'Abrir o AI Studio', 'Otvori AI Studio', 'Открыть AI Studio', 'AI Studio を開く', 'AI Studio खोलें']);
+  put('btn.howkey_close', '#btnHowKeyClose',
+    ['סגור', 'إغلاق', 'Close', 'Fermer', 'Cerrar', 'Schließen', 'Chiudi', 'Fechar', 'Zatvori', 'Закрыть', '閉じる', 'बंद करें']);
+
+  /* ---- input stage ------------------------------------------------------- */
+  put('btn.translate_resume', '#btnTranslateResume',
+    ['🌐 תרגם קלט', '🌐 ترجم المُدخل', '🌐 Translate the input', '🌐 Traduire la saisie', '🌐 Traducir la entrada', '🌐 Eingabe übersetzen', '🌐 Traduci il testo inserito', '🌐 Traduzir a entrada', '🌐 Prevedi uneseni tekst', '🌐 Перевести введённый текст', '🌐 入力を翻訳', '🌐 इनपुट अनुवाद करें']);
+  put('btn.reset_resume', '#btnResetResume',
+    ['🗑️ נקה את קורות החיים', '🗑️ امسح السيرة الذاتية', '🗑️ Clear the resume', '🗑️ Effacer le CV', '🗑️ Borrar el currículum', '🗑️ Lebenslauf leeren', '🗑️ Cancella il CV', '🗑️ Limpar o currículo', '🗑️ Očisti životopis', '🗑️ Очистить резюме', '🗑️ 履歴書を消去', '🗑️ बायोडाटा साफ़ करें']);
+  put('btn.reset_job', '#btnResetJob',
+    ['🗑️ נקה את המשרה', '🗑️ امسح إعلان الوظيفة', '🗑️ Clear the posting', '🗑️ Effacer l\'annonce', '🗑️ Borrar el anuncio', '🗑️ Anzeige leeren', '🗑️ Cancella l\'annuncio', '🗑️ Limpar o anúncio', '🗑️ Očisti oglas', '🗑️ Очистить вакансию', '🗑️ 求人票を消去', '🗑️ विज्ञापन साफ़ करें']);
+  put('btn.start', '#btnStart',
+    ['התחל התאמה ⟵', 'ابدأ التخصيص ⟵', 'Start tailoring ⟶', 'Lancer l\'adaptation ⟶', 'Comenzar la adaptación ⟶', 'Anpassung starten ⟶', 'Avvia l\'adattamento ⟶', 'Iniciar a adaptação ⟶', 'Pokreni prilagodbu ⟶', 'Начать адаптацию ⟶', '調整を開始 ⟶', 'तैयारी शुरू करें ⟶']);
+
+  /* ---- analysis, world gate, domain gate --------------------------------- */
+  put('tag.stages_1_2', '#analysisCard .tt-card-title .tt-tag',
+    ['שלב 1 ו־2', 'المرحلتان 1 و2', 'Stages 1 and 2', 'Étapes 1 et 2', 'Etapas 1 y 2', 'Schritte 1 und 2', 'Fasi 1 e 2', 'Etapas 1 e 2', 'Koraci 1 i 2', 'Этапы 1 и 2', 'ステップ 1 と 2', 'चरण 1 और 2']);
+  put('norelation.title', '#noRelationCard h2',
+    ['אין מה להתאים כאן', 'لا يوجد ما يمكن تخصيصه هنا', 'There is nothing to tailor here', 'Il n\'y a rien à adapter ici', 'Aquí no hay nada que adaptar', 'Hier gibt es nichts anzupassen', 'Qui non c\'è nulla da adattare', 'Não há nada a adaptar aqui', 'Ovdje nema što prilagoditi', 'Здесь нечего адаптировать', 'ここに調整できるものはありません', 'यहाँ तैयार करने योग्य कुछ नहीं है']);
+  put('btn.norelation_stop', '#btnNoRelationStop',
+    ['הבנתי, אעלה משרה אחרת', 'فهمت، سأرفع إعلانًا آخر', 'Understood, I will load a different posting', 'Compris, je vais charger une autre annonce', 'Entendido, cargaré otro anuncio', 'Verstanden, ich lade eine andere Anzeige', 'Capito, caricherò un altro annuncio', 'Entendi, vou carregar outro anúncio', 'Razumijem, učitat ću drugi oglas', 'Понятно, загружу другую вакансию', '了解しました。別の求人票を読み込みます', 'समझ गया, दूसरा विज्ञापन डालूँगा']);
+  put('btn.norelation_go', '#btnNoRelationGo',
+    ['המשך בכל זאת', 'تابع على أي حال', 'Continue anyway', 'Continuer quand même', 'Continuar de todos modos', 'Trotzdem fortfahren', 'Continua comunque', 'Continuar mesmo assim', 'Ipak nastavi', 'Всё равно продолжить', 'それでも続ける', 'फिर भी जारी रखें']);
+  put('domain.title', '#domainCard h2',
+    ['רוחב ההתאמה, החלטה שלך', 'مدى اتساع التخصيص، القرار لك', 'How wide to read you, your call', 'Jusqu\'où vous lire, c\'est vous qui décidez', 'Cuánto ampliar la lectura, tú decides', 'Wie weit wir Sie lesen, Sie entscheiden', 'Quanto allargare la lettura, decidi tu', 'O quanto ampliar a leitura, você decide', 'Koliko široko vas čitati, vaša odluka', 'Насколько широко вас читать, решаете вы', 'どこまで広く読むか、あなたの判断です', 'आपको कितना व्यापक पढ़ें, फ़ैसला आपका']);
+  put('btn.domain_strict', '#btnDomainStrict',
+    ['להישאר בתחום שלי', 'البقاء داخل مجالي', 'Stay inside my own field', 'Rester dans mon domaine', 'Quedarme en mi campo', 'In meinem Fachgebiet bleiben', 'Restare nel mio settore', 'Ficar na minha área', 'Ostati u svojem području', 'Остаться в своей области', '自分の分野の中にとどまる', 'अपने क्षेत्र में ही रहें']);
+  put('btn.domain_broad', '#btnDomainBroad',
+    ['להרחיב למינוח חוצה תעשיות', 'التوسّع إلى مصطلحات عابرة للقطاعات', 'Widen to cross industry wording', 'Élargir à un vocabulaire inter-secteurs', 'Ampliar a un vocabulario entre sectores', 'Auf branchenübergreifende Formulierungen erweitern', 'Allargare a un lessico intersettoriale', 'Ampliar para uma linguagem entre setores', 'Proširiti na međuindustrijski rječnik', 'Расширить до межотраслевых формулировок', '業種を超えた表現に広げる', 'उद्योग-पार शब्दावली तक विस्तार करें']);
+
+  /* ---- questions, answers, review ---------------------------------------- */
+  put('tag.stage3', '#chatCard .tt-card-title .tt-tag',
+    ['שלב 3', 'المرحلة 3', 'Stage 3', 'Étape 3', 'Etapa 3', 'Schritt 3', 'Fase 3', 'Etapa 3', 'Korak 3', 'Этап 3', 'ステップ 3', 'चरण 3']);
+  put('btn.send_answer', '#btnSendAnswer',
+    ['שלח תשובה', 'أرسل الإجابة', 'Send answer', 'Envoyer la réponse', 'Enviar respuesta', 'Antwort senden', 'Invia risposta', 'Enviar resposta', 'Pošalji odgovor', 'Отправить ответ', '回答を送信', 'उत्तर भेजें']);
+  put('btn.skip_q', '#btnSkipQ',
+    ['דלג על השאלה', 'تخطَّ السؤال', 'Skip this question', 'Passer cette question', 'Saltar esta pregunta', 'Frage überspringen', 'Salta questa domanda', 'Pular esta pergunta', 'Preskoči ovo pitanje', 'Пропустить вопрос', 'この質問をとばす', 'यह प्रश्न छोड़ें']);
+  put('btn.done_q', '#btnDoneQ',
+    ['סיימתי, בנה את הגרסה', 'انتهيت، ابنِ النسخة', 'Done, build the version', 'Terminé, construire la version', 'He terminado, construye la versión', 'Fertig, Version erstellen', 'Ho finito, crea la versione', 'Terminei, construa a versão', 'Gotovo, izradi verziju', 'Готово, соберите версию', '完了、バージョンを作成', 'हो गया, संस्करण बनाएँ']);
+  put('btn.retry_q', '#btnRetryQ',
+    ['↻ נסה שוב', '↻ حاول مرة أخرى', '↻ Try again', '↻ Réessayer', '↻ Reintentar', '↻ Erneut versuchen', '↻ Riprova', '↻ Tentar de novo', '↻ Pokušaj ponovno', '↻ Повторить', '↻ もう一度', '↻ फिर कोशिश करें']);
+  put('tag.stage4', '#answersCard .tt-card-title .tt-tag',
+    ['שלב 4', 'المرحلة 4', 'Stage 4', 'Étape 4', 'Etapa 4', 'Schritt 4', 'Fase 4', 'Etapa 4', 'Korak 4', 'Этап 4', 'ステップ 4', 'चरण 4']);
+  put('tag.stage5', '#reviewCard .tt-card-title .tt-tag',
+    ['שלב 5', 'المرحلة 5', 'Stage 5', 'Étape 5', 'Etapa 5', 'Schritt 5', 'Fase 5', 'Etapa 5', 'Korak 5', 'Этап 5', 'ステップ 5', 'चरण 5']);
+  put('btn.approve_all', '#btnApproveAll',
+    ['אשר הכל', 'وافق على الكل', 'Approve all', 'Tout approuver', 'Aprobar todo', 'Alles freigeben', 'Approva tutto', 'Aprovar tudo', 'Odobri sve', 'Утвердить всё', 'すべて承認', 'सब स्वीकृत करें']);
+  put('btn.reject_all', '#btnRejectAll',
+    ['דחה הכל', 'ارفض الكل', 'Reject all', 'Tout refuser', 'Rechazar todo', 'Alles ablehnen', 'Rifiuta tutto', 'Rejeitar tudo', 'Odbij sve', 'Отклонить всё', 'すべて却下', 'सब अस्वीकार करें']);
+  put('btn.to_preview', '#btnToPreview',
+    ['המשך לבדיקות ולתצוגה ⟵', 'تابع إلى الفحوصات والمعاينة ⟵', 'Continue to the checks and the preview ⟶', 'Continuer vers les vérifications et l\'aperçu ⟶', 'Continuar a las comprobaciones y la vista previa ⟶', 'Weiter zu Prüfungen und Vorschau ⟶', 'Continua verso i controlli e l\'anteprima ⟶', 'Continuar para as verificações e a prévia ⟶', 'Nastavi na provjere i pregled ⟶', 'Перейти к проверкам и предпросмотру ⟶', 'チェックとプレビューへ進む ⟶', 'जाँच और पूर्वावलोकन पर जाएँ ⟶']);
+
+  /* ---- result tabs ------------------------------------------------------- */
+  put('tag.stage6', '#resultCard .tt-card-title .tt-tag',
+    ['שלב 6', 'المرحلة 6', 'Stage 6', 'Étape 6', 'Etapa 6', 'Schritt 6', 'Fase 6', 'Etapa 6', 'Korak 6', 'Этап 6', 'ステップ 6', 'चरण 6']);
+  put('tab.final', '#resultCard .tt-tab[data-tab="final"]',
+    ['התוצאה', 'النتيجة', 'Result', 'Résultat', 'Resultado', 'Ergebnis', 'Risultato', 'Resultado', 'Rezultat', 'Результат', '結果', 'परिणाम']);
+  put('tab.diff', '#resultCard .tt-tab[data-tab="diff"]',
+    ['מה השתנה', 'ما الذي تغيّر', 'What changed', 'Ce qui a changé', 'Qué cambió', 'Was sich geändert hat', 'Cosa è cambiato', 'O que mudou', 'Što se promijenilo', 'Что изменилось', '変更点', 'क्या बदला']);
+  put('tab.keywords', '#resultCard .tt-tab[data-tab="keywords"]',
+    ['מילות מפתח', 'الكلمات المفتاحية', 'Keywords', 'Mots-clés', 'Palabras clave', 'Schlüsselwörter', 'Parole chiave', 'Palavras-chave', 'Ključne riječi', 'Ключевые слова', 'キーワード', 'मुख्य शब्द']);
+  put('tab.ats', '#resultCard .tt-tab[data-tab="ats"]',
+    ['בדיקת ATS', 'فحص ATS', 'ATS check', 'Contrôle ATS', 'Comprobación ATS', 'ATS-Prüfung', 'Controllo ATS', 'Verificação ATS', 'ATS provjera', 'Проверка ATS', 'ATS チェック', 'ATS जाँच']);
+  put('view.struct', '#finalViewSeg button[data-view="struct"]',
+    ['מבנה קורות החיים', 'بنية السيرة الذاتية', 'Resume structure', 'Structure du CV', 'Estructura del currículum', 'Aufbau des Lebenslaufs', 'Struttura del CV', 'Estrutura do currículo', 'Struktura životopisa', 'Структура резюме', '履歴書の構成', 'बायोडाटा की संरचना']);
+  put('view.text', '#finalViewSeg button[data-view="text"]',
+    ['טקסט גולמי', 'نص خام', 'Raw text', 'Texte brut', 'Texto sin formato', 'Rohtext', 'Testo grezzo', 'Texto bruto', 'Neobrađeni tekst', 'Исходный текст', 'そのままのテキスト', 'कच्चा पाठ']);
+  put('btn.back_to_text', '#btnBackToText',
+    ['רענן את התצוגה מהטקסט הזה', 'حدّث المعاينة من هذا النص', 'Refresh the view from this text', 'Actualiser l\'aperçu à partir de ce texte', 'Actualizar la vista con este texto', 'Ansicht aus diesem Text aktualisieren', 'Aggiorna la vista da questo testo', 'Atualizar a visualização a partir deste texto', 'Osvježi prikaz iz ovog teksta', 'Обновить вид из этого текста', 'このテキストから表示を更新', 'इस पाठ से दृश्य ताज़ा करें']);
+
+  /* ---- preview and download ---------------------------------------------- */
+  put('tag.download', '#previewCard .tt-card-title .tt-tag',
+    ['הורדה', 'التنزيل', 'Download', 'Téléchargement', 'Descarga', 'Download', 'Download', 'Download', 'Preuzimanje', 'Загрузка', 'ダウンロード', 'डाउनलोड']);
+  put('preview.a4', '#previewCard > p:nth-of-type(1)', [
+    'הדף שלמטה הוא בגודל A4 אמיתי, והקו המקווקו מסמן איפה מתחיל עמוד חדש בקובץ.',
+    'الصفحة أدناه بحجم A4 حقيقي، والخط المتقطع يبيّن أين تبدأ صفحة جديدة في الملف.',
+    'The sheet below is a real A4 page, and the dashed rule marks where a new page starts in the file.',
+    'La page ci-dessous est un vrai A4, et le trait pointillé indique où commence une nouvelle page dans le fichier.',
+    'La hoja de abajo es un A4 real, y la línea punteada marca dónde empieza una página nueva en el archivo.',
+    'Die Seite unten ist ein echtes A4-Blatt, und die gestrichelte Linie zeigt, wo im Dokument eine neue Seite beginnt.',
+    'Il foglio qui sotto è un A4 reale, e la linea tratteggiata segna dove inizia una nuova pagina nel file.',
+    'A página abaixo é um A4 real, e a linha tracejada marca onde começa uma nova página no arquivo.',
+    'Stranica ispod je pravi A4, a isprekidana crta označava gdje u datoteci počinje nova stranica.',
+    'Лист ниже — настоящий A4, а пунктирная линия показывает, где в файле начинается новая страница.',
+    '下のシートは実寸の A4 で、破線はファイル内で改ページが入る位置を示しています。',
+    'नीचे का पृष्ठ वास्तविक A4 आकार का है, और बिंदुदार रेखा दिखाती है कि फ़ाइल में नया पृष्ठ कहाँ शुरू होता है।'
+  ]);
+  put('preview.editable', '#previewCard .tt-editbar span:nth-of-type(2)', [
+    '<b>הדף למטה ניתן לעריכה.</b> לחץ על כל שורה וכתוב ישירות עליה, בדיוק כמו במסמך. כשתסיים לחץ <b>"החל שינויים"</b> בתחתית, אחרת העריכות לא ייכנסו לקובץ.',
+    '<b>الصفحة أدناه قابلة للتحرير.</b> اضغط على أي سطر واكتب عليه مباشرة، تمامًا كما في مستند. عند الانتهاء اضغط <b>"طبّق التغييرات"</b> في الأسفل، وإلا فلن تدخل تعديلاتك إلى الملف.',
+    '<b>The page below is editable.</b> Click any line and type straight onto it, exactly as you would in a document. When you are done press <b>"Apply changes"</b> at the bottom, otherwise your edits never reach the file.',
+    '<b>La page ci-dessous est modifiable.</b> Cliquez sur une ligne et écrivez dessus, exactement comme dans un document. Quand vous avez fini, appuyez sur <b>« Appliquer les modifications »</b> en bas, sinon vos modifications n\'atteindront jamais le fichier.',
+    '<b>La página de abajo es editable.</b> Haz clic en cualquier línea y escribe directamente sobre ella, igual que en un documento. Cuando termines pulsa <b>"Aplicar cambios"</b> abajo; si no, tus ediciones nunca llegarán al archivo.',
+    '<b>Die Seite unten ist bearbeitbar.</b> Klicken Sie auf eine Zeile und schreiben Sie direkt darauf, genau wie in einem Dokument. Klicken Sie zum Schluss unten auf <b>„Änderungen übernehmen“</b>, sonst gelangen Ihre Änderungen nie in die Datei.',
+    '<b>La pagina qui sotto è modificabile.</b> Clicca su una riga e scrivici sopra, esattamente come in un documento. Quando hai finito premi <b>"Applica modifiche"</b> in fondo, altrimenti le modifiche non arriveranno mai nel file.',
+    '<b>A página abaixo é editável.</b> Clique em qualquer linha e escreva direto nela, exatamente como em um documento. Ao terminar, clique em <b>"Aplicar alterações"</b> no rodapé; caso contrário, suas edições nunca chegarão ao arquivo.',
+    '<b>Stranica ispod se može uređivati.</b> Kliknite bilo koji redak i pišite izravno po njemu, kao u dokumentu. Kad završite, pritisnite <b>"Primijeni promjene"</b> na dnu, inače vaše izmjene neće doći u datoteku.',
+    '<b>Страницу ниже можно редактировать.</b> Нажмите на любую строку и пишите прямо в ней, как в документе. Закончив, нажмите <b>«Применить изменения»</b> внизу, иначе правки не попадут в файл.',
+    '<b>下のページは編集できます。</b> 任意の行をクリックして、文書と同じように直接入力してください。終わったら下部の<b>「変更を適用」</b>を押します。押さないと、編集はファイルに反映されません。',
+    '<b>नीचे का पृष्ठ संपादन योग्य है।</b> किसी भी पंक्ति पर क्लिक करें और सीधे उस पर लिखें, ठीक जैसे किसी दस्तावेज़ में। पूरा होने पर नीचे <b>"बदलाव लागू करें"</b> दबाएँ, अन्यथा आपके संपादन फ़ाइल तक नहीं पहुँचेंगे।'
+  ]);
+  put('preview.dirty', '#previewDirtyBar', [
+    'יש עריכות שלא הוחלו. לחץ "החל שינויים" כדי לקבע אותן.',
+    'هناك تعديلات لم تُطبَّق. اضغط "طبّق التغييرات" لتثبيتها.',
+    'There are edits that were not applied. Press "Apply changes" to fix them in place.',
+    'Des modifications n\'ont pas été appliquées. Appuyez sur « Appliquer les modifications » pour les figer.',
+    'Hay ediciones sin aplicar. Pulsa "Aplicar cambios" para fijarlas.',
+    'Es gibt nicht übernommene Änderungen. Klicken Sie auf „Änderungen übernehmen“, um sie festzuschreiben.',
+    'Ci sono modifiche non applicate. Premi "Applica modifiche" per fissarle.',
+    'Há edições não aplicadas. Clique em "Aplicar alterações" para fixá-las.',
+    'Postoje izmjene koje nisu primijenjene. Pritisnite "Primijeni promjene" da ih učvrstite.',
+    'Есть неприменённые правки. Нажмите «Применить изменения», чтобы закрепить их.',
+    '適用されていない編集があります。「変更を適用」を押して確定してください。',
+    'कुछ संपादन लागू नहीं हुए हैं। उन्हें स्थिर करने के लिए "बदलाव लागू करें" दबाएँ।'
+  ]);
+  put('btn.apply_preview', '#btnApplyPreview',
+    ['✅ החל שינויים', '✅ طبّق التغييرات', '✅ Apply changes', '✅ Appliquer les modifications', '✅ Aplicar cambios', '✅ Änderungen übernehmen', '✅ Applica modifiche', '✅ Aplicar alterações', '✅ Primijeni promjene', '✅ Применить изменения', '✅ 変更を適用', '✅ बदलाव लागू करें']);
+  put('btn.export_docx', '#btnExportDocx',
+    ['⬇️ הורד כ־Word', '⬇️ نزّل بصيغة Word', '⬇️ Download as Word', '⬇️ Télécharger en Word', '⬇️ Descargar como Word', '⬇️ Als Word herunterladen', '⬇️ Scarica come Word', '⬇️ Baixar como Word', '⬇️ Preuzmi kao Word', '⬇️ Скачать в Word', '⬇️ Word 形式でダウンロード', '⬇️ Word में डाउनलोड करें']);
+  put('btn.export_pdf', '#btnExportPdf',
+    ['🖨️ הדפס או שמור כ־PDF', '🖨️ اطبع أو احفظ بصيغة PDF', '🖨️ Print or save as PDF', '🖨️ Imprimer ou enregistrer en PDF', '🖨️ Imprimir o guardar como PDF', '🖨️ Drucken oder als PDF speichern', '🖨️ Stampa o salva come PDF', '🖨️ Imprimir ou salvar como PDF', '🖨️ Ispiši ili spremi kao PDF', '🖨️ Печать или сохранение в PDF', '🖨️ 印刷または PDF で保存', '🖨️ प्रिंट करें या PDF में सहेजें']);
+  put('btn.translate_final', '#btnTranslateFinal',
+    ['🌐 תרגם את הגרסה', '🌐 ترجم هذه النسخة', '🌐 Translate this version', '🌐 Traduire cette version', '🌐 Traducir esta versión', '🌐 Diese Version übersetzen', '🌐 Traduci questa versione', '🌐 Traduzir esta versão', '🌐 Prevedi ovu verziju', '🌐 Перевести эту версию', '🌐 このバージョンを翻訳', '🌐 इस संस्करण का अनुवाद करें']);
+  put('btn.back_to_review', '#btnBackToReview',
+    ['↩ חזור לאישור השינויים', '↩ عد إلى الموافقة على التغييرات', '↩ Back to approving the changes', '↩ Retour à la validation des modifications', '↩ Volver a aprobar los cambios', '↩ Zurück zur Freigabe der Änderungen', '↩ Torna all\'approvazione delle modifiche', '↩ Voltar à aprovação das alterações', '↩ Natrag na odobravanje izmjena', '↩ Назад к утверждению правок', '↩ 変更の承認に戻る', '↩ बदलाव स्वीकृति पर लौटें']);
+  put('preview.ats_note', '#previewCard > p:nth-of-type(2)', [
+    'להגשה למערכות ATS עדיף קובץ Word. כל הטמפלטים הם עמודה אחת של פסקאות רגילות, בלי טבלאות ובלי תיבות טקסט, כדי שהעיצוב לא יבלבל את המערכת. כשמעלים קורות חיים כקובץ Word נוסף טמפלט נוסף שמשחזר את הגופן, הגדלים והצבע של הקובץ שלך.',
+    'لأنظمة ATS يُفضَّل ملف Word. كل القوالب عمود واحد من فقرات عادية، بلا جداول وبلا مربعات نص، حتى لا يربك التنسيق النظام. وعند رفع سيرة ذاتية بصيغة Word يُضاف قالب إضافي يستعيد الخط والأحجام واللون من ملفك.',
+    'Word is the safer file for an ATS. Every template is a single column of ordinary paragraphs, with no tables and no text boxes, so the layout cannot confuse the system. Uploading a Word resume adds one more template that reproduces the font, the sizes and the colour of your own file.',
+    'Word est le format le plus sûr pour un ATS. Chaque modèle est une seule colonne de paragraphes ordinaires, sans tableaux ni zones de texte, afin que la mise en page ne perturbe pas le système. Importer un CV Word ajoute un modèle supplémentaire qui reprend la police, les tailles et la couleur de votre propre fichier.',
+    'Word es el archivo más seguro para un ATS. Cada plantilla es una sola columna de párrafos normales, sin tablas ni cuadros de texto, para que el diseño no confunda al sistema. Al subir un currículum en Word se añade una plantilla más que reproduce la tipografía, los tamaños y el color de tu propio archivo.',
+    'Word ist das sicherere Format für ein ATS. Jede Vorlage ist eine einzige Spalte aus gewöhnlichen Absätzen, ohne Tabellen und ohne Textfelder, damit das Layout das System nicht verwirrt. Beim Hochladen eines Word-Lebenslaufs kommt eine weitere Vorlage hinzu, die Schrift, Größen und Farbe Ihrer eigenen Datei übernimmt.',
+    'Word è il file più sicuro per un ATS. Ogni modello è una singola colonna di paragrafi ordinari, senza tabelle e senza caselle di testo, così l\'impaginazione non confonde il sistema. Caricando un CV in Word si aggiunge un altro modello che riproduce il carattere, i corpi e il colore del tuo file.',
+    'Word é o arquivo mais seguro para um ATS. Todo modelo é uma única coluna de parágrafos comuns, sem tabelas e sem caixas de texto, para que o layout não confunda o sistema. Ao enviar um currículo em Word, adiciona-se mais um modelo que reproduz a fonte, os tamanhos e a cor do seu arquivo.',
+    'Word je sigurniji format za ATS. Svaki predložak je jedan stupac običnih odlomaka, bez tablica i bez tekstualnih okvira, kako raspored ne bi zbunio sustav. Učitavanjem životopisa u Wordu dodaje se još jedan predložak koji preuzima font, veličine i boju vaše datoteke.',
+    'Для ATS надёжнее файл Word. Каждый шаблон — одна колонка обычных абзацев, без таблиц и текстовых блоков, чтобы вёрстка не сбивала систему. При загрузке резюме в Word добавляется ещё один шаблон, воспроизводящий шрифт, размеры и цвет вашего файла.',
+    'ATS には Word ファイルの方が安全です。どのテンプレートも通常の段落からなる一段組みで、表もテキストボックスも使いません。レイアウトがシステムを混乱させないためです。Word 形式の履歴書をアップロードすると、あなたのファイルの書体、サイズ、色を再現するテンプレートがもう一つ追加されます。',
+    'ATS के लिए Word फ़ाइल अधिक सुरक्षित है। हर टेम्पलेट सामान्य अनुच्छेदों का एक ही कॉलम है, बिना तालिकाओं और बिना टेक्स्ट बॉक्स के, ताकि लेआउट सिस्टम को भ्रमित न करे। Word में बायोडाटा अपलोड करने पर एक और टेम्पलेट जुड़ता है जो आपकी फ़ाइल के फ़ॉन्ट, आकार और रंग की नकल करता है।'
+  ]);
+
+  /* ---- interview sheet ---------------------------------------------------- */
+  put('tag.stage7', '#interviewCard .tt-card-title .tt-tag',
+    ['שלב 7', 'المرحلة 7', 'Stage 7', 'Étape 7', 'Etapa 7', 'Schritt 7', 'Fase 7', 'Etapa 7', 'Korak 7', 'Этап 7', 'ステップ 7', 'चरण 7']);
+  put('interview.body', '#interviewCard > p', [
+    'המסך הזה הוא בשבילך בלבד והוא לא נכנס לקובץ שיורד. הוא מסכם מה עלה לראש כל תפקיד ולמה, ומה המשרה מבקשת ואין לו כיסוי בקורות החיים. הכל נקרא מהנתונים של ההרצה הזו, בלי קריאה נוספת למודל.',
+    'هذه الشاشة لك وحدك ولا تدخل الملف الذي يُنزَّل. تلخّص ما صعد إلى أعلى كل وظيفة ولماذا، وما الذي يطلبه الإعلان ولا تغطيه سيرتك الذاتية. كل ذلك مقروء من بيانات هذه الجلسة، بلا أي استدعاء إضافي للنموذج.',
+    'This screen is for you alone and it does not go into the downloaded file. It sums up what moved to the top of each job and why, and what the posting asks for that your resume does not cover. All of it is read from this run, with no extra call to the model.',
+    'Cet écran est pour vous seul et n\'entre pas dans le fichier téléchargé. Il résume ce qui est remonté en tête de chaque poste et pourquoi, et ce que l\'annonce demande sans que votre CV le couvre. Tout est lu depuis cette exécution, sans appel supplémentaire au modèle.',
+    'Esta pantalla es solo para ti y no entra en el archivo descargado. Resume qué subió al principio de cada puesto y por qué, y qué pide el anuncio que tu currículum no cubre. Todo se lee de esta ejecución, sin ninguna llamada extra al modelo.',
+    'Dieser Bildschirm ist nur für Sie und geht nicht in die heruntergeladene Datei. Er fasst zusammen, was bei jeder Station nach oben gerückt ist und warum, und was die Anzeige verlangt, das Ihr Lebenslauf nicht abdeckt. Alles stammt aus diesem Durchlauf, ohne zusätzlichen Modellaufruf.',
+    'Questa schermata è solo per te e non entra nel file scaricato. Riassume che cosa è salito in cima a ogni incarico e perché, e che cosa chiede l\'annuncio senza che il tuo CV lo copra. Tutto è letto da questa esecuzione, senza chiamate aggiuntive al modello.',
+    'Esta tela é só para você e não entra no arquivo baixado. Ela resume o que subiu ao topo de cada cargo e por quê, e o que a vaga pede que seu currículo não cobre. Tudo é lido desta execução, sem nenhuma chamada extra ao modelo.',
+    'Ovaj zaslon je samo za vas i ne ulazi u preuzetu datoteku. Sažima što se popelo na vrh svakog radnog mjesta i zašto, te što oglas traži, a vaš životopis ne pokriva. Sve je pročitano iz ovog prolaza, bez dodatnog poziva modelu.',
+    'Этот экран только для вас и не попадает в скачиваемый файл. Он показывает, что поднялось наверх в каждой должности и почему, и что требует вакансия, чего в резюме нет. Всё берётся из этого прогона, без дополнительных обращений к модели.',
+    'この画面はあなた専用で、ダウンロードするファイルには入りません。各職歴で何が上に移ったか、その理由、そして求人票が求めているのに履歴書が満たしていない点をまとめています。すべてこの実行の結果から読み取っており、モデルへの追加の問い合わせはありません。',
+    'यह स्क्रीन केवल आपके लिए है और डाउनलोड होने वाली फ़ाइल में नहीं जाती। यह बताती है कि हर पद में ऊपर क्या आया और क्यों, और विज्ञापन क्या माँगता है जो आपके बायोडाटा में नहीं है। सब कुछ इसी प्रक्रिया के डेटा से पढ़ा गया है, मॉडल को कोई अतिरिक्त कॉल किए बिना।'
+  ]);
+  put('btn.prep_copy', '#btnPrepCopy',
+    ['העתק את הגיליון', 'انسخ الورقة', 'Copy the sheet', 'Copier la fiche', 'Copiar la hoja', 'Blatt kopieren', 'Copia il foglio', 'Copiar a folha', 'Kopiraj list', 'Скопировать лист', 'シートをコピー', 'शीट कॉपी करें']);
+  put('btn.prep_refresh', '#btnPrepRefresh',
+    ['רענן', 'حدّث', 'Refresh', 'Actualiser', 'Actualizar', 'Aktualisieren', 'Aggiorna', 'Atualizar', 'Osvježi', 'Обновить', '更新', 'ताज़ा करें']);
+
+  /* ---- about and share ---------------------------------------------------- */
+  put('btn.about_contact', '#btnAboutContact',
+    ['שליחת משוב', 'إرسال ملاحظات', 'Send feedback', 'Envoyer un retour', 'Enviar comentarios', 'Feedback senden', 'Invia un riscontro', 'Enviar feedback', 'Pošalji povratnu informaciju', 'Отправить отзыв', 'フィードバックを送る', 'प्रतिक्रिया भेजें']);
+  put('btn.about_share', '#btnAboutShare',
+    ['שיתוף האפליקציה', 'مشاركة التطبيق', 'Share the app', 'Partager l\'application', 'Compartir la aplicación', 'App teilen', 'Condividi l\'app', 'Compartilhar o app', 'Podijeli aplikaciju', 'Поделиться приложением', 'アプリを共有', 'ऐप साझा करें']);
+  put('btn.about_close', '#btnAboutClose',
+    ['סגור', 'إغلاق', 'Close', 'Fermer', 'Cerrar', 'Schließen', 'Chiudi', 'Fechar', 'Zatvori', 'Закрыть', '閉じる', 'बंद करें']);
+  put('btn.share_close', '#btnShareClose',
+    ['סגור', 'إغلاق', 'Close', 'Fermer', 'Cerrar', 'Schließen', 'Chiudi', 'Fechar', 'Zatvori', 'Закрыть', '閉じる', 'बंद करें']);
+
+  put('structure.title', '#structureCard .tt-card-title', [
+    '<span class="tt-tag">מבנה</span>מה ייחשב סעיף להתאמה',
+    '<span class="tt-tag">البنية</span>ما الذي يُعدّ بندًا قابلًا للتخصيص',
+    '<span class="tt-tag">Structure</span>What counts as a tailorable point',
+    '<span class="tt-tag">Structure</span>Ce qui compte comme élément adaptable',
+    '<span class="tt-tag">Estructura</span>Qué cuenta como punto adaptable',
+    '<span class="tt-tag">Aufbau</span>Was als anpassbarer Punkt gilt',
+    '<span class="tt-tag">Struttura</span>Che cosa conta come punto adattabile',
+    '<span class="tt-tag">Estrutura</span>O que conta como ponto adaptável',
+    '<span class="tt-tag">Struktura</span>Što se broji kao stavka za prilagodbu',
+    '<span class="tt-tag">Структура</span>Что считается адаптируемым пунктом',
+    '<span class="tt-tag">構成</span>調整対象となる項目',
+    '<span class="tt-tag">संरचना</span>क्या एक तैयार करने योग्य बिंदु माना जाता है'
+  ]);
+
+  /* ---- lookup ------------------------------------------------------------- */
+  var current = 'he';
+
+  function setLang(code) { current = IDX[code] == null ? 'he' : code; return current; }
+  function getLang() { return current; }
+
+  function T(key, lang) {
+    var row = S[key];
+    if (!row) return key;
+    var i = IDX[lang || current];
+    if (i != null && row[i]) return row[i];
+    if (row[IDX.en]) return row[IDX.en];
+    if (row[IDX.he]) return row[IDX.he];
+    return key;
+  }
+
+  /* Which keys are incomplete, and in which languages. Called by the audit,
+     never by the app itself. */
+  function missing() {
+    var out = [];
+    Object.keys(S).forEach(function (k) {
+      ORDER.forEach(function (code, i) {
+        if (!S[k][i]) out.push(k + ':' + code);
+      });
+      if (S[k].length !== ORDER.length) out.push(k + ':length=' + S[k].length);
+    });
+    return out;
+  }
+
+  function keys() { return Object.keys(S); }
+  function selectorFor(k) { return SEL[k]; }
+  function selectors() { return SEL; }
+
+  return {
+    ORDER: ORDER, T: T, setLang: setLang, getLang: getLang,
+    missing: missing, keys: keys, selectorFor: selectorFor, selectors: selectors,
+    _raw: S
+  };
+})();
+
+
+var TT_UI_LANG = 'he';
+/* v38: the [selector, englishHTML] table that used to live here is gone. Its
+   contents moved into TT_I18N, where every string carries twelve languages
+   instead of two and the Hebrew is written down rather than scraped out of
+   the DOM at first boot. Keeping both would have been two copies of the same
+   sentence, free to drift apart with nothing to notice. */
 
 /* One string, two languages, used by the renderers that build their own text.
    Cheaper than a key lookup for a table this size and it keeps the two
    versions of a sentence on the same line, where a missing translation is
    visible instead of silent. */
-function L(he, en) { return TT_UI_LANG === 'en' ? en : he; }
+/* v38: the two argument form still works, so every existing call site keeps
+   running while the strings are moved into the catalogue one at a time. What
+   it no longer does is claim that Hebrew is the answer for the other ten
+   languages: outside Hebrew and English it now returns the ENGLISH string,
+   because a Croatian user reading English is merely untranslated, while a
+   Croatian user reading Hebrew cannot even tell what the button does.
+
+   The three argument form L(he, en, key) prefers the catalogue when the key
+   exists, which is how a string graduates out of this function. */
+function L(he, en, key) {
+  if (key && TT_I18N.keys().indexOf(key) !== -1) return TT_I18N.T(key, TT_UI_LANG);
+  if (TT_UI_LANG === 'he') return he;
+  return en;
+}
+
+/* The catalogue lookup, for strings that have already graduated. */
+function T(key) { return TT_I18N.T(key, TT_UI_LANG); }
+
+/* One flat list, native names only. Twelve entries is short enough that
+   grouping or a search box would be furniture rather than help, and the native
+   name is what a visitor who cannot read the current interface recognises. */
+function buildUiLangMenu() {
+  var menu = $('uiLangMenu');
+  if (!menu) return;
+  menu.innerHTML = '';
+  TT_LANG.all().forEach(function (l) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('data-uilang', l.code);
+    b.setAttribute('role', 'option');
+    b.setAttribute('dir', l.dir);
+    b.setAttribute('lang', l.code);
+    b.textContent = l.native;
+    b.addEventListener('click', function () {
+      applyUiLang(l.code);
+      menu.classList.add('tt-hidden');
+      var g = $('btnUiLang');
+      if (g) { g.setAttribute('aria-expanded', 'false'); g.focus(); }
+    });
+    menu.appendChild(b);
+  });
+}
 
 function applyUiLang(lang) {
-  lang = lang === 'en' ? 'en' : 'he';
-  if (!TT_UI_HE) {
-    TT_UI_HE = [];
-    TT_UI_STRINGS.forEach(function (row) {
-      var el = document.querySelector(row[0]);
-      TT_UI_HE.push(el ? el.innerHTML : null);
-    });
-  }
+  if (TT_I18N.ORDER.indexOf(lang) === -1) lang = 'he';
   TT_UI_LANG = lang;
-  TT_UI_STRINGS.forEach(function (row, i) {
-    var el = document.querySelector(row[0]);
+  TT_I18N.setLang(lang);
+
+  /* v38: written from the catalogue rather than read out of the markup. The
+     old version cached the Hebrew from the DOM at first boot and swapped it
+     with a second column, which is exactly why it could only ever hold two
+     languages. */
+  TT_I18N.keys().forEach(function (key) {
+    var sel = TT_I18N.selectorFor(key);
+    if (!sel) return;
+    var el = document.querySelector(sel);
     if (!el) return;
-    var val = lang === 'en' ? row[1] : TT_UI_HE[i];
+    var val = TT_I18N.T(key, lang);
     if (val !== null && val !== undefined) el.innerHTML = val;
   });
 
   var root = document.documentElement;
   root.setAttribute('lang', lang);
-  root.setAttribute('dir', lang === 'en' ? 'ltr' : 'rtl');
+  root.setAttribute('dir', TT_LANG.dir(lang));
 
-  var btns = document.querySelectorAll('.tt-langbtn');
-  for (var i = 0; i < btns.length; i++) {
-    var on = btns[i].getAttribute('data-uilang') === lang;
-    btns[i].className = 'tt-langbtn' + (on ? ' is-on' : '');
-    btns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+  var nameEl = $('btnUiLangName');
+  if (nameEl) nameEl.textContent = TT_LANG.nativeName(lang);
+  var menu = $('uiLangMenu');
+  if (menu) {
+    var opts = menu.querySelectorAll('button');
+    for (var i = 0; i < opts.length; i++) {
+      opts[i].setAttribute('aria-selected',
+        opts[i].getAttribute('data-uilang') === lang ? 'true' : 'false');
+    }
   }
+  /* The address bar follows the choice, so a link can be shared in a given
+     language and so traffic per language is visible at all. History is
+     REPLACED rather than pushed: changing the interface language is not a
+     navigation, and back should leave the page, not undo a language. */
+  try {
+    var u = new URL(location.href);
+    u.searchParams.set('lang', lang);
+    history.replaceState(null, '', u.toString());
+  } catch (e) {}
 
   try { localStorage.setItem('tt_ui_lang', lang); } catch (e) {}
 
@@ -12567,11 +14163,60 @@ function applyUiLang(lang) {
    that nobody can explain later. */
 function checkUiStrings() {
   var bad = [];
-  TT_UI_STRINGS.forEach(function (row) {
-    if (document.querySelectorAll(row[0]).length !== 1) bad.push(row[0]);
+  TT_I18N.keys().forEach(function (key) {
+    var sel = TT_I18N.selectorFor(key);
+    if (sel && document.querySelectorAll(sel).length !== 1) bad.push(key + ' -> ' + sel);
   });
+  var gaps = TT_I18N.missing();
   if (bad.length && window.console) console.warn('TT i18n: selectors not matching exactly one element:', bad);
-  return bad;
+  if (gaps.length && window.console) console.warn('TT i18n: untranslated entries:', gaps);
+  return { selectors: bad, missing: gaps };
+}
+
+/* Which language the interface opens in, decision 12 and decision 22.
+
+   Order: an explicit ?lang= in the address, then whatever the person chose
+   last time, then the browser's own languages, then English. A choice the
+   person made by hand outranks the browser for ever, which is why the stored
+   value is read before navigator.languages and not after. */
+/* The document level language question that code cannot answer: which of the
+   seven Latin script languages this is, and whether Han without kana is
+   Japanese or a language this app does not support. One short call, cached by
+   content, and a failure leaves the local guess standing rather than blocking
+   anything. */
+TT_LANG.setModelResolver(async function (sample) {
+  if (!getApiKey()) return null;
+  var raw = await callGemini([
+    'Identify the language of the text below.',
+    'Answer with the two letter ISO 639-1 code and nothing else: he, ar, en, fr, es, de, it, pt, hr, ru, ja, hi.',
+    'If it is none of those, answer with the English NAME of the language instead, one word.',
+    'Do not explain. Do not add punctuation.',
+    '',
+    'TEXT:',
+    sample
+  ].join('\n'), { maxOutputTokens: 12 });
+  return String(raw || '').trim().replace(/[^A-Za-z]/g, '').slice(0, 20).toLowerCase() || null;
+});
+
+function ttPickUiLang() {
+  var q = null;
+  try { q = new URLSearchParams(location.search).get('lang'); } catch (e) {}
+  if (q && TT_I18N.ORDER.indexOf(q) !== -1) return q;
+
+  var saved = null;
+  try { saved = localStorage.getItem('tt_ui_lang'); } catch (e) {}
+  if (saved && TT_I18N.ORDER.indexOf(saved) !== -1) return saved;
+
+  var navLangs = (navigator.languages && navigator.languages.length)
+    ? navigator.languages : [navigator.language || ''];
+  for (var i = 0; i < navLangs.length; i++) {
+    var base = String(navLangs[i] || '').toLowerCase().split('-')[0];
+    /* Two tags the browser reports that are not the codes this app uses. */
+    if (base === 'iw') base = 'he';
+    if (base === 'in') base = 'hi';
+    if (TT_I18N.ORDER.indexOf(base) !== -1) return base;
+  }
+  return 'en';
 }
 
 /* ================= sharing the app =================
@@ -13641,7 +15286,7 @@ function editDistance(a, b) {
 }
 
 function digitsOf(s) { return (String(s).match(/\d/g) || []).join(''); }
-function wordCount(s) { return String(s).trim().split(/\s+/).filter(Boolean).length; }
+function wordCount(s, lang) { return ttWords(s, lang).length; }
 
 /* Words the model must not "correct": everything the posting calls for, and
    anything the candidate spelled the same way more than once. A word a person
