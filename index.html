@@ -1028,6 +1028,15 @@
     background: #E0F2FE; border-color: #7DD3FC; color: #075985; font-weight: 700;
     padding: 5px 11px;
   }
+  /* Start over throws away the whole run, so it should look like something
+     deliberate rather than another grey control in the row. Amber, not red:
+     it is reversible by pasting the text again, and red is reserved for
+     things that are not. */
+  #btnStartOver {
+    background: #FEF3C7; border-color: #FCD34D; color: #92400E; font-weight: 700;
+  }
+  #btnStartOver:hover { background: #FDE68A; border-color: #F59E0B; color: #78350F; }
+  #btnStartOver:focus-visible { outline: 2px solid #D97706; outline-offset: 2px; }
   #btnUiLang:hover { background: #BAE6FD; border-color: #38BDF8; color: #0C4A6E; }
   #btnUiLang:focus-visible { outline: 2px solid #0284C7; outline-offset: 2px; }
   .tt-flagwrap { display: inline-flex; }
@@ -1059,7 +1068,12 @@
      card carries two upload labels and the other one label and a button, so
      without this the two boxes ended at different heights. */
   .tt-iocard { display: flex; flex-direction: column; }
-  .tt-iocard .tt-iogrow { flex: 1 1 auto; min-height: 0; }
+  /* The TEXTAREA takes the slack, not the spacer. An earlier version grew the
+     spacer instead, which made the two cards equal in height while leaving a
+     visible gap under the shorter text box: the boxes themselves still ended at
+     different places, which is what the eye actually compares. */
+  .tt-iocard textarea { flex: 1 1 auto; min-height: 15rem; }
+  .tt-iocard .tt-iogrow { flex: 0 0 auto; }
   .tt-langbadge-link {
     background: none; border: 0; padding: 0; cursor: pointer; font: inherit;
     color: var(--c-accent, #0f766e); text-decoration: underline; text-underline-offset: 2px;
@@ -1105,7 +1119,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v38.0</span>
+        <span class="tt-ver" id="verBadge">v38.1</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1343,8 +1357,12 @@
       <textarea id="resumeInput" rows="14" placeholder="הדבק כאן את קורות החיים המלאים"
                 class="tt-field tt-line"></textarea>
       <div class="flex flex-wrap gap-2 mt-2 text-sm">
+        <!-- The text sits in its own span. The catalogue writes innerHTML, and
+             the file input is a CHILD of this label: writing the label itself
+             deleted the input, so every upload button stopped opening a file
+             dialog the moment the interface language was applied at boot. -->
         <label class="tt-drop">
-          📄 העלה קובץ (docx / pdf)
+          <span class="tt-droptext">📄 העלה קובץ (docx / pdf)</span>
           <input id="resumeFile" type="file" accept=".docx,.pdf" class="hidden">
         </label>
         <button id="btnTranslateResume" class="tt-btn tt-btn-sm">🌐 תרגם קלט</button>
@@ -1368,11 +1386,11 @@
                 class="tt-field tt-line"></textarea>
       <div class="flex flex-wrap gap-2 mt-2 text-sm">
         <label class="tt-drop">
-          📄 העלה קובץ (docx / pdf)
+          <span class="tt-droptext">📄 העלה קובץ (docx / pdf)</span>
           <input id="jobFile" type="file" accept=".docx,.pdf" class="hidden">
         </label>
         <label class="tt-drop">
-          🖼️ סרוק צילום מסך
+          <span class="tt-droptext">🖼️ סרוק צילום מסך</span>
           <input id="jobImage" type="file" accept="image/*" class="hidden">
         </label>
       </div>
@@ -1694,7 +1712,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v38.0';
+var TT_VERSION = 'v38.1';
 
 var APP = {
   apiKey: '',
@@ -1790,19 +1808,32 @@ function hide(id) { var e = $(id); if (e) e.classList.add('tt-hidden'); }
    matters after that: every call that takes real time happens while the
    candidate is looking at something further down the page, and a spinner they
    have to scroll up to find is a spinner that says nothing. */
-var TT_LAUNCH_NOTE = 'שני השדות למעלה צריכים להיות מלאים. הריצה לוקחת בערך דקה, וההתקדמות מוצגת למטה.';
+/* Not a character class, a sentence. The rule that keeps TT_HE_GLUE out of the
+   translation table matched this too, so the first line a visitor reads under
+   the start button stayed Hebrew in every language. */
+function ttLaunchNote() {
+  return H('שני השדות למעלה צריכים להיות מלאים. הריצה לוקחת בערך דקה, וההתקדמות מוצגת למטה.');
+}
 
 function setStatus(msg, busy) {
   var e = $('globalStatus');
   if (e) {
     e.innerHTML = busy
       ? '<span class="tt-spin align-middle"></span> ' + escapeHtml(msg)
-      : escapeHtml(msg || TT_LAUNCH_NOTE);
+      : escapeHtml(msg || ttLaunchNote());
   }
   setConsole(msg, busy);
 }
 
-var TT_STAGE_NAMES = [H('קלט'), H('ניתוח המשרה'), H('שאלות התאמה'), H('שכתוב מחדש'), H('אישור השינויים'), H('בדיקות והורדה')];
+/* A function, not an array. As an array this was evaluated once while the page
+   was still loading, so every stage name was frozen in the language the app
+   happened to boot in and the console kept showing them in Hebrew for ever
+   after. Anything built with H at load time has this problem; the fix is to
+   build it when it is read. */
+function ttStageNames() {
+  return [H('קלט'), H('ניתוח המשרה'), H('שאלות התאמה'),
+          H('שכתוב מחדש'), H('אישור השינויים'), H('בדיקות והורדה')];
+}
 var TT_STAGE = 1;
 var TT_CONSOLE_TIMER = null;
 
@@ -1836,7 +1867,7 @@ function setStage(n) {
     }
   }
   var st = $('ttConsoleStage');
-  if (st) st.textContent = H('שלב ') + n + H(' מתוך 6 · ') + (TT_STAGE_NAMES[n - 1] || '');
+  if (st) st.textContent = H('שלב ') + n + H(' מתוך 6 · ') + (ttStageNames()[n - 1] || '');
 }
 function showError(msg) {
   var e = $('errorBox');
@@ -4961,6 +4992,14 @@ function promptSignals(jobText, docLang) {
     'Do not invent requirements that are not in the text, and do not merge two different requirements into one entry.',
     'Keep every item in the language of the posting itself.',
     '',
+    'MERGE REQUIREMENTS THAT ASK FOR THE SAME THING. A posting often names the same system twice,',
+    'once under the must haves and again under the nice to haves, in slightly different words.',
+    'Those are ONE requirement, not two. Merge them into a single entry, keep must_have true if any',
+    'of the merged parts was a must, and put every wording under keywords. Two entries whose keywords',
+    'name the same product, the same certification or the same skill are the same requirement even when',
+    'the sentences around them differ. Do not merge two entries that only share a general word such as',
+    '"experience" or "management": the overlap has to be the thing being asked for, not the wrapper.',
+    '',
     /* Decision 13. Vocabulary overlap is measured by looking for the posting's
        keywords inside the resume, literally. When the two are in different
        languages that overlap is near zero by construction, which used to make
@@ -5925,7 +5964,82 @@ async function stepExtractSignals(jobText) {
     json: true, temperature: 0.2, maxOutputTokens: TT_TOKENS.signals, timeoutMs: 90000,
     failOnTruncation: true
   });
-  return normalizeSignals(safeJsonParse(raw));
+  return ttMergeDuplicateRequirements(normalizeSignals(safeJsonParse(raw)));
+}
+
+/* Decision from the field: the model was returning "work with Priority, VPLAN
+   and project management systems" as a must and "experience with Priority or
+   VPLAN, an advantage" as a separate requirement. They are the same gap, they
+   produced two questions, and the candidate answered the same thing twice.
+
+   The prompt now asks for the merge, but a prompt rule is a request and not a
+   guarantee, so the same rule is enforced here. Two requirements merge when
+   their SPECIFIC keywords overlap: product and standard names, not the general
+   words that wrap them. Merging on a shared "experience" or "management" would
+   collapse unrelated requirements into one and hide a real gap, which is a
+   worse failure than asking one question too many. */
+var TT_MERGE_STOP = ['experience','management','knowledge','ability','skills','work','working',
+  'systems','system','tools','environment','advantage','required','years',
+  'ניסיון','ניהול','ידע','יכולת','כישורים','עבודה','מערכות','מערכת','כלים','סביבה','יתרון','שנים','דרישה'];
+
+function ttSpecificKeys(r) {
+  var out = {};
+  ttReqKeywords(r || {}).forEach(function (k) {
+    var t = String(k || '').toLowerCase().trim();
+    if (!t || t.length < 2) return;
+    if (TT_MERGE_STOP.indexOf(t) !== -1) return;
+    /* A multi word keyword is split so that "Priority, VPLAN" and "VPLAN" meet. */
+    t.split(/[,\/|]| and | או | ו־/).forEach(function (part) {
+      var p = part.trim();
+      if (p && p.length >= 2 && TT_MERGE_STOP.indexOf(p) === -1) out[p] = 1;
+    });
+  });
+  return Object.keys(out);
+}
+
+function ttMergeDuplicateRequirements(sig) {
+  var reqs = (sig && sig.requirements) || [];
+  if (reqs.length < 2) return sig;
+  var keys = reqs.map(ttSpecificKeys);
+  var merged = [], taken = {};
+
+  for (var i = 0; i < reqs.length; i++) {
+    if (taken[i]) continue;
+    var base = reqs[i], baseKeys = keys[i].slice(), absorbed = [];
+    for (var j = i + 1; j < reqs.length; j++) {
+      if (taken[j] || !keys[j].length || !baseKeys.length) continue;
+      var shared = keys[j].filter(function (k) { return baseKeys.indexOf(k) !== -1; });
+      /* Every specific term of the shorter side has to be present on the other.
+         A partial overlap is two different requirements that happen to touch. */
+      var smaller = Math.min(baseKeys.length, keys[j].length);
+      if (shared.length && shared.length === smaller) {
+        taken[j] = 1;
+        absorbed.push(reqs[j]);
+        keys[j].forEach(function (k) { if (baseKeys.indexOf(k) === -1) baseKeys.push(k); });
+      }
+    }
+    if (absorbed.length) {
+      var copy = {};
+      Object.keys(base).forEach(function (k) { copy[k] = base[k]; });
+      /* A must plus an advantage is a must: the posting asked for it outright
+         somewhere, and the softer sentence does not undo that. */
+      copy.must_have = base.must_have || absorbed.some(function (r) { return r.must_have; });
+      copy.weight = Math.max.apply(null, [base.weight || 0].concat(
+        absorbed.map(function (r) { return r.weight || 0; })));
+      copy.keywords = ttReqKeywords(base).slice();
+      copy.keywords_doc = (base.keywords_doc || []).slice();
+      absorbed.forEach(function (r) {
+        (r.keywords || []).forEach(function (k) { if (copy.keywords.indexOf(k) === -1) copy.keywords.push(k); });
+        (r.keywords_doc || []).forEach(function (k) { if (copy.keywords_doc.indexOf(k) === -1) copy.keywords_doc.push(k); });
+      });
+      copy.merged_from = absorbed.map(function (r) { return r.id; });
+      merged.push(copy);
+    } else {
+      merged.push(base);
+    }
+  }
+  sig.requirements = merged;
+  return sig;
 }
 
 function reqById(id) {
@@ -5981,7 +6095,7 @@ function isStopTerm(term) {
   var words = t.split(' ');
   if (words.length < 2) return false;
   for (var i = 0; i < words.length; i++) {
-    if (!TT_STOP_TERMS[words[i]] && !/^\d+$/.test(words[i]) && words[i] !== 'of' && words[i] !== 'in' && words[i] !== 'ב' && words[i] !== 'של') return false;
+    if (!TT_STOP_TERMS[words[i]] && !/^\d+$/.test(words[i]) && words[i] !== 'of' && words[i] !== 'in' && words[i] !== H('ב') && words[i] !== H('של')) return false;
   }
   return true;
 }
@@ -7998,7 +8112,7 @@ async function translateAnswerForResume(entry) {
 var TT_CLOSING_Q = {
   he: 'שאלה אחרונה, והיא שונה מכל הקודמות. אם המגייס היה מתקשר אליך עכשיו ושואל "למה דווקא אתה למשרה הזו?" — מה היית עונה לו, במשפט או שניים? זו הנקודה היחידה שרק אתה יודע; קורות החיים לבדם לא יכולים לגזור אותה. אפשר גם לדלג.',
   ar: 'سؤال أخير، وهو مختلف عن كل ما سبق. لو اتصل بك المسؤول عن التوظيف الآن وسألك "لماذا أنت تحديدًا لهذه الوظيفة؟" — بماذا كنت سترد، في جملة أو جملتين؟ هذه النقطة الوحيدة التي تعرفها أنت وحدك؛ السيرة الذاتية وحدها لا تستطيع استنتاجها. يمكنك التخطي.',
-  en: 'One last question, and it is different from the others. If the recruiter called you right now and asked "why you for this job?" — what would you say, in a sentence or two? This is the one thing only you know; the resume on its own cannot produce it. Feel free to skip.',
+  en: 'One last question, and it is different from the others. If the recruiter called you right now and asked why they should hire you for this job, what would you say, in a sentence or two? This is the one thing only you know; the resume on its own cannot produce it. Feel free to skip.',
   fr: 'Une dernière question, différente de toutes les précédentes. Si le recruteur vous appelait maintenant et demandait « pourquoi vous pour ce poste ? » — que répondriez-vous, en une phrase ou deux ? C\'est la seule chose que vous seul savez ; le CV à lui seul ne peut pas la produire. Vous pouvez aussi passer.',
   es: 'Una última pregunta, distinta de todas las anteriores. Si el reclutador te llamara ahora y preguntara "¿por qué tú para este puesto?" — ¿qué le responderías, en una o dos frases? Es lo único que solo tú sabes; el currículum por sí solo no puede deducirlo. También puedes saltarla.',
   de: 'Eine letzte Frage, und sie ist anders als alle vorherigen. Wenn die Personalerin Sie jetzt anriefe und fragte: „Warum gerade Sie für diese Stelle?“ — was würden Sie antworten, in ein bis zwei Sätzen? Das ist das Einzige, was nur Sie wissen; der Lebenslauf allein kann es nicht liefern. Sie dürfen auch überspringen.',
@@ -10125,8 +10239,8 @@ function atsAudit(text) {
 
   var header = doc.lines.filter(function (l) { return l.cat === 'header'; }).map(function (l) { return l.raw; }).join(' ');
   var missing = [];
-  if (!/[\w.+-]+@[\w-]+\.[\w.]+/.test(header)) missing.push('אימייל');
-  if (!/(\+?\d[\d\-\s()]{7,})/.test(header)) missing.push('טלפון');
+  if (!/[\w.+-]+@[\w-]+\.[\w.]+/.test(header)) missing.push(H('אימייל'));
+  if (!/(\+?\d[\d\-\s()]{7,})/.test(header)) missing.push(H('טלפון'));
   if (missing.length) {
     add('contact', 'bad', H('בבלוק הפרטים חסר ') + missing.join(H(' ו')),
         H('זה הבלוק שמערכת הסינון מנסה למלא ממנו שדות. פרט שחסר בו הוא שדה ריק בכרטיס המועמד, ולפעמים זה כל מה שצריך כדי לא לחזור אליך.'));
@@ -12375,7 +12489,7 @@ function refreshKeyUi() {
     hide('onboardBanner');
   } else {
     if (status) {
-      status.textContent = 'המפתח נשמר מקומית בדפדפן שלך (localStorage) ולא נשלח לשום מקום מלבד Google.';
+      status.textContent = H('המפתח נשמר מקומית בדפדפן שלך (localStorage) ולא נשלח לשום מקום מלבד Google.');
       status.className = 'text-sm mt-2 text-slate-500';
     }
   }
@@ -12602,7 +12716,7 @@ function ttRenderLangBadge(el, axis, text) {
 
   var sel = document.createElement('select');
   sel.className = 'tt-langbadge-sel';
-  sel.setAttribute('aria-label', L('שפת המסמך', 'Document language'));
+  sel.setAttribute('aria-label', L(H('שפת המסמך'), 'Document language'));
   TT_LANG.all().forEach(function (l) {
     var o = document.createElement('option');
     o.value = l.code; o.textContent = l.native;
@@ -12682,7 +12796,7 @@ function bindUi() {
       var reply = await testApiKey();
       var cascade = getModelCascade();
       var tail = H(' נמצאו ') + cascade.length + H(' מודלים זמינים למפתח הזה, ההתאמה תתחיל מ־') + cascade[0] + '.';
-      if (/ok/i.test(reply)) setKeyStatus('✅ החיבור תקין. המודל ' + TT_LAST_MODEL + ' ענה.' + tail, 'ok');
+      if (/ok/i.test(reply)) setKeyStatus(H('✅ החיבור תקין. המודל ') + TT_LAST_MODEL + H(' ענה.') + tail, 'ok');
       else setKeyStatus(H('✅ התקבלה תשובה מהמודל ') + TT_LAST_MODEL + ': ' + reply.slice(0, 40) + tail, 'ok');
       hide('onboardBanner');
     } catch (e) {
@@ -13688,7 +13802,7 @@ function drawPageCuts(page) {
     var cut = document.createElement('div');
     cut.className = 'tt-pagecut';
     cut.style.top = cuts[c].top + 'px';
-    cut.setAttribute('data-label', 'עמוד ' + (c + 2));
+    cut.setAttribute('data-label', H('עמוד ') + (c + 2));
     page.appendChild(cut);
   }
 
@@ -14114,9 +14228,7 @@ var TT_I18N = (function () {
     ['התחל התאמה ⟵', 'ابدأ التخصيص ⟵', 'Start tailoring ⟶', 'Lancer l\'adaptation ⟶', 'Comenzar la adaptación ⟶', 'Anpassung starten ⟶', 'Avvia l\'adattamento ⟶', 'Iniciar a adaptação ⟶', 'Pokreni prilagodbu ⟶', 'Начать адаптацию ⟶', '調整を開始 ⟶', 'तैयारी शुरू करें ⟶']);
 
   /* ---- analysis, world gate, domain gate --------------------------------- */
-  put('tag.stages_1_2', '#analysisCard .tt-card-title .tt-tag',
-    ['שלב 1 ו־2', 'المرحلتان 1 و2', 'Stages 1 and 2', 'Étapes 1 et 2', 'Etapas 1 y 2', 'Schritte 1 und 2', 'Fasi 1 e 2', 'Etapas 1 e 2', 'Koraci 1 i 2', 'Этапы 1 и 2', 'ステップ 1 と 2', 'चरण 1 और 2']);
-  put('norelation.title', '#noRelationCard h2',
+    put('norelation.title', '#noRelationCard h2',
     ['אין מה להתאים כאן', 'لا يوجد ما يمكن تخصيصه هنا', 'There is nothing to tailor here', 'Il n\'y a rien à adapter ici', 'Aquí no hay nada que adaptar', 'Hier gibt es nichts anzupassen', 'Qui non c\'è nulla da adattare', 'Não há nada a adaptar aqui', 'Ovdje nema što prilagoditi', 'Здесь нечего адаптировать', 'ここに調整できるものはありません', 'यहाँ तैयार करने योग्य कुछ नहीं है']);
   put('btn.norelation_stop', '#btnNoRelationStop',
     ['הבנתי, אעלה משרה אחרת', 'فهمت، سأرفع إعلانًا آخر', 'Understood, I will load a different posting', 'Compris, je vais charger une autre annonce', 'Entendido, cargaré otro anuncio', 'Verstanden, ich lade eine andere Anzeige', 'Capito, caricherò un altro annuncio', 'Entendi, vou carregar outro anúncio', 'Razumijem, učitat ću drugi oglas', 'Понятно, загружу другую вакансию', '了解しました。別の求人票を読み込みます', 'समझ गया, दूसरा विज्ञापन डालूँगा']);
@@ -14138,11 +14250,7 @@ var TT_I18N = (function () {
     ['סיימתי, בנה את הגרסה', 'انتهيت، ابنِ النسخة', 'Done, build the version', 'Terminé, construire la version', 'He terminado, construye la versión', 'Fertig, Version erstellen', 'Ho finito, crea la versione', 'Terminei, construa a versão', 'Gotovo, izradi verziju', 'Готово, соберите версию', '完了、バージョンを作成', 'हो गया, संस्करण बनाएँ']);
   put('btn.retry_q', '#btnRetryQ',
     ['↻ נסה שוב', '↻ حاول مرة أخرى', '↻ Try again', '↻ Réessayer', '↻ Reintentar', '↻ Erneut versuchen', '↻ Riprova', '↻ Tentar de novo', '↻ Pokušaj ponovno', '↻ Повторить', '↻ もう一度', '↻ फिर कोशिश करें']);
-  put('tag.stage4', '#answersCard .tt-card-title .tt-tag',
-    ['שלב 4', 'المرحلة 4', 'Stage 4', 'Étape 4', 'Etapa 4', 'Schritt 4', 'Fase 4', 'Etapa 4', 'Korak 4', 'Этап 4', 'ステップ 4', 'चरण 4']);
-  put('tag.stage5', '#reviewCard .tt-card-title .tt-tag',
-    ['שלב 5', 'المرحلة 5', 'Stage 5', 'Étape 5', 'Etapa 5', 'Schritt 5', 'Fase 5', 'Etapa 5', 'Korak 5', 'Этап 5', 'ステップ 5', 'चरण 5']);
-  put('btn.approve_all', '#btnApproveAll',
+      put('btn.approve_all', '#btnApproveAll',
     ['אשר הכל', 'وافق على الكل', 'Approve all', 'Tout approuver', 'Aprobar todo', 'Alles freigeben', 'Approva tutto', 'Aprovar tudo', 'Odobri sve', 'Утвердить всё', 'すべて承認', 'सब स्वीकृत करें']);
   put('btn.reject_all', '#btnRejectAll',
     ['דחה הכל', 'ارفض الكل', 'Reject all', 'Tout refuser', 'Rechazar todo', 'Alles ablehnen', 'Rifiuta tutto', 'Rejeitar tudo', 'Odbij sve', 'Отклонить всё', 'すべて却下', 'सब अस्वीकार करें']);
@@ -14150,9 +14258,7 @@ var TT_I18N = (function () {
     ['המשך לבדיקות ולתצוגה ⟵', 'تابع إلى الفحوصات والمعاينة ⟵', 'Continue to the checks and the preview ⟶', 'Continuer vers les vérifications et l\'aperçu ⟶', 'Continuar a las comprobaciones y la vista previa ⟶', 'Weiter zu Prüfungen und Vorschau ⟶', 'Continua verso i controlli e l\'anteprima ⟶', 'Continuar para as verificações e a prévia ⟶', 'Nastavi na provjere i pregled ⟶', 'Перейти к проверкам и предпросмотру ⟶', 'チェックとプレビューへ進む ⟶', 'जाँच और पूर्वावलोकन पर जाएँ ⟶']);
 
   /* ---- result tabs ------------------------------------------------------- */
-  put('tag.stage6', '#resultCard .tt-card-title .tt-tag',
-    ['שלב 6', 'المرحلة 6', 'Stage 6', 'Étape 6', 'Etapa 6', 'Schritt 6', 'Fase 6', 'Etapa 6', 'Korak 6', 'Этап 6', 'ステップ 6', 'चरण 6']);
-  put('tab.final', '#resultCard .tt-tab[data-tab="final"]',
+    put('tab.final', '#resultCard .tt-tab[data-tab="final"]',
     ['התוצאה', 'النتيجة', 'Result', 'Résultat', 'Resultado', 'Ergebnis', 'Risultato', 'Resultado', 'Rezultat', 'Результат', '結果', 'परिणाम']);
   put('tab.diff', '#resultCard .tt-tab[data-tab="diff"]',
     ['מה השתנה', 'ما الذي تغيّر', 'What changed', 'Ce qui a changé', 'Qué cambió', 'Was sich geändert hat', 'Cosa è cambiato', 'O que mudou', 'Što se promijenilo', 'Что изменилось', '変更点', 'क्या बदला']);
@@ -14168,9 +14274,7 @@ var TT_I18N = (function () {
     ['רענן את התצוגה מהטקסט הזה', 'حدّث المعاينة من هذا النص', 'Refresh the view from this text', 'Actualiser l\'aperçu à partir de ce texte', 'Actualizar la vista con este texto', 'Ansicht aus diesem Text aktualisieren', 'Aggiorna la vista da questo testo', 'Atualizar a visualização a partir deste texto', 'Osvježi prikaz iz ovog teksta', 'Обновить вид из этого текста', 'このテキストから表示を更新', 'इस पाठ से दृश्य ताज़ा करें']);
 
   /* ---- preview and download ---------------------------------------------- */
-  put('tag.download', '#previewCard .tt-card-title .tt-tag',
-    ['הורדה', 'التنزيل', 'Download', 'Téléchargement', 'Descarga', 'Download', 'Download', 'Download', 'Preuzimanje', 'Загрузка', 'ダウンロード', 'डाउनलोड']);
-  put('preview.a4', '#previewCard > p:nth-of-type(1)', [
+    put('preview.a4', '#previewCard > p:nth-of-type(1)', [
     'הדף שלמטה הוא בגודל A4 אמיתי, והקו המקווקו מסמן איפה מתחיל עמוד חדש בקובץ.',
     'الصفحة أدناه بحجم A4 حقيقي، والخط المتقطع يبيّن أين تبدأ صفحة جديدة في الملف.',
     'The sheet below is a real A4 page, and the dashed rule marks where a new page starts in the file.',
@@ -14238,9 +14342,7 @@ var TT_I18N = (function () {
   ]);
 
   /* ---- interview sheet ---------------------------------------------------- */
-  put('tag.stage7', '#interviewCard .tt-card-title .tt-tag',
-    ['שלב 7', 'المرحلة 7', 'Stage 7', 'Étape 7', 'Etapa 7', 'Schritt 7', 'Fase 7', 'Etapa 7', 'Korak 7', 'Этап 7', 'ステップ 7', 'चरण 7']);
-  put('interview.body', '#interviewCard > p', [
+    put('interview.body', '#interviewCard > p', [
     'המסך הזה הוא בשבילך בלבד והוא לא נכנס לקובץ שיורד. הוא מסכם מה עלה לראש כל תפקיד ולמה, ומה המשרה מבקשת ואין לו כיסוי בקורות החיים. הכל נקרא מהנתונים של ההרצה הזו, בלי קריאה נוספת למודל.',
     'هذه الشاشة لك وحدك ولا تدخل الملف الذي يُنزَّل. تلخّص ما صعد إلى أعلى كل وظيفة ولماذا، وما الذي يطلبه الإعلان ولا تغطيه سيرتك الذاتية. كل ذلك مقروء من بيانات هذه الجلسة، بلا أي استدعاء إضافي للنموذج.',
     'This screen is for you alone and it does not go into the downloaded file. It sums up what moved to the top of each job and why, and what the posting asks for that your resume does not cover. All of it is read from this run, with no extra call to the model.',
@@ -14342,19 +14444,19 @@ var TT_I18N = (function () {
     'ここに求人票を貼り付けてください',
     'यहाँ नौकरी का विवरण चिपकाएँ'
   ], 'placeholder');
-  put('drop.resume_file', '#inputCard > div:nth-of-type(1) .tt-drop', [
+  put('drop.resume_file', '#inputCard > div:nth-of-type(1) .tt-droptext', [
     '📄 העלה קובץ (docx / pdf)', '📄 ارفع ملفًا (docx / pdf)', '📄 Upload a file (docx / pdf)',
     '📄 Importer un fichier (docx / pdf)', '📄 Sube un archivo (docx / pdf)', '📄 Datei hochladen (docx / pdf)',
     '📄 Carica un file (docx / pdf)', '📄 Enviar um arquivo (docx / pdf)', '📄 Učitaj datoteku (docx / pdf)',
     '📄 Загрузить файл (docx / pdf)', '📄 ファイルをアップロード (docx / pdf)', '📄 फ़ाइल अपलोड करें (docx / pdf)'
   ]);
-  put('drop.job_file', '#inputCard > div:nth-of-type(2) .tt-drop:nth-of-type(1)', [
+  put('drop.job_file', '#inputCard > div:nth-of-type(2) label:nth-of-type(1) .tt-droptext', [
     '📄 העלה קובץ (docx / pdf)', '📄 ارفع ملفًا (docx / pdf)', '📄 Upload a file (docx / pdf)',
     '📄 Importer un fichier (docx / pdf)', '📄 Sube un archivo (docx / pdf)', '📄 Datei hochladen (docx / pdf)',
     '📄 Carica un file (docx / pdf)', '📄 Enviar um arquivo (docx / pdf)', '📄 Učitaj datoteku (docx / pdf)',
     '📄 Загрузить файл (docx / pdf)', '📄 ファイルをアップロード (docx / pdf)', '📄 फ़ाइल अपलोड करें (docx / pdf)'
   ]);
-  put('drop.job_image', '#inputCard > div:nth-of-type(2) .tt-drop:nth-of-type(2)', [
+  put('drop.job_image', '#inputCard > div:nth-of-type(2) label:nth-of-type(2) .tt-droptext', [
     '🖼️ סרוק צילום מסך', '🖼️ امسح لقطة شاشة', '🖼️ Scan a screenshot',
     '🖼️ Analyser une capture d\'écran', '🖼️ Escanear una captura', '🖼️ Screenshot einlesen',
     '🖼️ Scansiona uno screenshot', '🖼️ Ler uma captura de tela', '🖼️ Skeniraj snimku zaslona',
@@ -14390,6 +14492,224 @@ var TT_I18N = (function () {
     'שפת השאלות:', 'لغة الأسئلة:', 'Question language:', 'Langue des questions :',
     'Idioma de las preguntas:', 'Sprache der Fragen:', 'Lingua delle domande:',
     'Idioma das perguntas:', 'Jezik pitanja:', 'Язык вопросов:', '質問の言語：', 'प्रश्नों की भाषा:'
+  ]);
+
+
+  /* ---- markup the old two language table never listed ------------------
+     The catalogue was seeded from TT_UI_STRINGS, which covered 81 elements.
+     Everything that table never named simply stayed Hebrew in every language,
+     including three card titles, the launch note and the whole chat preamble.
+     Stage titles are written whole rather than as a tag plus a heading: two
+     entries writing into overlapping elements is a race, not a design. */
+  put('key.status_default', '#keyStatus', [
+    'המפתח נשמר בדפדפן שלך בלבד ולא נשלח לשום מקום מלבד Google. אם תסירו את הסימון למעלה, הוא יימחק עם סגירת הלשונית.',
+    'المفتاح يُحفظ محليًا في متصفحك (localStorage) ولا يُرسل إلى أي مكان سوى Google.',
+    'The key is stored locally in your browser (localStorage) and is not sent anywhere except Google.',
+    'La clé est stockée localement dans votre navigateur (localStorage) et n\'est envoyée nulle part sauf à Google.',
+    'La clave se guarda localmente en tu navegador (localStorage) y no se envía a ningún sitio salvo a Google.',
+    'Der Schlüssel wird lokal in Ihrem Browser gespeichert (localStorage) und außer an Google nirgendwohin gesendet.',
+    'La chiave è salvata localmente nel tuo browser (localStorage) e non viene inviata da nessuna parte tranne che a Google.',
+    'A chave é armazenada localmente no seu navegador (localStorage) e não é enviada a lugar algum além do Google.',
+    'Ključ se sprema lokalno u vašem pregledniku (localStorage) i ne šalje se nikamo osim Googleu.',
+    'Ключ хранится локально в вашем браузере (localStorage) и никуда, кроме Google, не отправляется.',
+    'キーはブラウザ内（localStorage）にのみ保存され、Google 以外のどこにも送信されません。',
+    'कुंजी आपके ब्राउज़र में स्थानीय रूप से (localStorage) सहेजी जाती है और Google के अलावा कहीं नहीं भेजी जाती।'
+  ]);
+  put('btn.structure_toggle', '#btnStructureToggle', [
+    'הצג פירוט',
+    'أظهر التفاصيل', 'Show detail', 'Afficher le détail', 'Mostrar detalle', 'Details anzeigen',
+    'Mostra dettagli', 'Mostrar detalhes', 'Prikaži detalje', 'Показать подробности', '詳細を表示', 'विवरण दिखाएँ'
+  ]);
+  put('launch.note', '#globalStatus', [
+    'שני השדות למעלה צריכים להיות מלאים. הריצה לוקחת בערך דקה, וההתקדמות מוצגת למטה.',
+    'يجب ملء الحقلين أعلاه. تستغرق العملية نحو دقيقة، والتقدّم معروض أدناه.',
+    'Both fields above need to be filled. The run takes about a minute, and the progress is shown below.',
+    'Les deux champs ci-dessus doivent être remplis. L\'exécution prend environ une minute et la progression s\'affiche en dessous.',
+    'Ambos campos de arriba deben estar rellenos. La ejecución tarda alrededor de un minuto y el progreso se muestra abajo.',
+    'Beide Felder oben müssen ausgefüllt sein. Der Durchlauf dauert etwa eine Minute, der Fortschritt wird darunter angezeigt.',
+    'Entrambi i campi sopra devono essere compilati. L\'esecuzione richiede circa un minuto e l\'avanzamento è mostrato sotto.',
+    'Os dois campos acima precisam estar preenchidos. A execução leva cerca de um minuto e o progresso aparece abaixo.',
+    'Oba polja iznad moraju biti popunjena. Izvođenje traje oko minutu, a napredak je prikazan ispod.',
+    'Оба поля выше должны быть заполнены. Прогон занимает около минуты, ход показан ниже.',
+    '上の二つの欄を入力してください。処理はおよそ一分、進み具合は下に表示されます。',
+    'ऊपर के दोनों खाने भरे होने चाहिए। प्रक्रिया लगभग एक मिनट लेती है, और प्रगति नीचे दिखती है।'
+  ]);
+  put('metrics.notice', '#metricsNotice > div > div', [
+    '<b>הצעה:</b> לא נמצאו מספרים מדידים בשורות הניסיון שלך. קורות חיים חזקים כוללים לפחות סעיף או שניים עם נתון אמיתי מכל תפקיד רלוונטי (אחוזים, סכומים, כמויות, זמני תגובה). שווה להוסיף מספרים אמיתיים שאתה זוכר, לפני או אחרי ההתאמה. זו הערה חד פעמית, היא לא חוסמת כלום.',
+    '<b>اقتراح:</b> لم توجد أرقام قابلة للقياس في أسطر خبرتك. السيرة الذاتية القوية تتضمّن بندًا أو بندين على الأقل يحملان رقمًا.',
+    '<b>Suggestion:</b> no measurable figures were found in your experience lines. A strong resume carries at least one or two points with a number in them.',
+    '<b>Suggestion :</b> aucun chiffre mesurable n\'a été trouvé dans vos lignes d\'expérience. Un bon CV comporte au moins un ou deux éléments chiffrés.',
+    '<b>Sugerencia:</b> no se encontraron cifras medibles en tus líneas de experiencia. Un currículum sólido incluye al menos uno o dos puntos con un número.',
+    '<b>Vorschlag:</b> In Ihren Erfahrungszeilen wurden keine messbaren Zahlen gefunden. Ein starker Lebenslauf enthält mindestens ein bis zwei Punkte mit einer Zahl.',
+    '<b>Suggerimento:</b> nelle tue righe di esperienza non sono stati trovati dati misurabili. Un CV forte contiene almeno uno o due punti con un numero.',
+    '<b>Sugestão:</b> não foram encontrados números mensuráveis nas suas linhas de experiência. Um currículo forte traz ao menos um ou dois itens com número.',
+    '<b>Prijedlog:</b> u vašim redcima iskustva nisu nađeni mjerljivi podaci. Snažan životopis nosi barem jednu ili dvije stavke s brojem.',
+    '<b>Совет:</b> в ваших строках опыта не найдено измеримых показателей. Сильное резюме содержит хотя бы один-два пункта с числом.',
+    '<b>提案：</b>職務経歴の行に測定可能な数値が見つかりませんでした。強い履歴書には、数値を含む項目が少なくとも一つか二つあります。',
+    '<b>सुझाव:</b> आपकी अनुभव पंक्तियों में कोई मापनीय आँकड़ा नहीं मिला। मज़बूत बायोडाटा में कम से कम एक-दो बिंदु संख्या सहित होते हैं।'
+  ]);
+  put('card.analysis_title', '#analysisCard > h2', [
+    '<span class="tt-tag">שלב 1 ו־2</span>פירוק המשרה והשוואה דרישה מול דרישה',
+    '<span class="tt-tag">المرحلتان 1 و2</span>تفكيك الوظيفة ومقارنة متطلب مقابل متطلب',
+    '<span class="tt-tag">Stages 1 and 2</span>Breaking the posting down and comparing requirement by requirement',
+    '<span class="tt-tag">Étapes 1 et 2</span>Décomposition de l\'annonce et comparaison exigence par exigence',
+    '<span class="tt-tag">Etapas 1 y 2</span>Descomposición de la oferta y comparación requisito por requisito',
+    '<span class="tt-tag">Schritte 1 und 2</span>Zerlegung der Anzeige und Vergleich Anforderung für Anforderung',
+    '<span class="tt-tag">Fasi 1 e 2</span>Scomposizione dell\'annuncio e confronto requisito per requisito',
+    '<span class="tt-tag">Etapas 1 e 2</span>Decomposição da vaga e comparação requisito a requisito',
+    '<span class="tt-tag">Koraci 1 i 2</span>Razlaganje oglasa i usporedba zahtjev po zahtjev',
+    '<span class="tt-tag">Этапы 1 и 2</span>Разбор вакансии и сверка требование за требованием',
+    '<span class="tt-tag">ステップ 1 と 2</span>求人票の分解と、要件ごとの照合',
+    '<span class="tt-tag">चरण 1 और 2</span>विज्ञापन का विश्लेषण और आवश्यकता-दर-आवश्यकता तुलना'
+  ]);
+  put('analysis.job_side', '#analysisCard > div:nth-of-type(2) > div:nth-of-type(1) > h3', [
+    'מה המשרה מבקשת',
+    'ما تطلبه الوظيفة', 'What the posting asks for', 'Ce que demande l\'annonce', 'Qué pide la oferta',
+    'Was die Anzeige verlangt', 'Che cosa chiede l\'annuncio', 'O que a vaga pede', 'Što oglas traži',
+    'Что требует вакансия', '求人票が求めるもの', 'विज्ञापन क्या माँगता है'
+  ]);
+  put('analysis.cv_side', '#analysisCard > div:nth-of-type(2) > div:nth-of-type(2) > h3', [
+    'מה קורות החיים כבר מוכיחים',
+    'ما تثبته السيرة الذاتية أصلًا', 'What the resume already proves', 'Ce que le CV prouve déjà',
+    'Lo que el currículum ya prueba', 'Was der Lebenslauf schon belegt', 'Ciò che il CV già prova',
+    'O que o currículo já comprova', 'Što životopis već dokazuje', 'Что резюме уже доказывает',
+    '履歴書がすでに証明していること', 'बायोडाटा पहले से क्या सिद्ध करता है'
+  ]);
+  put('btn.qlang_more', '#btnQLangMore', [
+    'שפות נוספות ▾',
+    'لغات أخرى ▾', 'More languages ▾', 'Autres langues ▾', 'Más idiomas ▾', 'Weitere Sprachen ▾',
+    'Altre lingue ▾', 'Mais idiomas ▾', 'Više jezika ▾', 'Другие языки ▾', '他の言語 ▾', 'अन्य भाषाएँ ▾'
+  ]);
+  put('chat.preamble', '#chatCard > p', [
+    'כל שאלה נגזרת מדרישה שעדיין לא מוכחת, ולעיתים מכמה דרישות קרובות יחד, כדי שמספר השאלות יישאר קטן בלי לוותר על דיוק. הבורר מחליף את שפת כל השאלות, גם אלה שכבר על המסך, ולא רק את הבאות. שורות קורות החיים נשארות בשפת המקור שלהן, ואפשר לענות בכל שפה: התשובה מתורגמת לשפת קורות החיים לפני שהיא נכנסת אליהם.',
+    'كل سؤال مشتق من متطلب لم يثبت بعد، وأحيانًا من عدة متطلبات متقاربة معًا، كي يبقى عدد الأسئلة صغيرًا دون التنازل عن التغطية.',
+    'Every question comes from a requirement that is not yet proved, and sometimes from several close requirements together, so that the number of questions stays small without giving up coverage.',
+    'Chaque question découle d\'une exigence non encore prouvée, parfois de plusieurs exigences proches à la fois, afin que le nombre de questions reste faible sans sacrifier la couverture.',
+    'Cada pregunta nace de un requisito aún no probado, y a veces de varios requisitos cercanos a la vez, para que el número de preguntas siga siendo bajo sin renunciar a la cobertura.',
+    'Jede Frage stammt aus einer noch nicht belegten Anforderung, manchmal aus mehreren verwandten zugleich, damit die Zahl der Fragen klein bleibt, ohne die Abdeckung aufzugeben.',
+    'Ogni domanda nasce da un requisito non ancora provato, e a volte da più requisiti vicini insieme, così che il numero di domande resti piccolo senza rinunciare alla copertura.',
+    'Cada pergunta vem de um requisito ainda não comprovado, e às vezes de vários requisitos próximos juntos, para que o número de perguntas continue pequeno sem abrir mão da cobertura.',
+    'Svako pitanje proizlazi iz zahtjeva koji još nije dokazan, a katkad iz nekoliko bliskih zahtjeva zajedno, kako bi broj pitanja ostao malen bez odricanja od pokrivenosti.',
+    'Каждый вопрос вырастает из ещё не доказанного требования, иногда из нескольких близких сразу, чтобы вопросов было немного и покрытие при этом не пострадало.',
+    '各質問は、まだ証明されていない要件から生まれます。近い要件をまとめて扱うこともあり、充足を犠牲にせず質問数を抑えます。',
+    'हर प्रश्न ऐसी आवश्यकता से निकलता है जो अभी सिद्ध नहीं हुई, और कभी-कभी कई निकट आवश्यकताओं से एक साथ, ताकि प्रश्नों की संख्या कम रहे और कवरेज भी न छूटे।'
+  ]);
+  put('chat.q_count', '#qCount', [
+    'שאלה 0 מתוך 0',
+    'سؤال 0 من 0', 'Question 0 of 0', 'Question 0 sur 0', 'Pregunta 0 de 0', 'Frage 0 von 0',
+    'Domanda 0 di 0', 'Pergunta 0 de 0', 'Pitanje 0 od 0', 'Вопрос 0 из 0', '質問 0 / 0', 'प्रश्न 0 में से 0'
+  ]);
+  put('chat.q_hint', '#qHint', [
+    'המספר הוא תקרה, לא מכסה. שאלה אחת יכולה לכסות כמה דרישות קרובות, ואם כל הפערים ייסגרו קודם השיחה תסתיים מוקדם יותר.',
+    'الرقم سقف لا حصّة. سؤال واحد قد يغطي عدة متطلبات متقاربة، وإذا أُغلقت كل الفجوات قبل ذلك تنتهي المحادثة مبكرًا.',
+    'The number is a ceiling, not a quota. One question can cover several close requirements, and if all the gaps close sooner the conversation ends early.',
+    'Ce nombre est un plafond, pas un quota. Une question peut couvrir plusieurs exigences proches, et si tous les écarts se comblent avant, la conversation s\'arrête plus tôt.',
+    'El número es un techo, no una cuota. Una pregunta puede cubrir varios requisitos cercanos, y si todas las brechas se cierran antes, la conversación termina pronto.',
+    'Die Zahl ist eine Obergrenze, keine Quote. Eine Frage kann mehrere verwandte Anforderungen abdecken, und schließen sich alle Lücken früher, endet das Gespräch eher.',
+    'Il numero è un tetto, non una quota. Una domanda può coprire più requisiti vicini, e se tutte le lacune si colmano prima la conversazione finisce presto.',
+    'O número é um teto, não uma cota. Uma pergunta pode cobrir vários requisitos próximos, e se todas as lacunas fecharem antes, a conversa termina cedo.',
+    'Broj je gornja granica, ne kvota. Jedno pitanje može pokriti nekoliko bliskih zahtjeva, a ako se svi nedostaci zatvore prije, razgovor završava ranije.',
+    'Число — это потолок, а не норма. Один вопрос может закрыть несколько близких требований, и если все пробелы закроются раньше, разговор кончится досрочно.',
+    'この数は上限であって、こなすべき件数ではありません。一つの質問で近い要件をまとめて扱え、不足がすべて先に埋まれば対話は早く終わります。',
+    'यह संख्या एक सीमा है, कोटा नहीं। एक प्रश्न कई निकट आवश्यकताएँ कवर कर सकता है, और सभी अंतर पहले भर जाएँ तो बातचीत जल्दी समाप्त होती है।'
+  ]);
+  put('card.answers_title', '#answersCard > h2', [
+    '<span class="tt-tag">שלב 4</span>מה נעשה עם התשובות שלך',
+    '<span class="tt-tag">المرحلة 4</span>ماذا نفعل بإجاباتك',
+    '<span class="tt-tag">Stage 4</span>What we do with your answers',
+    '<span class="tt-tag">Étape 4</span>Ce que nous faisons de vos réponses',
+    '<span class="tt-tag">Etapa 4</span>Qué hacemos con tus respuestas',
+    '<span class="tt-tag">Schritt 4</span>Was mit Ihren Antworten geschieht',
+    '<span class="tt-tag">Fase 4</span>Che cosa facciamo delle tue risposte',
+    '<span class="tt-tag">Etapa 4</span>O que fazemos com as suas respostas',
+    '<span class="tt-tag">Korak 4</span>Što radimo s vašim odgovorima',
+    '<span class="tt-tag">Этап 4</span>Что мы делаем с вашими ответами',
+    '<span class="tt-tag">ステップ 4</span>あなたの回答をどう扱うか',
+    '<span class="tt-tag">चरण 4</span>आपके उत्तरों का हम क्या करते हैं'
+  ]);
+  put('card.review_title', '#reviewCard > div:nth-of-type(1) > h2', [
+    '<span class="tt-tag">שלב 5</span>אישור השינויים',
+    '<span class="tt-tag">المرحلة 5</span>الموافقة على التغييرات',
+    '<span class="tt-tag">Stage 5</span>Approving the changes',
+    '<span class="tt-tag">Étape 5</span>Validation des modifications',
+    '<span class="tt-tag">Etapa 5</span>Aprobación de los cambios',
+    '<span class="tt-tag">Schritt 5</span>Freigabe der Änderungen',
+    '<span class="tt-tag">Fase 5</span>Approvazione delle modifiche',
+    '<span class="tt-tag">Etapa 5</span>Aprovação das alterações',
+    '<span class="tt-tag">Korak 5</span>Odobravanje izmjena',
+    '<span class="tt-tag">Этап 5</span>Утверждение правок',
+    '<span class="tt-tag">ステップ 5</span>変更の承認',
+    '<span class="tt-tag">चरण 5</span>बदलावों की स्वीकृति'
+  ]);
+  put('card.result_title', '#resultCard > div:nth-of-type(1) > h2', [
+    '<span class="tt-tag">שלב 6</span>בדיקות ותוצאה',
+    '<span class="tt-tag">المرحلة 6</span>الفحوصات والنتيجة',
+    '<span class="tt-tag">Stage 6</span>Checks and result',
+    '<span class="tt-tag">Étape 6</span>Vérifications et résultat',
+    '<span class="tt-tag">Etapa 6</span>Comprobaciones y resultado',
+    '<span class="tt-tag">Schritt 6</span>Prüfungen und Ergebnis',
+    '<span class="tt-tag">Fase 6</span>Controlli e risultato',
+    '<span class="tt-tag">Etapa 6</span>Verificações e resultado',
+    '<span class="tt-tag">Korak 6</span>Provjere i rezultat',
+    '<span class="tt-tag">Этап 6</span>Проверки и результат',
+    '<span class="tt-tag">ステップ 6</span>チェックと結果',
+    '<span class="tt-tag">चरण 6</span>जाँच और परिणाम'
+  ]);
+  put('final.view_note', '#finalViewNote', [
+    'אותו טקסט בדיוק, מוצג לפי הסקציות שלו.',
+    'النص نفسه تمامًا، معروضًا حسب أقسامه.',
+    'Exactly the same text, shown by its sections.',
+    'Exactement le même texte, présenté par rubriques.',
+    'Exactamente el mismo texto, mostrado por sus secciones.',
+    'Genau derselbe Text, nach seinen Abschnitten dargestellt.',
+    'Esattamente lo stesso testo, mostrato per sezioni.',
+    'Exatamente o mesmo texto, exibido por suas seções.',
+    'Točno isti tekst, prikazan po odjeljcima.',
+    'Тот же самый текст, показанный по разделам.',
+    'まったく同じ本文を、区分ごとに表示しています。',
+    'ठीक वही पाठ, उसके अनुभागों के अनुसार दिखाया गया।'
+  ]);
+  put('card.preview_title', '#previewCard > h2', [
+    '<span class="tt-tag">הורדה</span>תצוגה מקדימה, בדיוק כפי שזה יירד',
+    '<span class="tt-tag">التنزيل</span>معاينة، تمامًا كما ستُنزَّل',
+    '<span class="tt-tag">Download</span>Preview, exactly as it will download',
+    '<span class="tt-tag">Téléchargement</span>Aperçu, exactement tel qu\'il sera téléchargé',
+    '<span class="tt-tag">Descarga</span>Vista previa, exactamente como se descargará',
+    '<span class="tt-tag">Download</span>Vorschau, genau so wie es heruntergeladen wird',
+    '<span class="tt-tag">Download</span>Anteprima, esattamente come verrà scaricato',
+    '<span class="tt-tag">Download</span>Prévia, exatamente como será baixado',
+    '<span class="tt-tag">Preuzimanje</span>Pregled, točno onako kako će se preuzeti',
+    '<span class="tt-tag">Загрузка</span>Предпросмотр, ровно в том виде, в каком скачается',
+    '<span class="tt-tag">ダウンロード</span>ダウンロードされるとおりのプレビュー',
+    '<span class="tt-tag">डाउनलोड</span>पूर्वावलोकन, ठीक वैसा जैसा डाउनलोड होगा'
+  ]);
+  put('preview.bullets_label', '#previewCard > div:nth-of-type(6) > label > span', [
+    'תבליטים בסעיפי הניסיון, הכישורים והסעיפים הנוספים',
+    'نقاط في أقسام الخبرة والمهارات والأقسام الإضافية',
+    'Bullet markers in the experience, skills and other sections',
+    'Puces dans les rubriques expérience, compétences et autres',
+    'Viñetas en las secciones de experiencia, habilidades y otras',
+    'Aufzählungszeichen in Erfahrung, Kenntnissen und weiteren Abschnitten',
+    'Elenchi puntati nelle sezioni esperienza, competenze e altre',
+    'Marcadores nas seções de experiência, habilidades e outras',
+    'Grafičke oznake u odjeljcima iskustva, vještina i ostalima',
+    'Маркеры списка в разделах опыта, навыков и прочих',
+    '職務経歴・スキル・その他の区分に箇条書き記号を付ける',
+    'अनुभव, कौशल और अन्य अनुभागों में बुलेट चिह्न'
+  ]);
+  put('card.interview_title', '#interviewCard > h2', [
+    '<span class="tt-tag">שלב 7</span>הכנה לראיון',
+    '<span class="tt-tag">المرحلة 7</span>التحضير للمقابلة',
+    '<span class="tt-tag">Stage 7</span>Interview preparation',
+    '<span class="tt-tag">Étape 7</span>Préparation à l\'entretien',
+    '<span class="tt-tag">Etapa 7</span>Preparación para la entrevista',
+    '<span class="tt-tag">Schritt 7</span>Vorbereitung auf das Gespräch',
+    '<span class="tt-tag">Fase 7</span>Preparazione al colloquio',
+    '<span class="tt-tag">Etapa 7</span>Preparação para a entrevista',
+    '<span class="tt-tag">Korak 7</span>Priprema za razgovor',
+    '<span class="tt-tag">Этап 7</span>Подготовка к собеседованию',
+    '<span class="tt-tag">ステップ 7</span>面接の準備',
+    '<span class="tt-tag">चरण 7</span>साक्षात्कार की तैयारी'
   ]);
 
   /* ---- lookup ------------------------------------------------------------- */
@@ -14636,6 +14956,7 @@ var TT_TX = {
 ' סעיפים, ובתפקיד קודם':[' بنود، وفي وظيفة سابقة',' points, and in an earlier role',' éléments, et dans un poste antérieur',' puntos, y en un puesto anterior',' Punkte, und in einer früheren Position',' punti, e in un incarico precedente',' itens, e num cargo anterior',' stavki, i u prethodnom radnom mjestu',' пунктов, и на прежней должности','件の項目、そして以前の職務では',' बिंदु, और पिछले पद में'],
 ' עוד ':[' وأيضًا ',' plus ',' plus ',' más ',' weitere ',' altri ',' mais ',' još ',' ещё ','、さらに',' और '],
 ' עמודים גם אחרי הקטנת הגופן והמרווחים למינימום הקריא. ':[' صفحات حتى بعد تصغير الخط والمسافات إلى أدنى حد مقروء. ',' pages even after the font and the spacing were reduced to the readable minimum. ',' pages même après réduction de la police et des espacements au minimum lisible. ',' páginas incluso tras reducir la tipografía y los espaciados al mínimo legible. ',' Seiten selbst nach Verkleinerung von Schrift und Abständen auf das lesbare Minimum. ',' pagine anche dopo aver ridotto carattere e spaziature al minimo leggibile. ',' páginas mesmo após reduzir a fonte e os espaçamentos ao mínimo legível. ',' stranica čak i nakon smanjenja fonta i razmaka na čitljiv minimum. ',' страниц даже после уменьшения шрифта и отступов до читаемого минимума. ','ページ、文字と行間を読みやすい限界まで縮めてもなお。',' पृष्ठ, फ़ॉन्ट और अंतराल को पठनीय न्यूनतम तक घटाने के बाद भी। '],
+' ענה.':[' استجاب.',' answered.',' a répondu.',' respondió.',' hat geantwortet.',' ha risposto.',' respondeu.',' je odgovorio.',' ответил.','　が応答しました。',' ने उत्तर दिया।'],
 ' פורמטים שונים בשורות התפקיד. פרסר שמזהה אחד מהם ומפספס את השני מחשב לך פחות שנות ניסיון ממה שיש.':[' تنسيقات مختلفة في أسطر الوظائف. مُحلّل يتعرّف على أحدها ويفوته الآخر يحسب لك سنوات خبرة أقل مما لديك.',' different formats in the role lines. A parser that recognises one and misses the other counts you fewer years of experience than you have.',' formats différents dans les lignes de poste. Un analyseur qui reconnaît l\'un et rate l\'autre vous compte moins d\'années d\'expérience que vous n\'en avez.',' formatos distintos en las líneas de puesto. Un analizador que reconoce uno y se pierde el otro te cuenta menos años de experiencia de los que tienes.',' verschiedene Formate in den Positionszeilen. Ein Parser, der eines erkennt und das andere verfehlt, zählt Ihnen weniger Berufsjahre, als Sie haben.',' formati diversi nelle righe di incarico. Un parser che riconosce l\'uno e manca l\'altro ti conta meno anni di esperienza di quanti ne hai.',' formatos diferentes nas linhas de cargo. Um analisador que reconhece um e perde o outro conta menos anos de experiência do que você tem.',' različitih formata u redcima radnih mjesta. Analizator koji prepozna jedan a promaši drugi računa vam manje godina iskustva nego što ih imate.',' разных формата в строках должностей. Разборщик, который распознаёт один и пропускает другой, засчитает вам меньше лет опыта, чем есть.','種類の異なる書式が職歴行にあります。一方だけを認識する解析器は、実際より少ない経験年数を数えます。',' अलग-अलग प्रारूप पद पंक्तियों में। जो पार्सर एक पहचानता है और दूसरा चूकता है, वह आपको वास्तविक से कम अनुभव वर्ष गिनता है।'],
 ' פערים ייבדקו בשיחה, בסדר הזה. שאלה אחת יכולה לכסות כמה מהם יחד, ולכן יהיו פחות שאלות מפערים:</div><div>':[' فجوات ستُفحص في المحادثة، بهذا الترتيب. سؤال واحد قد يغطي عدة فجوات معًا، ولذلك ستكون الأسئلة أقل من الفجوات:</div><div>',' gaps will be examined in the conversation, in this order. One question can cover several of them at once, so there will be fewer questions than gaps:</div><div>',' écarts seront examinés dans la conversation, dans cet ordre. Une question peut en couvrir plusieurs à la fois, il y aura donc moins de questions que d\'écarts :</div><div>',' brechas se examinarán en la conversación, en este orden. Una pregunta puede cubrir varias a la vez, así que habrá menos preguntas que brechas:</div><div>',' Lücken werden im Gespräch geprüft, in dieser Reihenfolge. Eine Frage kann mehrere zugleich abdecken, daher gibt es weniger Fragen als Lücken:</div><div>',' lacune saranno esaminate nella conversazione, in quest\'ordine. Una domanda può coprirne più d\'una insieme, quindi ci saranno meno domande che lacune:</div><div>',' lacunas serão examinadas na conversa, nesta ordem. Uma pergunta pode cobrir várias de uma vez, então haverá menos perguntas do que lacunas:</div><div>',' nedostataka bit će razmotreno u razgovoru, ovim redom. Jedno pitanje može pokriti nekoliko njih odjednom, pa će pitanja biti manje nego nedostataka:</div><div>',' пробелов будут разобраны в разговоре, в этом порядке. Один вопрос может закрыть сразу несколько, поэтому вопросов будет меньше, чем пробелов:</div><div>','件の不足をこの順で対話の中で確認します。一つの質問で複数をまとめて扱えるため、質問数は不足の数より少なくなります：</div><div>',' अंतर बातचीत में इसी क्रम में जाँचे जाएँगे। एक प्रश्न कई को एक साथ कवर कर सकता है, इसलिए प्रश्न अंतरों से कम होंगे:</div><div>'],
 ' שגיאות כתיב</summary><div class="mt-1 space-y-0.5">':[' أخطاء إملائية</summary><div class="mt-1 space-y-0.5">',' spelling errors</summary><div class="mt-1 space-y-0.5">',' fautes d\'orthographe</summary><div class="mt-1 space-y-0.5">',' faltas de ortografía</summary><div class="mt-1 space-y-0.5">',' Rechtschreibfehler</summary><div class="mt-1 space-y-0.5">',' errori di ortografia</summary><div class="mt-1 space-y-0.5">',' erros de ortografia</summary><div class="mt-1 space-y-0.5">',' pravopisnih pogrešaka</summary><div class="mt-1 space-y-0.5">',' орфографических ошибок</summary><div class="mt-1 space-y-0.5">','件の綴りの誤り</summary><div class="mt-1 space-y-0.5">',' वर्तनी त्रुटियाँ</summary><div class="mt-1 space-y-0.5">'],
@@ -14811,6 +15132,7 @@ var TT_TX = {
 'אחוזים, סכומים, כמויות, זמני תגובה, גודל צוות. בלי מספר אחד לפחות בכל תפקיד רלוונטי, כל שורה נקראת כתיאור תפקיד ולא כהישג.':['نسب، مبالغ، كميات، أزمنة استجابة، حجم فريق. بلا رقم واحد على الأقل في كل وظيفة ذات صلة، يُقرأ كل سطر كتوصيف وظيفة لا كإنجاز.','Percentages, sums, volumes, response times, team size. Without at least one number in every relevant role, each line reads as a job description and not as an achievement.','Pourcentages, montants, volumes, temps de réponse, taille d\'équipe. Sans au moins un chiffre dans chaque poste pertinent, chaque ligne se lit comme une fiche de poste et non comme une réalisation.','Porcentajes, importes, volúmenes, tiempos de respuesta, tamaño de equipo. Sin al menos una cifra en cada puesto relevante, cada línea se lee como una descripción de puesto y no como un logro.','Prozente, Beträge, Mengen, Reaktionszeiten, Teamgröße. Ohne mindestens eine Zahl in jeder relevanten Station liest sich jede Zeile als Stellenbeschreibung und nicht als Erfolg.','Percentuali, importi, volumi, tempi di risposta, dimensione del team. Senza almeno un numero in ogni incarico pertinente, ogni riga si legge come una descrizione di ruolo e non come un risultato.','Percentuais, valores, volumes, tempos de resposta, tamanho de equipe. Sem ao menos um número em cada cargo relevante, cada linha lê-se como descrição de função e não como realização.','Postoci, iznosi, količine, vremena odziva, veličina tima. Bez barem jednog broja u svakom važnom radnom mjestu, svaki se redak čita kao opis posla a ne kao postignuće.','Проценты, суммы, объёмы, время отклика, размер команды. Без хотя бы одного числа в каждой релевантной должности каждая строка читается как описание должности, а не как достижение.','割合、金額、数量、応答時間、チーム規模。関連する各職務に最低一つの数値がなければ、どの行も成果ではなく職務記述として読まれます。','प्रतिशत, राशियाँ, मात्राएँ, प्रतिक्रिया समय, टीम का आकार। हर प्रासंगिक पद में कम से कम एक संख्या के बिना, हर पंक्ति उपलब्धि नहीं, पद-विवरण की तरह पढ़ी जाती है।'],
 'אי אפשר להמציא סעיפים לתפקיד הנוכחי ולכן האפליקציה לא תעשה זאת, ':['لا يمكن اختلاق بنود للوظيفة الحالية ولذلك لن يفعل التطبيق ذلك، ','Points cannot be invented for the current role, so the app does not do it, ','On ne peut pas inventer d\'éléments pour le poste actuel, l\'application ne le fait donc pas, ','No se pueden inventar puntos para el puesto actual, así que la aplicación no lo hace, ','Für die aktuelle Position lassen sich keine Punkte erfinden, daher tut die Anwendung es nicht, ','Non si possono inventare punti per l\'incarico attuale, quindi l\'app non lo fa, ','Não se podem inventar itens para o cargo atual, então o aplicativo não o faz, ','Za trenutno radno mjesto ne mogu se izmišljati stavke, pa aplikacija to i ne radi, ','Пункты для текущей должности выдумать нельзя, поэтому приложение этого не делает, ','現在の職務の項目を作り出すことはできないため、このアプリはそれを行いません。','वर्तमान पद के लिए बिंदु गढ़े नहीं जा सकते, इसलिए ऐप ऐसा नहीं करता, '],
 'איזון אוטומטי':['موازنة تلقائية','Balanced automatically','Équilibrage automatique','Equilibrio automático','Automatischer Ausgleich','Bilanciamento automatico','Equilíbrio automático','Automatsko uravnoteženje','Автоматическая балансировка','自動調整','स्वतः संतुलन'],
+'אימייל':['بريد إلكتروني','Email','E-mail','Correo electrónico','E-Mail','Email','E-mail','E-pošta','Электронная почта','メール','ईमेल'],
 'אין אנליטיקס ואין מעקב. טעינת הדף כן מושכת גופנים וספריות מ־CDN ציבורי, כלומר אותם שרתים רואים את כתובת ה־IP שלך, כמו בכל אתר.':['لا تحليلات ولا تتبّع. لكن تحميل الصفحة يجلب خطوطًا ومكتبات من شبكة توزيع عامة، أي أن تلك الخوادم ترى عنوان IP الخاص بك، كما في أي موقع.','There is no analytics and no tracking. Loading the page does pull fonts and libraries from a public CDN, so those servers see your IP address, as on any site.','Il n\'y a ni analytique ni suivi. Le chargement de la page récupère bien des polices et des bibliothèques depuis un CDN public, donc ces serveurs voient votre adresse IP, comme sur tout site.','No hay analítica ni seguimiento. La carga de la página sí trae fuentes y bibliotecas desde una CDN pública, así que esos servidores ven tu dirección IP, como en cualquier sitio.','Es gibt keine Analytik und kein Tracking. Beim Laden der Seite werden allerdings Schriften und Bibliotheken von einem öffentlichen CDN geholt, sodass jene Server Ihre IP-Adresse sehen, wie auf jeder Website.','Non c\'è analytics né tracciamento. Il caricamento della pagina però preleva caratteri e librerie da una CDN pubblica, quindi quei server vedono il tuo indirizzo IP, come su qualsiasi sito.','Não há analytics nem rastreamento. O carregamento da página puxa fontes e bibliotecas de uma CDN pública, então esses servidores veem o seu endereço IP, como em qualquer site.','Nema analitike ni praćenja. Učitavanje stranice ipak dohvaća fontove i knjižnice s javnog CDN-a, pa ti poslužitelji vide vašu IP adresu, kao i na svakoj stranici.','Нет ни аналитики, ни отслеживания. Загрузка страницы всё же тянет шрифты и библиотеки с публичного CDN, так что эти серверы видят ваш IP-адрес, как на любом сайте.','解析も追跡もありません。ただしページの読み込みで公開 CDN からフォントとライブラリを取得するため、それらのサーバーはどのサイトとも同様にあなたの IP アドレスを見ます。','न कोई एनालिटिक्स है न ट्रैकिंग। पृष्ठ लोड होने पर सार्वजनिक CDN से फ़ॉन्ट और लाइब्रेरी ज़रूर आती हैं, यानी वे सर्वर आपका IP पता देखते हैं, जैसा हर साइट पर होता है।'],
 'אין אף נתון מדיד בסעיף הניסיון':['لا يوجد أي رقم قابل للقياس في قسم الخبرة','There is not one measurable figure in the experience section','Aucun chiffre mesurable dans la rubrique expérience','No hay ningún dato medible en la sección de experiencia','Im Erfahrungsabschnitt steht keine einzige messbare Zahl','Non c\'è alcun dato misurabile nella sezione esperienza','Não há nenhum número mensurável na seção de experiência','U odjeljku iskustva nema ni jednog mjerljivog podatka','В разделе опыта нет ни одного измеримого показателя','職務経歴に測定可能な数値が一つもありません','अनुभव अनुभाग में एक भी मापनीय आँकड़ा नहीं है'],
 'אין דרישה שנשארה בלי כיסוי.':['لا يوجد متطلب بقي بلا تغطية.','No requirement was left uncovered.','Aucune exigence n\'est restée non couverte.','Ningún requisito quedó sin cubrir.','Keine Anforderung blieb unabgedeckt.','Nessun requisito è rimasto scoperto.','Nenhum requisito ficou sem cobertura.','Nijedan zahtjev nije ostao nepokriven.','Ни одно требование не осталось без покрытия.','未充足の要件はありません。','कोई आवश्यकता बिना कवर नहीं रही।'],
@@ -14823,6 +15145,7 @@ var TT_TX = {
 'אין עדיין מסמך מפורק להשוות מולו.</div>':['لا يوجد بعد مستند مفكّك للمقارنة معه.</div>','There is no parsed document to compare against yet.</div>','Il n\'y a pas encore de document analysé pour comparer.</div>','Todavía no hay un documento analizado con el que comparar.</div>','Es gibt noch kein zerlegtes Dokument zum Vergleichen.</div>','Non c\'è ancora un documento analizzato con cui confrontare.</div>','Ainda não há um documento analisado para comparar.</div>','Još nema razloženog dokumenta za usporedbu.</div>','Пока нет разобранного документа для сравнения.</div>','比較対象となる解析済みの文書がまだありません。</div>','तुलना के लिए अभी कोई पार्स किया दस्तावेज़ नहीं है।</div>'],
 'אין קישור ללינקדין בפרטי הקשר':['لا يوجد رابط لينكدإن في بيانات التواصل','There is no LinkedIn link in the contact details','Aucun lien LinkedIn dans les coordonnées','No hay enlace de LinkedIn en los datos de contacto','Kein LinkedIn-Link in den Kontaktdaten','Nessun link LinkedIn nei dati di contatto','Não há link do LinkedIn nos dados de contato','Nema LinkedIn veze u kontaktnim podacima','В контактных данных нет ссылки на LinkedIn','連絡先に LinkedIn のリンクがありません','संपर्क विवरण में LinkedIn लिंक नहीं है'],
 'אין שורות מתאימות':['لا توجد أسطر مناسبة','There are no suitable lines','Aucune ligne appropriée','No hay líneas adecuadas','Es gibt keine passenden Zeilen','Non ci sono righe adatte','Não há linhas adequadas','Nema odgovarajućih redaka','Подходящих строк нет','該当する行がありません','कोई उपयुक्त पंक्ति नहीं'],
+'אין שרת ואין איסוף. קורות החיים, המשרה והתשובות שלך נשארים בדפדפן ובזיכרון הדף בלבד, ומפתח ה־API נשמר ב־localStorage. הדבר היחיד שיוצא מהמחשב שלך הוא הטקסט שנשלח ל־Google Gemini לצורך הניתוח. אין אנליטיקס, אין קוקיז של צד שלישי ואין שיתוף עם אף גורם אחר.':['لا خادم ولا جمع بيانات. تبقى سيرتك الذاتية والوظيفة وإجاباتك في المتصفح وفي ذاكرة الصفحة فقط، ويُحفظ مفتاح API في localStorage. الشيء الوحيد الذي يغادر جهازك هو النص المرسل إلى Google Gemini للتحليل. لا تحليلات، ولا كوكيز طرف ثالث، ولا مشاركة مع أي جهة أخرى.','No server and no collection. Your resume, the posting and your answers stay in the browser and in the page\'s memory only, and the API key is stored in localStorage. The only thing that leaves your computer is the text sent to Google Gemini for the analysis. No analytics, no third party cookies and no sharing with anyone else.','Aucun serveur, aucune collecte. Votre CV, l\'annonce et vos réponses restent dans le navigateur et dans la mémoire de la page uniquement, et la clé API est stockée dans le localStorage. La seule chose qui quitte votre ordinateur est le texte envoyé à Google Gemini pour l\'analyse. Pas d\'analytique, pas de cookies tiers, aucun partage avec qui que ce soit.','Sin servidor y sin recopilación. Tu currículum, la oferta y tus respuestas se quedan solo en el navegador y en la memoria de la página, y la clave API se guarda en localStorage. Lo único que sale de tu ordenador es el texto enviado a Google Gemini para el análisis. Sin analítica, sin cookies de terceros y sin compartir con nadie más.','Kein Server und keine Erfassung. Ihr Lebenslauf, die Anzeige und Ihre Antworten bleiben nur im Browser und im Seitenspeicher, und der API-Schlüssel liegt im localStorage. Das Einzige, was Ihren Rechner verlässt, ist der Text, der zur Analyse an Google Gemini geht. Keine Analytik, keine Cookies Dritter und keine Weitergabe an irgendwen.','Nessun server e nessuna raccolta. Il tuo CV, l\'annuncio e le tue risposte restano solo nel browser e nella memoria della pagina, e la chiave API è salvata nel localStorage. L\'unica cosa che lascia il tuo computer è il testo inviato a Google Gemini per l\'analisi. Nessun analytics, nessun cookie di terze parti e nessuna condivisione con altri.','Sem servidor e sem coleta. Seu currículo, a vaga e suas respostas ficam apenas no navegador e na memória da página, e a chave de API é guardada no localStorage. A única coisa que sai do seu computador é o texto enviado ao Google Gemini para a análise. Sem analytics, sem cookies de terceiros e sem compartilhamento com ninguém.','Nema poslužitelja ni prikupljanja. Vaš životopis, oglas i vaši odgovori ostaju samo u pregledniku i u memoriji stranice, a API ključ je u localStorageu. Jedino što napušta vaše računalo jest tekst poslan Google Geminiju radi analize. Bez analitike, bez kolačića trećih strana i bez dijeljenja s bilo kim.','Ни сервера, ни сбора данных. Ваше резюме, вакансия и ваши ответы остаются только в браузере и в памяти страницы, а ключ API хранится в localStorage. Единственное, что покидает ваш компьютер, — текст, отправляемый в Google Gemini для анализа. Ни аналитики, ни сторонних куки, ни передачи кому-либо ещё.','サーバーもデータ収集もありません。履歴書、求人票、あなたの回答はブラウザとページのメモリ内にのみ残り、API キーは localStorage に保存されます。あなたのパソコンから出ていくのは、分析のため Google Gemini に送られる本文だけです。解析も、第三者クッキーも、他者への共有もありません。','न कोई सर्वर, न कोई संग्रह। आपका बायोडाटा, विज्ञापन और आपके उत्तर केवल ब्राउज़र और पृष्ठ की स्मृति में रहते हैं, और API कुंजी localStorage में सहेजी जाती है। आपके कंप्यूटर से बाहर जाने वाली एकमात्र चीज़ वह पाठ है जो विश्लेषण हेतु Google Gemini को भेजा जाता है। न एनालिटिक्स, न तृतीय-पक्ष कुकीज़, न किसी और के साथ साझाकरण।'],
 'אין תקציר מקצועי':['لا يوجد ملخص مهني','There is no professional summary','Aucun résumé professionnel','No hay resumen profesional','Kein Kurzprofil vorhanden','Nessuna sintesi professionale','Não há resumo profissional','Nema profesionalnog sažetka','Нет профессионального резюме','職務要約なし','व्यावसायिक सारांश नहीं है'],
 'אישור השינויים':['الموافقة على التغييرات','Approving the changes','Validation des modifications','Aprobación de los cambios','Freigabe der Änderungen','Approvazione delle modifiche','Aprovação das alterações','Odobravanje izmjena','Утверждение правок','変更の承認','बदलावों की स्वीकृति'],
 'אלה השורות שניתן לנסח מחדש כדי שיתאימו למשרה.</p>':['هذه هي الأسطر التي يمكن إعادة صياغتها لتلائم الوظيفة.</p>','These are the lines that can be reworded to fit the posting.</p>','Ce sont les lignes qui peuvent être reformulées pour coller à l\'annonce.</p>','Estas son las líneas que se pueden reformular para ajustarse a la oferta.</p>','Das sind die Zeilen, die für die Anzeige neu formuliert werden können.</p>','Queste sono le righe che si possono riformulare per adattarsi all\'annuncio.</p>','Estas são as linhas que podem ser reescritas para se ajustar à vaga.</p>','Ovo su redci koji se mogu preformulirati da odgovaraju oglasu.</p>','Это строки, которые можно переформулировать под вакансию.</p>','求人に合わせて言い換えられるのはこれらの行です。</p>','ये वे पंक्तियाँ हैं जिन्हें विज्ञापन के अनुरूप पुनःशब्दित किया जा सकता है।</p>'],
@@ -14834,6 +15157,7 @@ var TT_TX = {
 'אפשר לערוך ישירות כאן בתצוגה, או לחזור לשלב 5 ולוותר על שורה שאינה משרתת את המשרה.':['يمكن التحرير مباشرةً هنا في المعاينة، أو العودة إلى المرحلة 5 والتخلي عن سطر لا يخدم الوظيفة.','You can edit directly here in the preview, or go back to stage 5 and give up a line that does not serve the posting.','Vous pouvez modifier directement ici dans l\'aperçu, ou revenir à l\'étape 5 et renoncer à une ligne qui ne sert pas l\'annonce.','Puedes editar directamente aquí en la vista previa, o volver a la etapa 5 y renunciar a una línea que no sirva a la oferta.','Sie können hier in der Vorschau direkt bearbeiten oder zu Schritt 5 zurückkehren und eine Zeile aufgeben, die der Anzeige nicht dient.','Puoi modificare direttamente qui nell\'anteprima, o tornare alla fase 5 e rinunciare a una riga che non serve all\'annuncio.','Você pode editar direto aqui na prévia, ou voltar à etapa 5 e abrir mão de uma linha que não serve à vaga.','Možete uređivati izravno ovdje u pregledu, ili se vratiti na korak 5 i odustati od retka koji ne služi oglasu.','Можно править прямо здесь в предпросмотре или вернуться на этап 5 и отказаться от строки, которая вакансии не служит.','このプレビューで直接編集するか、ステップ 5 に戻って求人に役立たない行を手放すこともできます。','आप यहीं पूर्वावलोकन में सीधे संपादित कर सकते हैं, या चरण 5 पर लौटकर ऐसी पंक्ति छोड़ सकते हैं जो विज्ञापन के काम की नहीं।'],
 'ארוך מדי מכדי להיות שגיאת כתיב':['أطول من أن يكون خطأ إملائيًا','Too long to be a spelling error','Trop long pour être une faute d\'orthographe','Demasiado largo para ser una falta de ortografía','Zu lang für einen Schreibfehler','Troppo lungo per essere un errore di ortografia','Longo demais para ser um erro de ortografia','Predugo da bi bila pravopisna pogreška','Слишком длинно для опечатки','綴りの誤りとしては長すぎます','वर्तनी की गलती के लिए बहुत लंबा'],
 'אשר':['وافق','Approve','Approuver','Aprobar','Freigeben','Approva','Aprovar','Odobri','Утвердить','承認','स्वीकृत'],
+'ב':['في','in','en','en','in','in','em','u','в','：','में'],
 'ב־':['بـ','in ','en ','en ','in ','in ','em ','u ','в ','：','में '],
 'בבלוק הפרטים חסר ':['في كتلة التفاصيل ينقص ','The details block is missing ','Le bloc de coordonnées manque ','Al bloque de datos le falta ','Im Datenblock fehlt ','Nel blocco dei dati manca ','No bloco de dados falta ','U bloku podataka nedostaje ','В блоке данных отсутствует ','連絡先ブロックに不足：','विवरण ब्लॉक में अनुपस्थित: '],
 'בדיקות והורדה':['الفحوصات والتنزيل','Checks and download','Vérifications et téléchargement','Comprobaciones y descarga','Prüfungen und Download','Controlli e download','Verificações e download','Provjere i preuzimanje','Проверки и загрузка','チェックとダウンロード','जाँच और डाउनलोड'],
@@ -14899,6 +15223,7 @@ var TT_TX = {
 'המודל קרא את קורות החיים מול המשרה והחזיר את השורות כפי שהן. זה קורה כשהכיסוי כבר גבוה, ':['قرأ النموذج السيرة الذاتية أمام الوظيفة وأعاد الأسطر كما هي. يحدث هذا حين تكون التغطية عالية أصلًا، ','The model read the resume against the posting and returned the lines as they are. This happens when the coverage is already high, ','Le modèle a lu le CV face à l\'annonce et a renvoyé les lignes telles quelles. Cela arrive quand la couverture est déjà élevée, ','El modelo leyó el currículum frente a la oferta y devolvió las líneas tal cual. Ocurre cuando la cobertura ya es alta, ','Das Modell hat den Lebenslauf gegen die Anzeige gelesen und die Zeilen unverändert zurückgegeben. Das passiert, wenn die Abdeckung schon hoch ist, ','Il modello ha letto il CV a fronte dell\'annuncio e ha restituito le righe così come sono. Succede quando la copertura è già alta, ','O modelo leu o currículo diante da vaga e devolveu as linhas como estão. Isso acontece quando a cobertura já é alta, ','Model je pročitao životopis naspram oglasa i vratio retke kakvi jesu. To se događa kad je pokrivenost već visoka, ','Модель прочитала резюме против вакансии и вернула строки как есть. Так бывает, когда покрытие уже высокое, ','モデルは求人票と照らして履歴書を読み、行をそのまま返しました。これは充足度がすでに高い場合に起こります。','मॉडल ने विज्ञापन के सामने बायोडाटा पढ़ा और पंक्तियाँ ज्यों की त्यों लौटाईं। यह तब होता है जब कवरेज पहले से ऊँचा हो, '],
 'המפתח יישמר במחשב הזה עד שתמחק אותו.':['سيبقى المفتاح على هذا الجهاز حتى تحذفه.','The key stays on this computer until you delete it.','La clé reste sur cet ordinateur jusqu\'à ce que vous la supprimiez.','La clave permanece en este equipo hasta que la borres.','Der Schlüssel bleibt auf diesem Computer, bis Sie ihn löschen.','La chiave resta su questo computer finché non la cancelli.','A chave fica neste computador até você apagá-la.','Ključ ostaje na ovom računalu dok ga ne obrišete.','Ключ останется на этом компьютере, пока вы его не удалите.','キーは削除するまでこのパソコンに残ります。','कुंजी इस कंप्यूटर पर तब तक रहेगी जब तक आप उसे न मिटाएँ।'],
 'המפתח יישמר רק עד סגירת הלשונית, ולא יישאר על המחשב.':['سيبقى المفتاح حتى إغلاق التبويب فقط، ولن يبقى على الجهاز.','The key is kept only until the tab is closed, and does not stay on the computer.','La clé n\'est conservée que jusqu\'à la fermeture de l\'onglet et ne reste pas sur l\'ordinateur.','La clave se conserva solo hasta cerrar la pestaña y no permanece en el equipo.','Der Schlüssel bleibt nur bis zum Schließen des Tabs und verbleibt nicht auf dem Computer.','La chiave resta solo fino alla chiusura della scheda e non rimane sul computer.','A chave fica apenas até a aba ser fechada e não permanece no computador.','Ključ se čuva samo do zatvaranja kartice i ne ostaje na računalu.','Ключ хранится только до закрытия вкладки и на компьютере не остаётся.','キーはタブを閉じるまでのみ保持され、パソコンには残りません。','कुंजी केवल टैब बंद होने तक रहती है, कंप्यूटर पर नहीं रहती।'],
+'המפתח נשמר מקומית בדפדפן שלך (localStorage) ולא נשלח לשום מקום מלבד Google.':['يُحفظ المفتاح محليًا في متصفحك (localStorage) ولا يُرسل إلى أي مكان سوى Google.','The key is stored locally in your browser (localStorage) and is not sent anywhere except Google.','La clé est stockée localement dans votre navigateur (localStorage) et n\'est envoyée nulle part sauf à Google.','La clave se guarda localmente en tu navegador (localStorage) y no se envía a ningún sitio salvo a Google.','Der Schlüssel wird lokal in Ihrem Browser gespeichert (localStorage) und außer an Google nirgendwohin gesendet.','La chiave è salvata localmente nel tuo browser (localStorage) e non viene inviata da nessuna parte tranne che a Google.','A chave é armazenada localmente no seu navegador (localStorage) e não é enviada a lugar algum além do Google.','Ključ se sprema lokalno u vašem pregledniku (localStorage) i ne šalje se nikamo osim Googleu.','Ключ хранится локально в вашем браузере (localStorage) и никуда, кроме Google, не отправляется.','キーはブラウザ内（localStorage）にのみ保存され、Google 以外のどこにも送信されません。','कुंजी आपके ब्राउज़र में स्थानीय रूप से (localStorage) सहेजी जाती है और Google के अलावा कहीं नहीं भेजी जाती।'],
 'המפתח שהוזן אינו תקין. בדוק שהעתקת אותו במלואו מ־Google AI Studio.':['المفتاح المُدخل غير صالح. تأكد من نسخه كاملًا من Google AI Studio.','The key you entered is not valid. Check that you copied all of it from Google AI Studio.','La clé saisie n\'est pas valide. Vérifiez que vous l\'avez copiée entièrement depuis Google AI Studio.','La clave introducida no es válida. Comprueba que la copiaste completa desde Google AI Studio.','Der eingegebene Schlüssel ist ungültig. Prüfen Sie, ob Sie ihn vollständig aus Google AI Studio kopiert haben.','La chiave inserita non è valida. Verifica di averla copiata per intero da Google AI Studio.','A chave inserida não é válida. Verifique se você a copiou inteira do Google AI Studio.','Uneseni ključ nije ispravan. Provjerite jeste li ga cijelog kopirali iz Google AI Studija.','Введённый ключ недействителен. Проверьте, что скопировали его целиком из Google AI Studio.','入力されたキーが正しくありません。Google AI Studio から全体をコピーしたか確認してください。','दर्ज कुंजी वैध नहीं है। जाँचें कि आपने उसे Google AI Studio से पूरा कॉपी किया।'],
 'המפתח תקין, אבל Gemini API אינו זמין במדינה שממנה אתה גולש. ':['المفتاح سليم، لكن Gemini API غير متاح في البلد الذي تتصفح منه. ','The key is valid, but the Gemini API is not available in the country you are browsing from. ','La clé est valide, mais l\'API Gemini n\'est pas disponible dans le pays depuis lequel vous naviguez. ','La clave es válida, pero la API de Gemini no está disponible en el país desde el que navegas. ','Der Schlüssel ist gültig, aber die Gemini-API ist in dem Land, aus dem Sie surfen, nicht verfügbar. ','La chiave è valida, ma l\'API Gemini non è disponibile nel paese da cui stai navigando. ','A chave é válida, mas a API do Gemini não está disponível no país de onde você navega. ','Ključ je ispravan, ali Gemini API nije dostupan u zemlji iz koje pregledavate. ','Ключ действителен, но Gemini API недоступен в стране, из которой вы заходите. ','キーは有効ですが、ご利用の国では Gemini API を利用できません。','कुंजी वैध है, पर जिस देश से आप ब्राउज़ कर रहे हैं वहाँ Gemini API उपलब्ध नहीं है। '],
 'המשרה בנויה סביב ':['الوظيفة مبنية حول ','The posting is built around ','L\'annonce est construite autour de ','La oferta se construye en torno a ','Die Anzeige ist aufgebaut um ','L\'annuncio è costruito intorno a ','A vaga é construída em torno de ','Oglas je izgrađen oko ','Вакансия построена вокруг ','求人票の中心は','विज्ञापन इसके आसपास बना है: '],
@@ -14985,6 +15310,7 @@ var TT_TX = {
 'חרגת ממכסת השימוש (429). נסה שוב בעוד דקה או השתמש במפתח אחר.':['تجاوزت حد الاستخدام (429). حاول بعد دقيقة أو استخدم مفتاحًا آخر.','You exceeded the usage quota (429). Try again in a minute or use a different key.','Vous avez dépassé le quota d\'utilisation (429). Réessayez dans une minute ou utilisez une autre clé.','Superaste la cuota de uso (429). Inténtalo en un minuto o usa otra clave.','Sie haben das Nutzungskontingent überschritten (429). Versuchen Sie es in einer Minute erneut oder nehmen Sie einen anderen Schlüssel.','Hai superato la quota d\'uso (429). Riprova tra un minuto o usa un\'altra chiave.','Você excedeu a cota de uso (429). Tente daqui a um minuto ou use outra chave.','Premašili ste kvotu korištenja (429). Pokušajte za minutu ili upotrijebite drugi ključ.','Вы превысили квоту использования (429). Попробуйте через минуту или возьмите другой ключ.','利用上限を超えました（429）。1 分ほど待つか、別のキーをお使いください。','आपने उपयोग सीमा पार कर ली (429)। एक मिनट बाद कोशिश करें या दूसरी कुंजी लें।'],
 'חשובה':['مهم','Important','Important','Importante','Wichtig','Importante','Importante','Važno','Важно','重要','महत्वपूर्ण'],
 'טבלת ההשוואה למעלה נשארת כפי שחושבה, לפי ההשוואה הצרה.</p>':['يبقى جدول المقارنة أعلاه كما حُسب، وفق المقارنة الضيّقة.</p>','The comparison table above stays as it was calculated, on the narrow comparison.</p>','Le tableau de comparaison ci-dessus reste tel qu\'il a été calculé, sur la comparaison stricte.</p>','La tabla de comparación de arriba permanece tal como se calculó, según la comparación estricta.</p>','Die Vergleichstabelle oben bleibt so, wie sie berechnet wurde, nach dem engen Vergleich.</p>','La tabella di confronto sopra resta come è stata calcolata, sul confronto stretto.</p>','A tabela de comparação acima permanece como foi calculada, pela comparação estrita.</p>','Tablica usporedbe iznad ostaje kako je izračunata, prema uskoj usporedbi.</p>','Таблица сравнения выше остаётся такой, как была рассчитана, по узкому сравнению.</p>','上の比較表は、狭い照合で算出されたままです。</p>','ऊपर की तुलना तालिका वैसी ही रहती है जैसी संकीर्ण तुलना से गणना हुई थी।</p>'],
+'טלפון':['هاتف','Phone','Téléphone','Teléfono','Telefon','Telefono','Telefone','Telefon','Телефон','電話','फ़ोन'],
 'ידני':['يدوي','Manual','Manuel','Manual','Manuell','Manuale','Manual','Ručno','Вручную','手動','हस्तचालित'],
 'ירד מסעיף ':['نزل من البند ','moved down from point ','descendu de l\'élément ','bajó del punto ','abgestiegen von Punkt ','scesa dal punto ','desceu do item ','spustilo se sa stavke ','опустилось с пункта ','項目から下降 ','बिंदु से नीचे आया '],
 'יש ':['يوجد ','there is ','il y a ','hay ','es gibt ','c\'è ','há ','postoji ','есть ','あり','है '],
@@ -15030,6 +15356,7 @@ var TT_TX = {
 'לא זוהתה כותרת של סעיף כישורים בקורות החיים, ולכן שלב הכישורים לא רץ. ':['لم يُكتشف عنوان قسم مهارات في السيرة الذاتية، ولذلك لم تُشغَّل مرحلة المهارات. ','No skills section heading was recognised in the resume, so the skills stage did not run. ','Aucun intitulé de rubrique compétences n\'a été reconnu dans le CV, l\'étape des compétences n\'a donc pas été lancée. ','No se reconoció ningún encabezado de sección de habilidades en el currículum, así que la etapa de habilidades no se ejecutó. ','Im Lebenslauf wurde kein Kompetenzabschnitt erkannt, daher lief die Kompetenzphase nicht. ','Nel CV non è stato riconosciuto alcun titolo di sezione competenze, quindi la fase competenze non è stata eseguita. ','Nenhum título de seção de habilidades foi reconhecido no currículo, então a etapa de habilidades não rodou. ','U životopisu nije prepoznat naslov odjeljka vještina, pa faza vještina nije pokrenuta. ','В резюме не распознан заголовок раздела навыков, поэтому этап навыков не выполнялся. ','履歴書からスキル欄の見出しを認識できなかったため、スキルの段階は実行されませんでした。','बायोडाटा में कौशल अनुभाग का शीर्षक नहीं पहचाना गया, इसलिए कौशल चरण नहीं चला। '],
 'לא זזה, וזה תקין: ניסוח מחדש לא משנה מה עשית בפועל.':['لم يتحرك، وهذا سليم: إعادة الصياغة لا تغيّر ما فعلته فعلًا.','did not move, and that is correct: rewording does not change what you actually did.','n\'a pas bougé, et c\'est normal : reformuler ne change pas ce que vous avez fait.','no se movió, y es correcto: reformular no cambia lo que hiciste realmente.','hat sich nicht verändert, und das ist richtig: Umformulieren ändert nicht, was Sie getan haben.','non si è mosso, ed è corretto: riformulare non cambia ciò che hai fatto davvero.','não se moveu, e está correto: reescrever não muda o que você realmente fez.','nije se pomaknuo, i to je ispravno: preformuliranje ne mijenja ono što ste stvarno učinili.','не сдвинулся, и это правильно: переформулировка не меняет того, что вы сделали.','は動いておらず、それが正しい動作です。言い換えは実際に何をしたかを変えません。','नहीं हिला, और यह सही है: पुनःशब्दांकन आपने वास्तव में जो किया उसे नहीं बदलता।'],
 'לא ידוע':['غير معروف','Unknown','Inconnu','Desconocido','Unbekannt','Sconosciuto','Desconhecido','Nepoznato','Неизвестно','不明','अज्ञात'],
+'לא נמצא בטקסט':['غير موجود في النص','Not found in the text','Introuvable dans le texte','No se encuentra en el texto','Im Text nicht gefunden','Non trovato nel testo','Não encontrado no texto','Nije nađeno u tekstu','В тексте не найдено','本文に見つかりません','पाठ में नहीं मिला'],
 'לא נמצא תקציר מקצועי בקורות החיים שהעלית, וגם לא הוצע אחד. אפשר להריץ את השלב שוב, או להוסיף תקציר קצר בעצמך ולהעלות מחדש.':['لم يوجد ملخص مهني في السيرة الذاتية التي رفعتها، ولم يُقترح أي ملخص. يمكن إعادة تشغيل المرحلة، أو إضافة ملخص قصير بنفسك ورفعها من جديد.','No professional summary was found in the resume you uploaded, and none was proposed either. You can run the stage again, or add a short summary yourself and upload again.','Aucun résumé professionnel n\'a été trouvé dans le CV importé, et aucun n\'a été proposé. Vous pouvez relancer l\'étape, ou ajouter vous-même un court résumé et réimporter.','No se encontró resumen profesional en el currículum que subiste, y tampoco se propuso ninguno. Puedes ejecutar la etapa de nuevo, o añadir tú mismo un resumen breve y volver a subirlo.','Im hochgeladenen Lebenslauf wurde kein Kurzprofil gefunden, und es wurde auch keines vorgeschlagen. Sie können den Schritt erneut ausführen oder selbst ein kurzes Profil ergänzen und neu hochladen.','Nel CV che hai caricato non è stata trovata una sintesi professionale, e nemmeno ne è stata proposta una. Puoi rieseguire la fase, o aggiungere tu una breve sintesi e ricaricare.','Nenhum resumo profissional foi encontrado no currículo que você enviou, e nenhum foi proposto. Você pode executar a etapa de novo, ou acrescentar um resumo curto e enviar novamente.','U životopisu koji ste učitali nije nađen profesionalni sažetak, niti je ijedan predložen. Možete ponovno pokrenuti korak, ili sami dodati kratak sažetak i ponovno učitati.','В загруженном вами резюме не найден профессиональный раздел, и ни одного не предложено. Можно запустить этап заново или добавить короткое резюме самому и загрузить снова.','アップロードされた履歴書に職務要約は見つからず、提案も行われませんでした。この段階をもう一度実行するか、短い要約をご自身で加えて再度アップロードしてください。','आपके अपलोड किए बायोडाटा में कोई व्यावसायिक सारांश नहीं मिला, और न ही कोई प्रस्तावित हुआ। आप चरण फिर चला सकते हैं, या स्वयं छोटा सारांश जोड़कर दोबारा अपलोड कर सकते हैं।'],
 'לא נמצא תקציר מקצועי בקורות החיים שהעלית. התקציר הוא מה שמגייס קורא בשש השניות הראשונות, ולכן הוצע לך אחד ברשימת האישורים, ':['لم يوجد ملخص مهني في السيرة الذاتية التي رفعتها. الملخص هو ما يقرؤه المسؤول عن التوظيف في الثواني الست الأولى، ولذلك اقتُرح عليك واحد في قائمة الموافقات، ','No professional summary was found in the resume you uploaded. The summary is what a recruiter reads in the first six seconds, so one was proposed for you in the approval list, ','Aucun résumé professionnel n\'a été trouvé dans le CV importé. Le résumé est ce qu\'un recruteur lit dans les six premières secondes, un a donc été proposé dans la liste de validation, ','No se encontró resumen profesional en el currículum que subiste. El resumen es lo que un reclutador lee en los primeros seis segundos, por eso se te propuso uno en la lista de aprobación, ','Im hochgeladenen Lebenslauf wurde kein Kurzprofil gefunden. Das Profil ist das, was ein Personaler in den ersten sechs Sekunden liest, deshalb wurde Ihnen eines in der Freigabeliste vorgeschlagen, ','Nel CV che hai caricato non è stata trovata una sintesi professionale. La sintesi è ciò che un selezionatore legge nei primi sei secondi, perciò te ne è stata proposta una nell\'elenco di approvazione, ','Nenhum resumo profissional foi encontrado no currículo que você enviou. O resumo é o que um recrutador lê nos primeiros seis segundos, por isso um foi proposto na lista de aprovação, ','U životopisu koji ste učitali nije nađen profesionalni sažetak. Sažetak je ono što regruter čita u prvih šest sekundi, pa vam je jedan predložen na popisu odobrenja, ','В загруженном вами резюме не найден профессиональный раздел. Именно его рекрутер читает в первые шесть секунд, поэтому вам предложен один в списке утверждения, ','アップロードされた履歴書に職務要約が見つかりませんでした。要約は採用担当者が最初の六秒で読む部分なので、承認一覧に一つ提案しています。','आपके अपलोड किए बायोडाटा में व्यावसायिक सारांश नहीं मिला। सारांश ही वह है जिसे भर्तीकर्ता पहले छह सेकंड में पढ़ता है, इसलिए स्वीकृति सूची में आपके लिए एक प्रस्तावित किया गया, '],
 'לא נמצאה בשורה הזו זיקה לאף דרישה במשרה.':['لم توجد في هذا السطر صلة بأي متطلب في الوظيفة.','No connection to any requirement in the posting was found in this line.','Aucun lien avec une exigence de l\'annonce n\'a été trouvé dans cette ligne.','En esta línea no se encontró relación con ningún requisito de la oferta.','In dieser Zeile wurde kein Bezug zu einer Anforderung der Anzeige gefunden.','In questa riga non è stato trovato alcun legame con un requisito dell\'annuncio.','Nesta linha não se encontrou ligação a nenhum requisito da vaga.','U ovom retku nije nađena veza ni s jednim zahtjevom iz oglasa.','В этой строке не найдено связи ни с одним требованием вакансии.','この行には求人票のどの要件との関連も見つかりませんでした。','इस पंक्ति में विज्ञापन की किसी आवश्यकता से संबंध नहीं मिला।'],
@@ -15073,6 +15400,7 @@ var TT_TX = {
 'ממקום ':['من الموضع ','from position ','de la position ','desde la posición ','von Position ','dalla posizione ','da posição ','s pozicije ','с позиции ','位置 ','स्थान '],
 'מנסח את השאלה הבאה מתוך הפער הבא בתור.':['يصوغ السؤال التالي من الفجوة التالية في الدور.','Writing the next question from the next gap in the queue.','Rédaction de la question suivante à partir du prochain écart.','Formulando la siguiente pregunta a partir de la próxima brecha.','Die nächste Frage wird aus der nächsten Lücke formuliert.','Formulazione della domanda successiva dalla prossima lacuna.','Formulando a próxima pergunta a partir da próxima lacuna.','Sastavljam sljedeće pitanje iz sljedećeg nedostatka u redu.','Формулирую следующий вопрос из очередного пробела.','次の不足点から質問を作成しています。','कतार के अगले अंतर से अगला प्रश्न बना रहा है।'],
 'מסיר מונח מוגן: שם, מוצר או מונח מהמשרה':['يحذف مصطلحًا محميًا: اسم أو منتج أو مصطلح من الوظيفة','Removes a protected term: a name, a product or a term from the posting','Supprime un terme protégé : un nom, un produit ou un terme de l\'annonce','Elimina un término protegido: un nombre, un producto o un término de la oferta','Entfernt einen geschützten Begriff: einen Namen, ein Produkt oder einen Begriff aus der Anzeige','Rimuove un termine protetto: un nome, un prodotto o un termine dell\'annuncio','Remove um termo protegido: um nome, um produto ou um termo da vaga','Uklanja zaštićeni pojam: naziv, proizvod ili pojam iz oglasa','Удаляет защищённый термин: имя, продукт или термин из вакансии','保護された語を削除しています：氏名、製品名、または求人票の用語','संरक्षित पद हटाता है: नाम, उत्पाद या विज्ञापन का पद'],
+'מפתח ה־API נשמר ב־localStorage של הדפדפן ולא בשום מקום אחר.':['يُحفظ مفتاح API في localStorage الخاص بالمتصفح ولا في أي مكان آخر.','The API key is stored in the browser\'s localStorage and nowhere else.','La clé API est stockée dans le localStorage du navigateur et nulle part ailleurs.','La clave API se guarda en el localStorage del navegador y en ningún otro sitio.','Der API-Schlüssel wird im localStorage des Browsers gespeichert und sonst nirgends.','La chiave API è salvata nel localStorage del browser e da nessun\'altra parte.','A chave de API é guardada no localStorage do navegador e em nenhum outro lugar.','API ključ sprema se u localStorage preglednika i nigdje drugdje.','Ключ API хранится в localStorage браузера и больше нигде.','API キーはブラウザの localStorage にのみ保存され、ほかのどこにも保存されません。','API कुंजी ब्राउज़र के localStorage में सहेजी जाती है और कहीं नहीं।'],
 'מפתח שמור בדפדפן (':['مفتاح محفوظ في المتصفح (','A key saved in the browser (','Clé enregistrée dans le navigateur (','Clave guardada en el navegador (','Im Browser gespeicherter Schlüssel (','Chiave salvata nel browser (','Chave salva no navegador (','Ključ spremljen u pregledniku (','Ключ сохранён в браузере (','ブラウザに保存されたキー（','ब्राउज़र में सहेजी कुंजी ('],
 'מקטין גופן קודם, שומר על ההפרדה בין הסעיפים':['يصغّر الخط أولًا، ويحافظ على الفصل بين البنود','Shrinks the font first, keeping the separation between points','Réduit d\'abord la police, en gardant la séparation entre les éléments','Reduce primero la tipografía, manteniendo la separación entre puntos','Verkleinert zuerst die Schrift und erhält den Abstand zwischen den Punkten','Riduce prima il carattere, mantenendo la separazione fra i punti','Reduz primeiro a fonte, mantendo a separação entre os itens','Prvo smanjuje font, čuvajući razdvojenost stavki','Сначала уменьшает шрифт, сохраняя разделение между пунктами','先に書体を縮小し、項目間の区切りは保ちます','पहले फ़ॉन्ट घटाता है, बिंदुओं के बीच अलगाव बनाए रखते हुए'],
 'מרווחים קודם, גופן רק אם צריך':['المسافات أولًا، والخط فقط إذا لزم','Spacing first, the font only if needed','Les espacements d\'abord, la police seulement si nécessaire','Primero los espaciados, la tipografía solo si hace falta','Zuerst die Abstände, die Schrift nur wenn nötig','Prima le spaziature, il carattere solo se serve','Primeiro os espaçamentos, a fonte só se preciso','Prvo razmaci, font samo ako treba','Сначала отступы, шрифт только при необходимости','まず行間、必要なときだけ書体','पहले अंतराल, फ़ॉन्ट केवल आवश्यकता पर'],
@@ -15119,6 +15447,7 @@ var TT_TX = {
 'עודכן':['حُدّث','Updated','Mis à jour','Actualizado','Aktualisiert','Aggiornato','Atualizado','Ažurirano','Обновлено','更新済み','अद्यतित'],
 'על האפליקציה':['حول التطبيق','About the app','À propos de l\'application','Acerca de la aplicación','Über die Anwendung','Informazioni sull\'app','Sobre o aplicativo','O aplikaciji','О приложении','このアプリについて','ऐप के बारे में'],
 'עלתה כי נוספו עובדות שלא היו במסמך.':['ارتفعت لأن أُضيفت معلومات لم تكن في المستند.','It rose because facts that were not in the document were added.','Il a augmenté parce que des faits absents du document ont été ajoutés.','Subió porque se añadieron datos que no estaban en el documento.','Er stieg, weil Angaben ergänzt wurden, die nicht im Dokument standen.','È salito perché sono stati aggiunti dati che non erano nel documento.','Subiu porque foram acrescentados fatos que não estavam no documento.','Porastao je jer su dodane činjenice kojih nije bilo u dokumentu.','Он вырос, потому что добавились факты, которых в документе не было.','文書になかった事実が加わったため上がりました。','यह बढ़ा क्योंकि दस्तावेज़ में न थे ऐसे तथ्य जुड़े।'],
+'עמוד ':['صفحة ','Page ','Page ','Página ','Seite ','Pagina ','Página ','Stranica ','Страница ','ページ ','पृष्ठ '],
 'עמודה אחת של פסקאות רגילות, בלי טבלאות, תיבות טקסט, כותרות עליונות או גרפיקה. זה מה שכל הטמפלטים כאן מייצרים.':['عمود واحد من فقرات عادية، بلا جداول أو مربعات نص أو ترويسات أو رسوم. هذا ما تنتجه كل القوالب هنا.','A single column of ordinary paragraphs, with no tables, text boxes, headers or graphics. That is what every template here produces.','Une seule colonne de paragraphes ordinaires, sans tableaux, zones de texte, en-têtes ni graphiques. C\'est ce que produisent tous les modèles ici.','Una sola columna de párrafos normales, sin tablas, cuadros de texto, encabezados ni gráficos. Eso es lo que producen todas las plantillas aquí.','Eine einzige Spalte aus gewöhnlichen Absätzen, ohne Tabellen, Textfelder, Kopfzeilen oder Grafiken. Genau das erzeugt hier jede Vorlage.','Una sola colonna di paragrafi ordinari, senza tabelle, caselle di testo, intestazioni o grafica. È ciò che producono tutti i modelli qui.','Uma única coluna de parágrafos comuns, sem tabelas, caixas de texto, cabeçalhos ou gráficos. É isso que todos os modelos aqui produzem.','Jedan stupac običnih odlomaka, bez tablica, tekstualnih okvira, zaglavlja ili grafike. To je ono što svi predlošci ovdje proizvode.','Одна колонка обычных абзацев, без таблиц, текстовых блоков, колонтитулов и графики. Именно это создаёт здесь каждый шаблон.','通常の段落だけの一段組み。表、テキストボックス、ヘッダー、図版は使いません。ここのテンプレートはすべてこの形を作ります。','सामान्य अनुच्छेदों का एक ही कॉलम, बिना तालिकाओं, टेक्स्ट बॉक्स, शीर्षलेख या ग्राफ़िक्स के। यहाँ के सभी टेम्पलेट यही बनाते हैं।'],
 'ענית על ':['أجبت عن ','You answered ','Vous avez répondu à ','Respondiste ','Sie haben ','Hai risposto a ','Você respondeu ','Odgovorili ste na ','Вы ответили на ','回答数 ','आपने उत्तर दिए '],
 'פורמט התאריכים לא אחיד':['تنسيق التواريخ غير موحّد','The date format is inconsistent','Le format des dates n\'est pas uniforme','El formato de fechas no es uniforme','Das Datumsformat ist uneinheitlich','Il formato delle date non è uniforme','O formato das datas não é uniforme','Format datuma nije jednolik','Формат дат неоднороден','日付の表記が揃っていません','तिथि प्रारूप एकरूप नहीं है'],
@@ -15168,6 +15497,7 @@ var TT_TX = {
 'שינוי מבנה התקציר':['تغيير بنية الملخص','Changing the structure of the summary','Modification de la structure du résumé','Cambiar la estructura del resumen','Aufbau der Zusammenfassung ändern','Modifica della struttura della sintesi','Alterar a estrutura do resumo','Promjena strukture sažetka','Изменение структуры резюме','要約の構成の変更','सारांश की संरचना बदलना'],
 'שינוי שם כישור':['تغيير اسم مهارة','Renaming a skill','Renommage d\'une compétence','Cambiar el nombre de una habilidad','Kompetenz umbenennen','Rinomina di una competenza','Renomear uma habilidade','Preimenovanje vještine','Переименование навыка','スキル名の変更','कौशल का नाम बदलना'],
 'שכתוב מחדש':['إعادة الصياغة','Rewrite','Réécriture','Reescritura','Neufassung','Riscrittura','Reescrita','Ponovno pisanje','Переписывание','書き直し','पुनर्लेखन'],
+'של':['لـ','of','de','de','von','di','de','od','из','の','का'],
 'שלב ':['المرحلة ','Stage ','Étape ','Etapa ','Schritt ','Fase ','Etapa ','Korak ','Этап ','ステップ ','चरण '],
 'שלב 1: מפרק את המשרה לדרישות...':['المرحلة 1: يفكّك الوظيفة إلى متطلبات...','Stage 1: breaking the posting into requirements...','Étape 1 : décomposition de l\'annonce en exigences...','Etapa 1: descomponiendo la oferta en requisitos...','Schritt 1: Anzeige wird in Anforderungen zerlegt...','Fase 1: scomposizione dell\'annuncio in requisiti...','Etapa 1: decompondo o anúncio em requisitos...','Korak 1: razlažem oglas na zahtjeve...','Этап 1: разбираю вакансию на требования...','ステップ 1：求人票を要件に分解中...','चरण 1: विज्ञापन को आवश्यकताओं में बाँट रहा है...'],
 'שלב 2: משווה כל דרישה מול קורות החיים...':['المرحلة 2: يقارن كل متطلب بالسيرة الذاتية...','Stage 2: comparing every requirement against the resume...','Étape 2 : comparaison de chaque exigence au CV...','Etapa 2: comparando cada requisito con el currículum...','Schritt 2: jede Anforderung wird mit dem Lebenslauf verglichen...','Fase 2: confronto di ogni requisito con il CV...','Etapa 2: comparando cada requisito com o currículo...','Korak 2: uspoređujem svaki zahtjev sa životopisom...','Этап 2: сверяю каждое требование с резюме...','ステップ 2：各要件を履歴書と照合中...','चरण 2: हर आवश्यकता की बायोडाटा से तुलना...'],
@@ -15179,9 +15509,11 @@ var TT_TX = {
 'שם של מערכת שלא עבדת איתה לעולם לא ייכנס, גם אם היא המקבילה המדויקת בתחום של המשרה, ':['اسم نظام لم تعمل به لن يدخل أبدًا، حتى لو كان المكافئ الدقيق في مجال الوظيفة، ','The name of a system you never worked with never goes in, even if it is the exact counterpart in the posting\'s field, ','Le nom d\'un système que vous n\'avez jamais utilisé n\'entre jamais, même s\'il est l\'équivalent exact dans le domaine de l\'annonce, ','El nombre de un sistema con el que nunca trabajaste no entra jamás, aunque sea el equivalente exacto en el ámbito de la oferta, ','Der Name eines Systems, mit dem Sie nie gearbeitet haben, kommt nie hinein, auch wenn es das genaue Gegenstück im Bereich der Anzeige ist, ','Il nome di un sistema con cui non hai mai lavorato non entra mai, anche se è l\'equivalente esatto nell\'ambito dell\'annuncio, ','O nome de um sistema com que você nunca trabalhou nunca entra, mesmo que seja o equivalente exato na área da vaga, ','Naziv sustava s kojim nikad niste radili nikad ne ulazi, čak i ako je točan pandan u području oglasa, ','Название системы, с которой вы не работали, никогда не входит, даже если это точный аналог в области вакансии, ','使ったことのないシステムの名称は決して入りません。求人票の分野でそれが正確な対応物であっても同じです。','जिस सिस्टम पर आपने काम नहीं किया उसका नाम कभी नहीं जाता, भले ही वह विज्ञापन के क्षेत्र में ठीक समकक्ष हो, '],
 'שמסביבו, אבל רק אתה יודע איך התפקיד הזה נשמע בראיון. אם הוא מסביר מעבר בין תחומים, השאר אותו.':['من حوله، لكنك وحدك تعرف كيف تبدو هذه الوظيفة في المقابلة. إن كانت تفسّر انتقالًا بين المجالات، فأبقِها.','around it, but only you know how this role sounds in an interview. If it explains a move between fields, keep it.','autour, mais vous seul savez comment ce poste résonne en entretien. S\'il explique un passage d\'un domaine à l\'autre, gardez-le.','a su alrededor, pero solo tú sabes cómo suena ese puesto en una entrevista. Si explica un cambio de sector, consérvalo.','darum herum, aber nur Sie wissen, wie diese Station im Gespräch klingt. Wenn sie einen Fachwechsel erklärt, behalten Sie sie.','attorno, ma solo tu sai come suona questo incarico in un colloquio. Se spiega un passaggio tra settori, tienilo.','em torno, mas só você sabe como esse cargo soa numa entrevista. Se ele explica uma passagem entre áreas, mantenha-o.','oko toga, ali samo vi znate kako to radno mjesto zvuči na razgovoru. Ako objašnjava prijelaz između područja, zadržite ga.','вокруг, но только вы знаете, как эта должность звучит на собеседовании. Если она объясняет переход между сферами, оставьте её.','その周りのことは分かりますが、この職歴が面接でどう響くかを知っているのはあなただけです。分野の移行を説明しているなら残してください。','उसके आसपास, पर यह पद साक्षात्कार में कैसा लगता है यह केवल आप जानते हैं। यदि यह क्षेत्रों के बीच बदलाव समझाता है, तो इसे रखें।'],
 'שנה':['غيّر','change','modifier','cambiar','ändern','modifica','alterar','promijeni','изменить','変更','बदलें'],
+'שני השדות למעלה צריכים להיות מלאים. הריצה לוקחת בערך דקה, וההתקדמות מוצגת למטה.':['يجب ملء الحقلين أعلاه. تستغرق العملية نحو دقيقة، والتقدّم معروض أدناه.','Both fields above need to be filled. The run takes about a minute, and the progress is shown below.','Les deux champs ci-dessus doivent être remplis. L\'exécution prend environ une minute et la progression s\'affiche en dessous.','Ambos campos de arriba deben estar rellenos. La ejecución tarda alrededor de un minuto y el progreso se muestra abajo.','Beide Felder oben müssen ausgefüllt sein. Der Durchlauf dauert etwa eine Minute, der Fortschritt wird darunter angezeigt.','Entrambi i campi sopra devono essere compilati. L\'esecuzione richiede circa un minuto e l\'avanzamento è mostrato sotto.','Os dois campos acima precisam estar preenchidos. A execução leva cerca de um minuto e o progresso aparece abaixo.','Oba polja iznad moraju biti popunjena. Izvođenje traje oko minutu, a napredak je prikazan ispod.','Оба поля выше должны быть заполнены. Прогон занимает около минуты, ход показан ниже.','上の二つの欄を入力してください。処理はおよそ一分、進み具合は下に表示されます。','ऊपर के दोनों खाने भरे होने चाहिए। प्रक्रिया लगभग एक मिनट लेती है, और प्रगति नीचे दिखती है।'],
 'שפה שנקבעה ידנית: ':['لغة محدّدة يدويًا: ','Language set by hand: ','Langue définie à la main : ','Idioma establecido a mano: ','Manuell gesetzte Sprache: ','Lingua impostata a mano: ','Idioma definido manualmente: ','Ručno postavljen jezik: ','Язык задан вручную: ','手動で指定した言語：','हस्तचालित निर्धारित भाषा: '],
 'שפות נוספות':['لغات أخرى','More languages','Autres langues','Más idiomas','Weitere Sprachen','Altre lingue','Mais idiomas','Više jezika','Другие языки','他の言語','अन्य भाषाएँ'],
 'שפת הממשק':['لغة الواجهة','the interface','l\'interface','la interfaz','die Oberfläche','l\'interfaccia','a interface','sučelje','интерфейс','表示言語','इंटरफ़ेस'],
+'שפת המסמך':['لغة المستند','Document language','Langue du document','Idioma del documento','Sprache des Dokuments','Lingua del documento','Idioma do documento','Jezik dokumenta','Язык документа','文書の言語','दस्तावेज़ की भाषा'],
 'שפת המשרה':['لغة الوظيفة','the posting','l\'annonce','la oferta','die Anzeige','l\'annuncio','o anúncio','oglas','вакансия','求人票','विज्ञापन'],
 'שפת קורות החיים':['لغة السيرة الذاتية','your resume','votre CV','tu currículum','Ihr Lebenslauf','il tuo CV','seu currículo','vaš životopis','ваше резюме','履歴書の言語','आपका बायोडाटा'],
 'תאריכים':['التواريخ','Dates','Dates','Fechas','Daten','Date','Datas','Datumi','Даты','日付','तिथियाँ'],
@@ -15202,6 +15534,7 @@ var TT_TX = {
 '↩ חזור לשתי האפשרויות</button></p>':['↩ عد إلى الخيارين</button></p>','↩ Back to the two options</button></p>','↩ Revenir aux deux options</button></p>','↩ Volver a las dos opciones</button></p>','↩ Zurück zu den beiden Optionen</button></p>','↩ Torna alle due opzioni</button></p>','↩ Voltar às duas opções</button></p>','↩ Natrag na dvije mogućnosti</button></p>','↩ Назад к двум вариантам</button></p>','↩ 二つの選択肢に戻る</button></p>','↩ दोनों विकल्पों पर लौटें</button></p>'],
 '⚠ לא נמצא לו מקום':['⚠ لم يُوجد له موضع','⚠ No place was found for it','⚠ Aucune place trouvée','⚠ No se encontró lugar para ello','⚠ Kein Platz dafür gefunden','⚠ Non è stato trovato posto','⚠ Não se encontrou lugar para isso','⚠ Nije mu pronađeno mjesto','⚠ Место для этого не найдено','⚠ 置き場所が見つかりません','⚠ इसके लिए जगह नहीं मिली'],
 '✅ הוחלו ':['✅ طُبّق ','✅ Applied ','✅ Appliqué ','✅ Aplicados ','✅ Übernommen ','✅ Applicati ','✅ Aplicados ','✅ Primijenjeno ','✅ Применено ','✅ 適用 ','✅ लागू '],
+'✅ החיבור תקין. המודל ':['✅ الاتصال سليم. النموذج ','✅ The connection works. The model ','✅ La connexion fonctionne. Le modèle ','✅ La conexión funciona. El modelo ','✅ Die Verbindung funktioniert. Das Modell ','✅ La connessione funziona. Il modello ','✅ A conexão funciona. O modelo ','✅ Veza radi. Model ','✅ Соединение работает. Модель ','✅ 接続に成功しました。モデル ','✅ कनेक्शन ठीक है। मॉडल '],
 '✅ המפתח נשמר לסשן הזה בלבד. עכשיו לחץ "בדוק חיבור".':['✅ حُفظ المفتاح لهذه الجلسة فقط. اضغط الآن "اختبر الاتصال".','✅ The key was saved for this session only. Now press "Test connection".','✅ La clé est enregistrée pour cette session seulement. Appuyez maintenant sur « Tester la connexion ».','✅ La clave se guardó solo para esta sesión. Ahora pulsa "Probar la conexión".','✅ Der Schlüssel wurde nur für diese Sitzung gespeichert. Klicken Sie nun auf „Verbindung testen“.','✅ La chiave è stata salvata solo per questa sessione. Ora premi "Prova la connessione".','✅ A chave foi salva só para esta sessão. Agora clique em "Testar a conexão".','✅ Ključ je spremljen samo za ovu sesiju. Sada pritisnite "Testiraj vezu".','✅ Ключ сохранён только для этого сеанса. Теперь нажмите «Проверить соединение».','✅ キーをこのセッションだけ保存しました。次に「接続をテスト」を押してください。','✅ कुंजी केवल इस सत्र के लिए सहेजी गई। अब "कनेक्शन जाँचें" दबाएँ।'],
 '✅ המפתח נשמר. עכשיו לחץ "בדוק חיבור".':['✅ حُفظ المفتاح. اضغط الآن "اختبر الاتصال".','✅ The key was saved. Now press "Test connection".','✅ La clé est enregistrée. Appuyez maintenant sur « Tester la connexion ».','✅ La clave se guardó. Ahora pulsa "Probar la conexión".','✅ Der Schlüssel wurde gespeichert. Klicken Sie nun auf „Verbindung testen“.','✅ La chiave è stata salvata. Ora premi "Prova la connessione".','✅ A chave foi salva. Agora clique em "Testar a conexão".','✅ Ključ je spremljen. Sada pritisnite "Testiraj vezu".','✅ Ключ сохранён. Теперь нажмите «Проверить соединение».','✅ キーを保存しました。次に「接続をテスト」を押してください。','✅ कुंजी सहेज ली गई। अब "कनेक्शन जाँचें" दबाएँ।'],
 '✅ התקבלה תשובה מהמודל ':['✅ وصلت إجابة من النموذج ','✅ An answer came back from the model ','✅ Une réponse est revenue du modèle ','✅ Llegó una respuesta del modelo ','✅ Eine Antwort kam vom Modell ','✅ È arrivata una risposta dal modello ','✅ Uma resposta voltou do modelo ','✅ Odgovor je došao od modela ','✅ Получен ответ от модели ','✅ モデルから応答を受信 ','✅ मॉडल से उत्तर आया '],
@@ -15255,6 +15588,30 @@ function buildUiLangMenu() {
   });
 }
 
+/* Everything on screen that was produced by a renderer rather than by the
+   catalogue. applyUiLang used to rewrite only the static markup, so a status
+   line, a badge or a rendered card kept the language it happened to be built
+   in: the API key hint under the input was the visible case, painted at boot
+   before the language was even chosen.
+
+   Each call is guarded on its own. A renderer whose data does not exist yet
+   must not stop the ones after it, and a language switch must never be able to
+   throw. */
+function ttRepaintRuntime() {
+  [
+    'refreshKeyUi', 'updateLangBadges', 'updateLangButtons', 'setStatus',
+    'renderProgress', 'renderSignals', 'renderMatchVerdict', 'renderReview',
+    'renderDiff', 'renderKeywords', 'renderStructurePanel', 'renderPreview',
+    'renderAbout', 'renderDomainGate', 'renderAnswerUse', 'renderFinalStruct'
+  ].forEach(function (fn) {
+    try { if (typeof window[fn] === 'function') window[fn](); } catch (e) {}
+  });
+  /* The stage rail and the console carry the stage NAME, so they have to be
+     redrawn too. setStage takes the current stage and repaints from it. */
+  try { if (typeof setStage === 'function') setStage(TT_STAGE || 1); } catch (e) {}
+  try { if (typeof renderChat === 'function') renderChat(); } catch (e) {}
+}
+
 function applyUiLang(lang) {
   if (TT_I18N.ORDER.indexOf(lang) === -1) lang = 'he';
   TT_UI_LANG = lang;
@@ -15291,6 +15648,8 @@ function applyUiLang(lang) {
         opts[i].getAttribute('data-uilang') === lang ? 'true' : 'false');
     }
   }
+  ttRepaintRuntime();
+
   /* The address bar follows the choice, so a link can be shared in a given
      language and so traffic per language is visible at all. History is
      REPLACED rather than pushed: changing the interface language is not a
@@ -15894,7 +16253,7 @@ function renderAbout() {
     : H('האפליקציה רצה כולה בדפדפן שלך. אין שרת ואין בסיס נתונים, ואין העתק של קורות החיים שלך בשום מקום מלבד המחשב שלך.')) + '</li>';
   h += '<li>' + (en
     ? 'Your API key is kept in the browser\'s localStorage and nowhere else.'
-    : 'מפתח ה־API נשמר ב־localStorage של הדפדפן ולא בשום מקום אחר.') + '</li>';
+    : H('מפתח ה־API נשמר ב־localStorage של הדפדפן ולא בשום מקום אחר.')) + '</li>';
   h += '<li>' + (en
     ? 'To analyse anything, the text is sent to the Google Gemini API using your own key. What Google does with that text is set by the terms of the tier your key sits on: on the free tier Google may use the content to improve its products, on a paid tier it does not. That is an agreement between you and Google, and this app has no say in it.'
     : H('כדי לנתח, הטקסט נשלח ל־Google Gemini API עם המפתח שלך. מה שגוגל עושה בטקסט הזה נקבע בתנאי המסלול שהמפתח שלך יושב עליו: במסלול החינמי גוגל עשויה להשתמש בתוכן לשיפור המוצרים שלה, ובמסלול בתשלום לא. זו התקשרות בינך לבין גוגל, ולאפליקציה אין שליטה עליה.')) + '</li>';
@@ -15922,7 +16281,7 @@ function renderAbout() {
          : H('הכלי ניתן כמו שהוא, בלי אחריות. הפלט הוא טיוטה ולא מסמך סופי, והאחריות על כל מה שנשלח למגייס נשארת שלך. השימוש ב־Google Gemini כפוף לתנאי השימוש של גוגל, במסלול שהמפתח שלך יושב עליו.')) + '</div>' +
        '<div id="boxPrivacy" class="tt-legalbox tt-about-note">' + (en
          ? 'No server, no collection. Your resume, the posting and your answers stay in the browser and in the memory of this page, and the API key stays in localStorage. The only thing that leaves your computer is the text sent to Google Gemini for the analysis. No analytics, no third party cookies, nothing shared with anyone else.'
-         : 'אין שרת ואין איסוף. קורות החיים, המשרה והתשובות שלך נשארים בדפדפן ובזיכרון הדף בלבד, ומפתח ה־API נשמר ב־localStorage. הדבר היחיד שיוצא מהמחשב שלך הוא הטקסט שנשלח ל־Google Gemini לצורך הניתוח. אין אנליטיקס, אין קוקיז של צד שלישי ואין שיתוף עם אף גורם אחר.') + '</div>' +
+         : H('אין שרת ואין איסוף. קורות החיים, המשרה והתשובות שלך נשארים בדפדפן ובזיכרון הדף בלבד, ומפתח ה־API נשמר ב־localStorage. הדבר היחיד שיוצא מהמחשב שלך הוא הטקסט שנשלח ל־Google Gemini לצורך הניתוח. אין אנליטיקס, אין קוקיז של צד שלישי ואין שיתוף עם אף גורם אחר.')) + '</div>' +
        '</div>';
 
   el.innerHTML = h;
@@ -16498,7 +16857,7 @@ function spellFixProblem(fix, text, protectedSet) {
   var after = String(fix && fix.after || '');
   if (!before.trim() || !after.trim()) return H('ריק');
   if (before === after) return H('זהה');
-  if (text.indexOf(before) === -1) return 'לא נמצא בטקסט';
+  if (text.indexOf(before) === -1) return H('לא נמצא בטקסט');
   if (wordCount(before) > TT_SPELL_MAX_WORDS || wordCount(after) > TT_SPELL_MAX_WORDS) return H('ארוך מדי מכדי להיות שגיאת כתיב');
   if (wordCount(before) !== wordCount(after)) return H('משנה את מספר המילים');
   if (digitsOf(before) !== digitsOf(after)) return H('נוגע במספרים');
@@ -16762,7 +17121,7 @@ function grammarFixProblem(fix, text, protectedSet) {
   var after = String(fix && fix.after || '').trim();
   if (!before || !after) return H('ריק');
   if (before === after) return H('זהה');
-  if (text.indexOf(before) === -1) return 'לא נמצא בטקסט';
+  if (text.indexOf(before) === -1) return H('לא נמצא בטקסט');
   if (digitsOf(before) !== digitsOf(after)) return H('נוגע במספרים');
   if (Math.abs(wordCount(after) - wordCount(before)) > TT_GRAMMAR_MAX_GROWTH) return H('שינוי גדול מדי, זה שכתוב ולא תיקון');
   /* A repair may not quietly rename something. Every protected token present
