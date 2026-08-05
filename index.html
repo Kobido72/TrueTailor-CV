@@ -1076,12 +1076,21 @@
      card carries two upload labels and the other one label and a button, so
      without this the two boxes ended at different heights. */
   .tt-iocard { display: flex; flex-direction: column; }
-  /* The TEXTAREA takes the slack, not the spacer. An earlier version grew the
-     spacer instead, which made the two cards equal in height while leaving a
-     visible gap under the shorter text box: the boxes themselves still ended at
-     different places, which is what the eye actually compares. */
-  .tt-iocard textarea { flex: 1 1 auto; min-height: 15rem; }
-  .tt-iocard .tt-iogrow { flex: 0 0 auto; }
+  /* Two attempts, two wrong answers, and the reason is worth writing down.
+
+     First the spacer grew, which made the cards equal and left a gap under the
+     shorter text box. Then the TEXTAREA grew, which closed that gap and moved
+     the problem: the row under the box is not the same height in the two cards,
+     because the posting side carries two upload labels and the resume side
+     carries one label and a button, and at some widths one of them wraps to a
+     second line. A box that absorbs the slack therefore ends wherever the row
+     below it happens to leave it, and the two boxes end in different places.
+
+     What the eye compares is the boxes. So the boxes are fixed and identical,
+     and the spacer under them takes every difference the rows below introduce.
+     Nothing below can move them now. */
+  .tt-iocard textarea { flex: 0 0 auto; height: 21rem; min-height: 21rem; resize: vertical; }
+  .tt-iocard .tt-iogrow { flex: 1 1 auto; min-height: 0; }
   .tt-langbadge-link {
     background: none; border: 0; padding: 0; cursor: pointer; font: inherit;
     color: var(--c-accent, #0f766e); text-decoration: underline; text-underline-offset: 2px;
@@ -1114,6 +1123,154 @@
   .tt-about-body { max-height: 62vh; overflow: auto; }
   .tt-legalbox { display: none; margin-top: 8px; }
   .tt-legalbox.is-open { display: block; }
+
+  /* =========================================================================
+     ORGANIC STUDIO
+     Appended last on purpose: it overrides by position as well as by weight,
+     so the rules above stay readable as the base the theme is a layer over.
+
+     Scope note. Everything here is chrome. The printed sheet is not touched:
+     .tt-page declares #fff and #000 outright and the document templates take
+     their colours as hex values out of the script, so the docx and the pdf
+     come out identical to before. That was verified rather than assumed.
+     ========================================================================= */
+  :root {
+    /* Colours */
+    --sh-0:   #F9F9F9;                    /* warm off white page */
+    --sh-1:   #F0F2EF;                    /* subtle step highlight */
+    --sh-tx:  #2D362E;                    /* deep charcoal, for reading */
+    --sh-dim: #5C6B5E;                    /* muted text on light ground */
+    --sh-hair: rgba(60, 74, 62, 0.12);
+
+    /* Top bar and accent, deep olive */
+    --c-accent:   #3C4A3E;
+    --c-accent-2: #4E5E50;
+    --c-accent-w: #E9EFEA;
+    --c-accent-d: #2A362D;
+
+    /* Shape */
+    --r-btn: 999px;                       /* full pill */
+    --r-md:  14px;
+    --r-lg:  20px;
+
+    /* Paper */
+    --c-paper: #FFFFFF;
+    --sh-card: 0 4px 20px -4px rgba(60, 74, 62, 0.15);
+    --sh-lift: 0 12px 32px -8px rgba(60, 74, 62, 0.25);
+  }
+
+  html body {
+    background-color: var(--sh-0) !important;
+    background:
+      radial-gradient(1100px 680px at 88% -200px, rgba(60, 74, 62, 0.1) 0%, rgba(60, 74, 62, 0) 62%),
+      linear-gradient(180deg, #FFFFFF 0%, var(--sh-0) 58%) !important;
+    color: var(--sh-tx) !important;
+  }
+
+  .tt-top {
+    background: rgba(60, 74, 62, 0.92) !important;
+    backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  .tt-brandname { color: #FFFFFF !important; }
+  .tt-brandname em { color: #A4B2A6 !important; }
+  .tt-brandsub { color: rgba(255, 255, 255, 0.7) !important; }
+
+  /* The version badge was brass on a translucent brass wash, which was legible
+     on the old near white bar and is not on a dark olive one. Same idea,
+     inverted for the ground it now sits on. */
+  .tt-ver {
+    color: rgba(255, 255, 255, 0.82) !important;
+    border-color: rgba(255, 255, 255, 0.28) !important;
+    background: rgba(255, 255, 255, 0.10) !important;
+  }
+
+  .tt-btn {
+    border-radius: var(--r-btn) !important;
+    padding: 10px 24px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  /* .tt-btn-sm has to be restated AFTER .tt-btn, and with !important of its
+     own, or the rule above wins on both weight and position and every small
+     button in the app grows to full size. There are fifteen of them, several
+     inside change cards where the row would then wrap. The pill shape is kept,
+     because that is the point of the theme; only the padding is put back. */
+  .tt-btn-sm {
+    padding: 7px 14px !important;
+    border-radius: var(--r-btn) !important;
+    font-size: .77rem !important;
+  }
+
+  .tt-btn-primary {
+    background: linear-gradient(180deg, var(--c-accent-2), var(--c-accent)) !important;
+    border-color: var(--c-accent-d) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 14px 0 rgba(60, 74, 62, 0.4) !important;
+  }
+  .tt-btn-primary:hover {
+    background: linear-gradient(180deg, #5A6B5C, var(--c-accent-2)) !important;
+  }
+
+  .tt-step {
+    border-radius: 999px !important;
+    padding: 6px 16px !important;
+  }
+
+  .tt-mark {
+    border-radius: 12px !important;
+    background: linear-gradient(145deg, #4E5E50, #3C4A3E) !important;
+  }
+
+  .tt-card {
+    background: var(--c-paper) !important;
+    border: 1px solid var(--sh-hair) !important;
+    box-shadow: var(--sh-card) !important;
+  }
+
+  .tt-fact {
+    background: #FFFFFF !important;
+    border: 1px solid var(--sh-hair) !important;
+    border-radius: 999px !important;
+  }
+
+  .tt-qfill {
+    background: linear-gradient(90deg, #7C8A7E, var(--c-accent)) !important;
+  }
+
+  /* The two controls that were deliberately coloured to be findable. Sky blue
+     and amber were chosen against a near white bar and read as foreign on
+     olive, so they are retoned into the palette and keep their jobs: the
+     language switch stays the lightest thing on the bar, and start over stays
+     the only warm one. */
+  #btnUiLang {
+    background: #E9EFEA !important;
+    border-color: #A4B2A6 !important;
+    color: #2A362D !important;
+  }
+  #btnUiLang:hover {
+    background: #FFFFFF !important;
+    border-color: #7C8A7E !important;
+  }
+  #btnStartOver {
+    background: #F5EAD7 !important;
+    border-color: #D9BE8A !important;
+    color: #6B5220 !important;
+  }
+  #btnStartOver:hover {
+    background: #EFDDBC !important;
+    border-color: #C9A85F !important;
+  }
+
+  /* Printing takes the page as it is, and a tinted body would print as a tint.
+     The sheet already declares white; this stops the ground behind it from
+     following the screen. */
+  @media print {
+    html body {
+      background: #FFFFFF !important;
+      background-color: #FFFFFF !important;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -1127,7 +1284,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v38.3</span>
+        <span class="tt-ver" id="verBadge">v38.4</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1721,7 +1878,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v38.3';
+var TT_VERSION = 'v38.4';
 
 var APP = {
   apiKey: '',
