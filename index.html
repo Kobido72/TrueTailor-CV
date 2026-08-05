@@ -1052,6 +1052,14 @@
   }
   .tt-langbtn svg { display: block; }
   .tt-langsw { position: relative; }
+  .tt-fitdelta { border: 1px solid var(--c-line); border-radius: var(--r-md); padding: 12px 14px; background: #FBFDFE; }
+  .tt-fitdelta.is-up { border-color: #86EFAC; background: #F0FDF4; }
+  .tt-fitdelta.is-flat { border-color: #FCD34D; background: #FFFBEB; }
+  .tt-fitdelta-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--c-mute); margin-bottom: 6px; }
+  .tt-fitdelta-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .tt-fitdelta-num { font-size: 1.5rem; font-weight: 800; color: var(--c-mute); }
+  .tt-fitdelta-num.is-up { color: #15803D; }
+  .tt-fitdelta-arrow { font-size: 1.1rem; color: var(--c-mute); }
 
   /* The resume always sits on the left and the posting on the right, in every
      interface language. Before this the grid inherited the page direction, so
@@ -1119,7 +1127,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v38.1</span>
+        <span class="tt-ver" id="verBadge">v38.3</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1448,13 +1456,14 @@
          it belongs at the top, in a colour that can be read from across the
          room. Filled by renderMatchVerdict(). -->
     <div id="matchVerdict" class="mb-4"></div>
+    <div id="fitDelta" class="mb-4"></div>
     <div class="grid md:grid-cols-2 gap-4">
       <div class="md:order-1">
-        <h3 class="text-sm font-semibold text-slate-600 mb-2">מה המשרה מבקשת</h3>
+        <h3 id="analysisJobHead" class="text-sm font-semibold text-slate-600 mb-2">מה המשרה מבקשת</h3>
         <div id="signalsOut" class="text-sm space-y-2 tt-scroll"></div>
       </div>
       <div class="md:order-2">
-        <h3 class="text-sm font-semibold text-slate-600 mb-2">מה קורות החיים כבר מוכיחים</h3>
+        <h3 id="analysisCvHead" class="text-sm font-semibold text-slate-600 mb-2">מה קורות החיים כבר מוכיחים</h3>
         <div id="gapsOut" class="text-sm space-y-2 tt-scroll"></div>
       </div>
     </div>
@@ -1712,7 +1721,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v38.1';
+var TT_VERSION = 'v38.3';
 
 var APP = {
   apiKey: '',
@@ -5153,8 +5162,12 @@ function promptCoverage(surgeonText, signals, uiLang, fullResume) {
     '  missing_proof the job asks for something the resume hints at but never evidences',
     '  red_flag      an unexplained gap, a title that does not match the described work, a claim with no context',
     '',
-    ' - adjacent applies to kind tool and kind certification only. It records what the candidate has INSTEAD of the named thing, and it never adds points on its own.',
-    '   name is the product or credential they do hold. cls is its family in two or three words. distance is exactly one of:',
+    ' - adjacent applies to kind tool, certification, hard_skill, soft_skill and domain. It records what the candidate has INSTEAD of the named thing, and it never adds points on its own.',
+    '   name is the product, credential or practice they do hold. cls is its family in two or three words. distance is exactly one of:',
+    '     same_variant    the SAME thing, a different variant of it. The same system, another module: Priority purchasing against Priority finance.',
+    '                     The same profession, another population: teaching ages six to ten against ages sixteen to eighteen.',
+    '                     The same field, another sector: warehouse logistics in food against warehouse logistics in pharma.',
+    '                     Use this only when the thing itself is the same and only a variant of it differs. It is the closest rung there is short of direct.',
     '     same_class      the same family, a near substitute. Sketch against Figma. HubSpot against Salesforce. Priority against SAP.',
     '     neighbor_class  related families that meet in practice. MES against ERP. A paramedic certificate against a nursing licence.',
     '     unrelated       different worlds. A CRM against a shop floor system. Nothing transfers.',
@@ -5957,7 +5970,13 @@ function normalizeSignals(obj) {
    the reply was cut off mid JSON, which parsed as nothing, which askNextQuestion
    read as "the model says it is done". Every other call in this file asks for
    4000 and up. */
-var TT_TOKENS = { signals: 16000, coverage: 24000, synthesis: 16000, skills: 8000, spell: 4000, qtranslate: 4000, answerSpell: 1500, question: 4000 };
+/* skills was 8000 and the reply came back cut in half on a real run: the model
+   is a thinking model, so the budget covers reasoning tokens before a single
+   character of the answer is written, and the skills step reasons over the
+   whole skills section plus every requirement. The section then failed with
+   "the answer was cut off", which reads to the candidate as a refusal rather
+   than as a budget. Raised to match the other structural steps. */
+var TT_TOKENS = { signals: 16000, coverage: 24000, synthesis: 16000, skills: 16000, spell: 4000, qtranslate: 4000, answerSpell: 1500, question: 4000 };
 
 async function stepExtractSignals(jobText) {
   var raw = await callGemini(promptSignals(jobText, currentDocLang()), {
@@ -6770,6 +6789,18 @@ var COVER_STATUS = { direct: 1, equivalent: 1, partial: 1, unknown: 1, missing: 
    scale, used by the value of a row and by the ceiling on the verdict, so the
    two cannot drift apart. */
 var TT_DISTANCE = {
+  /* Added after a real reading of two cases the old ladder could not tell
+     apart. Priority's purchasing module against Priority's finance module used
+     to land on 'partial' at 0.60, which is a hair above 'same_class' at 0.55,
+     so the same product with a different module scored the same as a different
+     product altogether. And a teacher of six to ten year olds against a posting
+     for sixteen to eighteen had no rung at all, because the ladder was closed
+     to anything that was not a tool or a licence.
+
+     Both are the same shape: the same thing, a different variant of it. That is
+     much closer than a substitute from the same family, and the gap between
+     them is mostly one of wording, which is precisely what this app can close. */
+  same_variant:   { value: 0.75, capShare: 0.60, penalty: 1.00, he: '\u05d0\u05d5\u05ea\u05d5 \u05d3\u05d1\u05e8, \u05d5\u05e8\u05d9\u05d0\u05e0\u05d8 \u05d0\u05d7\u05e8' },
   same_class:     { value: 0.55, capShare: 0.42, penalty: 1.00, he: '\u05de\u05e2\u05e8\u05db\u05ea \u05d0\u05d7\u05e8\u05ea \u05de\u05d0\u05d5\u05ea\u05d4 \u05de\u05e9\u05e4\u05d7\u05d4' },
   neighbor_class: { value: 0.30, capShare: 0.30, penalty: 0.94, he: '\u05de\u05e9\u05e4\u05d7\u05d4 \u05e9\u05db\u05e0\u05d4' },
   unrelated:      { value: 0.05, capShare: 0.18, penalty: 0.82, he: '\u05e2\u05d5\u05dc\u05dd \u05d0\u05d7\u05e8 \u05dc\u05d2\u05de\u05e8\u05d9' }
@@ -7058,7 +7089,10 @@ function requirementValue(c, req) {
 
   if (kind === 'tool') {
     if (st === 'direct') return 1;
-    if (st === 'partial') return 0.6;      // the system, not the module asked for
+    /* The same system, a different module. Priced on the ladder now rather than
+       at a flat 0.6, which used to sit almost level with a different product
+       from the same family. */
+    if (st === 'partial') return Math.max(0.6, adjacentValue(c));
     if (st === 'unknown') return 0.2;
     return adjacentValue(c);               // a different product, priced by distance
   }
@@ -7068,6 +7102,19 @@ function requirementValue(c, req) {
     if (r === undefined) return 0.5;       // no number in the resume: pending a question
     if (r === null) return st === 'direct' ? 1 : st === 'partial' ? 0.5 : 0;
     return magnitudeValue(r);
+  }
+
+  /* The ladder is not only for products. A teacher who taught six to ten year
+     olds against a posting for sixteen to eighteen is doing the same work with a
+     different population, and before this that fell through to the keyword based
+     branch below, which measures wording rather than professional distance.
+     Whenever the model records a variant or a family for one of these, it is
+     used, and only when it beats what the status alone would have paid. */
+  var ladder = adjacentValue(c);
+  if ((kind === 'hard_skill' || kind === 'domain' || kind === 'soft_skill') &&
+      ladder && st !== 'direct') {
+    var byStatus = st === 'partial' ? 0.5 : st === 'unknown' ? 0.3 : 0;
+    if (ladder > byStatus) return ladder;
   }
 
   if (st === 'direct') return 1;
@@ -7270,6 +7317,34 @@ function matchVerdict() {
   var clusters = toolClusters();
   var unverified = clusters.filter(function (t) { return !t.inResume; });
 
+  /* ---------- THE MUST HAVE GATE ----------
+     Reported from a real run: twenty one requirements, sixteen proved, five
+     missing, two of them must haves, and the meter read 89 per cent. Every
+     figure in that sentence was correct and the number was still wrong, because
+     a weighted average lets a long tail of small satisfied requirements carry a
+     candidate over a gate they do not clear. A screener does not average. A must
+     have that is not there is the reason the application stops.
+
+     So the gate is charged separately from the average, and multiplicatively
+     like every other penalty here, which keeps it incapable of raising anything.
+     Fully cleared costs nothing. Half cleared takes off about a fifth. Nothing
+     cleared takes off just under half, which is a deliberate floor rather than
+     a zero: the rest of the resume is still real, and telling someone their fit
+     is nil when they cover everything except the one named system is its own
+     kind of dishonesty.
+
+     mustValue and not the binary count, on purpose: a must have proved by a
+     product from the same family is most of the way there, and a must have
+     proved by nothing is not, and a count of "three of four" cannot tell those
+     two apart. */
+  var mustShareRaw = musts ? mustValue / musts : 1;
+  if (musts && mustShareRaw < 0.999) {
+    penalties.push({
+      mul: 0.55 + 0.45 * mustShareRaw,
+      why: H('דרישות חובה')
+    });
+  }
+
   var mul = 1;
   penalties.forEach(function (p) { mul *= p.mul; });
   pct = Math.round(pct * mul);
@@ -7292,7 +7367,12 @@ function matchVerdict() {
     band = 'low';
     reason = musts ? mustsProved + H(' מתוך ') + musts + H(' דרישות החובה מוכחות בקורות החיים.')
                    : H('רוב מה שהמשרה מחפשת לא מקבל כיסוי בקורות החיים.');
-  } else if (pct < 70 || mustShare < 0.7) {
+  /* A must have that is not fully proved keeps the verdict out of the top band,
+     whatever the average says. "High" is read as "you are a fit", and a person
+     who is missing something the posting marked as required is not a fit yet,
+     however much of the rest they cover. The number still moves, so the work
+     they have done is still visible; the label does not lie about it. */
+  } else if (pct < 70 || mustShare < 0.7 || (musts && mustShare < 0.999)) {
     band = 'mid';
     reason = musts ? mustsProved + H(' מתוך ') + musts + H(' דרישות החובה מוכחות. השאר מבוסס על ניסיון מקביל או חלקי.')
                    : H('חלק מהדרישות מקבלות כיסוי חלקי בלבד.');
@@ -7350,6 +7430,12 @@ var TT_VERDICT_STYLE = {
 };
 
 function renderMatchVerdict() {
+  /* The first reading is kept as it was. Without a snapshot there is nothing
+     to compare against later, and the recheck overwrites the coverage rows it
+     touches. */
+  if (!APP.verdictBefore) {
+    try { APP.verdictBefore = matchVerdict(); } catch (e) {}
+  }
   var el = $('matchVerdict');
   if (!el) return;
   var v = matchVerdict();
@@ -13031,6 +13117,11 @@ function resetRun() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  /* First, before anything paints. A renderer that runs before it is wrapped is
+     never recorded and therefore never repainted on a language change:
+     renderFinalStruct did exactly that and its placeholder stayed Hebrew for
+     ever. Tracking has to be the first thing that happens. */
+  ttTrackPainters();
   getApiKey();
   refreshKeyUi();
   updateLangBadges();
@@ -13385,11 +13476,197 @@ function bindReviewUi() {
     renderReview();
   });
   var go = $('btnToPreview');
-  if (go) go.addEventListener('click', function () {
+  if (go) go.addEventListener('click', async function () {
     compileApproved();
     openPreview();
+    /* After the document exists, not before: the recheck reads the finished
+       text. It runs without blocking the preview, which is already usable. */
+    try { await runFitRecheck(); } catch (e) {}
   });
 }
+/* =========================================================================
+   THE SECOND MEASUREMENT OF SUBSTANTIVE FIT
+
+   The fit table is deliberately not recalculated when a line is reworded: that
+   principle is what keeps the number honest, because a sentence rearranged is
+   not a fact acquired. But the fit questions exist precisely to acquire facts,
+   and until now nothing measured whether they had. A candidate who answered
+   eight questions and closed four real gaps saw the same number they started
+   with, which reads as "none of that mattered".
+
+   So the recheck is narrow on purpose. It re-reads ONLY the requirements that a
+   stage 3 answer actually addressed, against the finished document, and leaves
+   every other row exactly as it was. Rewording still cannot move the number.
+   Answering can.
+   ========================================================================= */
+
+/* The same shape the first reading produces, so a rechecked row is
+   indistinguishable from an original one everywhere downstream. */
+function normalizeAdjacent(adj) {
+  if (!adj || typeof adj !== 'object') return null;
+  var name = String(adj.name || '').trim();
+  if (!name) return null;
+  var dist = String(adj.distance || '').trim();
+  return {
+    name: name,
+    cls: String(adj.cls || '').trim(),
+    distance: TT_DISTANCE[dist] ? dist : 'neighbor_class'
+  };
+}
+
+/* The panel that says what the answers bought. Three shapes: the score moved,
+   the score did not move, or the recheck could not run. Each is stated
+   plainly, because a number that did not move is information and hiding it
+   would be the dishonest option. */
+function renderFitDelta() {
+  var el = $('fitDelta');
+  if (!el) return;
+  var d = APP.fitDelta;
+  if (!d) { el.innerHTML = ''; return; }
+
+  if (d.skipped) {
+    var why = d.skipped === 'no_answers'
+      ? H('לא ענית על אף שאלה, ולכן אין עובדות חדשות למדוד. הציון נשאר כפי שהיה.')
+      : H('לא הצלחתי למדוד מחדש את ההתאמה. הציון שמוצג הוא זה שנמדד לפני השכתוב.');
+    el.innerHTML = '<div class="tt-note" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
+      '<b>' + H('ההתאמה לא נמדדה מחדש') + '</b> ' + why + '</div>';
+    return;
+  }
+
+  var up = d.after - d.before;
+  var arrow = up > 0 ? '↑' : '→';
+  var head = '<div class="tt-fitdelta-head">' +
+    '<span class="tt-fitdelta-num">' + d.before + '%</span>' +
+    '<span class="tt-fitdelta-arrow">' + arrow + '</span>' +
+    '<span class="tt-fitdelta-num' + (up > 0 ? ' is-up' : '') + '">' + d.after + '%</span>' +
+    '</div>';
+
+  var body;
+  if (up > 0) {
+    body = '<p>' + H('התשובות שלך סגרו ') + d.closed.length + H(' פערים. ') +
+      H('הציון עלה כי נכנסו עובדות חדשות למסמך, ולא כי השורות נוסחו אחרת.') + '</p>' +
+      '<ul class="list-disc ms-5 mt-1 text-xs">' +
+      d.closed.slice(0, 6).map(function (c) {
+        return '<li>' + escapeHtml(c.text) + '</li>';
+      }).join('') + '</ul>';
+  } else {
+    /* Decision 33: say it, and leave the decision with the person. No button,
+       no redirection. Someone who wants to apply anyway is entitled to. */
+    body = '<p><b>' + H('הפערים לא נסגרו.') + '</b> ' +
+      H('ענית על ') + d.asked + H(' שאלות, ואף אחת מהן לא הוסיפה עובדה שסוגרת דרישה שהייתה חסרה. ') +
+      H('הציון נשאר כפי שהיה, וזה אומר שהפער הוא בניסיון עצמו ולא בניסוח. ') +
+      H('שווה לשקול מחדש אם להתמודד על המשרה הזו, או להשקיע את הזמן במשרה קרובה יותר.') + '</p>';
+    if (d.stillOpen.length) {
+      body += '<div class="text-xs mt-1">' + H('דרישות החובה שנשארו פתוחות:') + '</div>' +
+        '<ul class="list-disc ms-5 text-xs">' +
+        d.stillOpen.slice(0, 6).map(function (r) {
+          return '<li>' + escapeHtml(r.text) + '</li>';
+        }).join('') + '</ul>';
+    }
+  }
+
+  el.innerHTML = '<div class="tt-fitdelta' + (up > 0 ? ' is-up' : ' is-flat') + '" dir="' +
+    TT_LANG.dir(TT_UI_LANG) + '">' +
+    '<div class="tt-fitdelta-title">' + H('ההתאמה לפני ואחרי') + '</div>' +
+    head + body + '</div>';
+}
+
+function ttTouchedReqIds() {
+  var ids = {};
+  ((APP.chat && APP.chat.qa) || []).forEach(function (p) {
+    if (!p || p.skipped) return;
+    if (!String(p.a || '').trim()) return;
+    (p.reqIds && p.reqIds.length ? p.reqIds : [p.reqId]).forEach(function (id) {
+      if (id) ids[id] = 1;
+    });
+  });
+  return Object.keys(ids);
+}
+
+function promptRecheck(finalText, reqs) {
+  return [
+    'You are re-reading a resume that has just been tailored, against a short list of requirements.',
+    'For each requirement, decide what the resume NOW proves. Nothing else about the resume matters here.',
+    '',
+    'Judge only what is written. A rewording that says the same thing in the posting\'s vocabulary is NOT',
+    'new evidence and must not change the status: the point is to detect facts that were added, not sentences',
+    'that were rearranged. If the document now names a system, a number, a scope or a responsibility that the',
+    'earlier version did not, that IS new evidence.',
+    '',
+    'status is exactly one of: direct, partial, equivalent, unknown, missing.',
+    'adjacent.distance, when it applies, is exactly one of: same_variant, same_class, neighbor_class, unrelated.',
+    '',
+    'Return ONLY this JSON, nothing before it and nothing after it:',
+    '{"items":[{"req_id":"","status":"","adjacent":{"name":"","cls":"","distance":""}}]}',
+    '',
+    'REQUIREMENTS:',
+    reqs.map(function (r) { return r.id + ': ' + r.text; }).join('\n'),
+    '',
+    'THE TAILORED RESUME:',
+    finalText
+  ].join('\n');
+}
+
+async function runFitRecheck() {
+  if (!getApiKey()) return;
+  var before = APP.verdictBefore || matchVerdict();
+  if (!before) return;
+  APP.verdictBefore = before;
+
+  var touched = ttTouchedReqIds();
+  if (!touched.length) { APP.fitDelta = { skipped: 'no_answers' }; renderFitDelta(); return; }
+
+  var reqs = touched.map(reqById).filter(Boolean);
+  if (!reqs.length) { APP.fitDelta = { skipped: 'no_answers' }; renderFitDelta(); return; }
+
+  setStatus(H('בודק מחדש את ההתאמה מול הגרסה החדשה...'), true);
+  try {
+    var raw = await callGemini(promptRecheck(APP.finalText || '', reqs), {
+      json: true, temperature: 0.2, maxOutputTokens: 8000, timeoutMs: 90000
+    });
+    var obj = safeJsonParse(raw);
+    var items = (obj && obj.items) || [];
+    if (!items.length) { APP.fitDelta = { skipped: 'unreadable' }; renderFitDelta(); return; }
+
+    var byId = {};
+    items.forEach(function (it) { if (it && it.req_id) byId[it.req_id] = it; });
+
+    var closed = [], stillOpen = [];
+    APP.coverage = (APP.coverage || []).map(function (c) {
+      if (!c || !byId[c.req_id]) return c;
+      var req = reqById(c.req_id);
+      var wasVal = requirementValue(c, req);
+      var next = {};
+      Object.keys(c).forEach(function (k) { next[k] = c[k]; });
+      next.status = byId[c.req_id].status || c.status;
+      if (byId[c.req_id].adjacent) next.adjacent = normalizeAdjacent(byId[c.req_id].adjacent);
+      var nowVal = requirementValue(next, req);
+      /* A recheck may only reflect evidence that was added. It can never lower
+         a row: the earlier reading saw the earlier document, and a rewrite does
+         not take facts away. Letting it drop would turn a rephrasing into a
+         penalty, which is the exact failure this whole design avoids. */
+      if (nowVal < wasVal) return c;
+      if (nowVal > wasVal + 0.001) closed.push({ id: c.req_id, text: (req && req.text) || '', from: wasVal, to: nowVal });
+      else if (req && req.must_have && nowVal < 0.999) stillOpen.push({ id: c.req_id, text: req.text });
+      return next;
+    });
+
+    var after = matchVerdict();
+    APP.verdictAfter = after;
+    APP.fitDelta = {
+      before: before.score, after: after ? after.score : before.score,
+      bandBefore: before.band, bandAfter: after ? after.band : before.band,
+      closed: closed, stillOpen: stillOpen, asked: (APP.chat.qa || []).length
+    };
+  } catch (e) {
+    APP.fitDelta = { skipped: 'failed', why: String(e && e.message || e) };
+  } finally {
+    setStatus('');
+  }
+  renderFitDelta();
+  try { renderMatchVerdict(); } catch (e) {}
+}
+
 /* =========================================================================
    Stage 6  —  preview, templates and export
    The preview is the document, not a description of it: what is on screen is
@@ -14562,13 +14839,13 @@ var TT_I18N = (function () {
     '<span class="tt-tag">ステップ 1 と 2</span>求人票の分解と、要件ごとの照合',
     '<span class="tt-tag">चरण 1 और 2</span>विज्ञापन का विश्लेषण और आवश्यकता-दर-आवश्यकता तुलना'
   ]);
-  put('analysis.job_side', '#analysisCard > div:nth-of-type(2) > div:nth-of-type(1) > h3', [
+  put('analysis.job_side', '#analysisJobHead', [
     'מה המשרה מבקשת',
     'ما تطلبه الوظيفة', 'What the posting asks for', 'Ce que demande l\'annonce', 'Qué pide la oferta',
     'Was die Anzeige verlangt', 'Che cosa chiede l\'annuncio', 'O que a vaga pede', 'Što oglas traži',
     'Что требует вакансия', '求人票が求めるもの', 'विज्ञापन क्या माँगता है'
   ]);
-  put('analysis.cv_side', '#analysisCard > div:nth-of-type(2) > div:nth-of-type(2) > h3', [
+  put('analysis.cv_side', '#analysisCvHead', [
     'מה קורות החיים כבר מוכיחים',
     'ما تثبته السيرة الذاتية أصلًا', 'What the resume already proves', 'Ce que le CV prouve déjà',
     'Lo que el currículum ya prueba', 'Was der Lebenslauf schon belegt', 'Ciò che il CV già prova',
@@ -14959,6 +15236,8 @@ var TT_TX = {
 ' ענה.':[' استجاب.',' answered.',' a répondu.',' respondió.',' hat geantwortet.',' ha risposto.',' respondeu.',' je odgovorio.',' ответил.','　が応答しました。',' ने उत्तर दिया।'],
 ' פורמטים שונים בשורות התפקיד. פרסר שמזהה אחד מהם ומפספס את השני מחשב לך פחות שנות ניסיון ממה שיש.':[' تنسيقات مختلفة في أسطر الوظائف. مُحلّل يتعرّف على أحدها ويفوته الآخر يحسب لك سنوات خبرة أقل مما لديك.',' different formats in the role lines. A parser that recognises one and misses the other counts you fewer years of experience than you have.',' formats différents dans les lignes de poste. Un analyseur qui reconnaît l\'un et rate l\'autre vous compte moins d\'années d\'expérience que vous n\'en avez.',' formatos distintos en las líneas de puesto. Un analizador que reconoce uno y se pierde el otro te cuenta menos años de experiencia de los que tienes.',' verschiedene Formate in den Positionszeilen. Ein Parser, der eines erkennt und das andere verfehlt, zählt Ihnen weniger Berufsjahre, als Sie haben.',' formati diversi nelle righe di incarico. Un parser che riconosce l\'uno e manca l\'altro ti conta meno anni di esperienza di quanti ne hai.',' formatos diferentes nas linhas de cargo. Um analisador que reconhece um e perde o outro conta menos anos de experiência do que você tem.',' različitih formata u redcima radnih mjesta. Analizator koji prepozna jedan a promaši drugi računa vam manje godina iskustva nego što ih imate.',' разных формата в строках должностей. Разборщик, который распознаёт один и пропускает другой, засчитает вам меньше лет опыта, чем есть.','種類の異なる書式が職歴行にあります。一方だけを認識する解析器は、実際より少ない経験年数を数えます。',' अलग-अलग प्रारूप पद पंक्तियों में। जो पार्सर एक पहचानता है और दूसरा चूकता है, वह आपको वास्तविक से कम अनुभव वर्ष गिनता है।'],
 ' פערים ייבדקו בשיחה, בסדר הזה. שאלה אחת יכולה לכסות כמה מהם יחד, ולכן יהיו פחות שאלות מפערים:</div><div>':[' فجوات ستُفحص في المحادثة، بهذا الترتيب. سؤال واحد قد يغطي عدة فجوات معًا، ولذلك ستكون الأسئلة أقل من الفجوات:</div><div>',' gaps will be examined in the conversation, in this order. One question can cover several of them at once, so there will be fewer questions than gaps:</div><div>',' écarts seront examinés dans la conversation, dans cet ordre. Une question peut en couvrir plusieurs à la fois, il y aura donc moins de questions que d\'écarts :</div><div>',' brechas se examinarán en la conversación, en este orden. Una pregunta puede cubrir varias a la vez, así que habrá menos preguntas que brechas:</div><div>',' Lücken werden im Gespräch geprüft, in dieser Reihenfolge. Eine Frage kann mehrere zugleich abdecken, daher gibt es weniger Fragen als Lücken:</div><div>',' lacune saranno esaminate nella conversazione, in quest\'ordine. Una domanda può coprirne più d\'una insieme, quindi ci saranno meno domande che lacune:</div><div>',' lacunas serão examinadas na conversa, nesta ordem. Uma pergunta pode cobrir várias de uma vez, então haverá menos perguntas do que lacunas:</div><div>',' nedostataka bit će razmotreno u razgovoru, ovim redom. Jedno pitanje može pokriti nekoliko njih odjednom, pa će pitanja biti manje nego nedostataka:</div><div>',' пробелов будут разобраны в разговоре, в этом порядке. Один вопрос может закрыть сразу несколько, поэтому вопросов будет меньше, чем пробелов:</div><div>','件の不足をこの順で対話の中で確認します。一つの質問で複数をまとめて扱えるため、質問数は不足の数より少なくなります：</div><div>',' अंतर बातचीत में इसी क्रम में जाँचे जाएँगे। एक प्रश्न कई को एक साथ कवर कर सकता है, इसलिए प्रश्न अंतरों से कम होंगे:</div><div>'],
+' פערים. ':[' فجوات. ',' gaps. ',' écarts. ',' brechas. ',' Lücken geschlossen. ',' lacune. ',' lacunas. ',' nedostataka. ',' пробелов. ','件の不足が埋まりました。',' अंतर। '],
+' שאלות, ואף אחת מהן לא הוסיפה עובדה שסוגרת דרישה שהייתה חסרה. ':[' أسئلة، ولم يضف أي منها معلومة تغلق متطلبًا كان ناقصًا. ',' questions, and not one of them added a fact that closes a requirement that was missing. ',' questions, et aucune n\'a apporté un fait comblant une exigence manquante. ',' preguntas, y ninguna aportó un dato que cierre un requisito que faltaba. ',' Fragen, und keine davon hat eine Angabe geliefert, die eine fehlende Anforderung schließt. ',' domande, e nessuna ha aggiunto un fatto che chiuda un requisito mancante. ',' perguntas, e nenhuma acrescentou um fato que feche um requisito que faltava. ',' pitanja, i nijedno nije dodalo činjenicu koja zatvara zahtjev koji je nedostajao. ',' вопросов, и ни один не добавил факта, закрывающего недостающее требование. ','件の質問に回答しましたが、欠けていた要件を埋める事実はどれからも得られませんでした。',' प्रश्न, और उनमें से किसी ने ऐसा तथ्य नहीं जोड़ा जो अनुपस्थित आवश्यकता को भरे। '],
 ' שגיאות כתיב</summary><div class="mt-1 space-y-0.5">':[' أخطاء إملائية</summary><div class="mt-1 space-y-0.5">',' spelling errors</summary><div class="mt-1 space-y-0.5">',' fautes d\'orthographe</summary><div class="mt-1 space-y-0.5">',' faltas de ortografía</summary><div class="mt-1 space-y-0.5">',' Rechtschreibfehler</summary><div class="mt-1 space-y-0.5">',' errori di ortografia</summary><div class="mt-1 space-y-0.5">',' erros de ortografia</summary><div class="mt-1 space-y-0.5">',' pravopisnih pogrešaka</summary><div class="mt-1 space-y-0.5">',' орфографических ошибок</summary><div class="mt-1 space-y-0.5">','件の綴りの誤り</summary><div class="mt-1 space-y-0.5">',' वर्तनी त्रुटियाँ</summary><div class="mt-1 space-y-0.5">'],
 ' שורות ארוכות מדי':[' أسطر طويلة جدًا',' lines that are too long',' lignes trop longues',' líneas demasiado largas',' zu lange Zeilen',' righe troppo lunghe',' linhas muito longas',' predugih redaka',' слишком длинных строк','件の長すぎる行',' पंक्तियाँ बहुत लंबी'],
 ' שורות מכילות נתון מדיד':[' أسطر تحتوي على رقم قابل للقياس',' lines contain a measurable figure',' lignes contiennent un chiffre mesurable',' líneas contienen un dato medible',' Zeilen enthalten eine messbare Zahl',' righe contengono un dato misurabile',' linhas contêm um número mensurável',' redaka sadrži mjerljiv podatak',' строк содержат измеримый показатель','行に測定可能な数値あり',' पंक्तियों में मापनीय आँकड़ा है'],
@@ -15166,6 +15445,7 @@ var TT_TX = {
 'בדיקת הדקדוק עברה נקייה. לא נמצאו שגיאות הטיה, התאמה או זמן.</div>':['اجتاز فحص القواعد بلا ملاحظات. لم توجد أخطاء تصريف أو مطابقة أو زمن.</div>','The grammar check came back clean. No errors of inflection, agreement or tense were found.</div>','Le contrôle grammatical est passé sans remarque. Aucune erreur de flexion, d\'accord ou de temps.</div>','La comprobación gramatical salió limpia. No se encontraron errores de flexión, concordancia ni tiempo.</div>','Die Grammatikprüfung verlief sauber. Es wurden keine Beugungs-, Kongruenz- oder Zeitfehler gefunden.</div>','Il controllo grammaticale è risultato pulito. Nessun errore di flessione, accordo o tempo.</div>','A verificação gramatical passou limpa. Não se encontraram erros de flexão, concordância ou tempo.</div>','Provjera gramatike prošla je čisto. Nisu nađene pogreške oblika, slaganja ili vremena.</div>','Проверка грамматики прошла чисто. Ошибок формы, согласования и времени не найдено.</div>','文法チェックは問題なしでした。語形・一致・時制の誤りは見つかりませんでした。</div>','व्याकरण जाँच साफ़ रही। रूप, अन्वय या काल की कोई त्रुटि नहीं मिली।</div>'],
 'בודק חיבור...':['يجري اختبار الاتصال...','Testing the connection...','Test de la connexion...','Probando la conexión...','Verbindung wird getestet...','Verifica della connessione...','Testando a conexão...','Testiram vezu...','Проверяю соединение...','接続を確認中...','कनेक्शन जाँच रहा है...'],
 'בודק מאיזה עולם קורות החיים ומאיזה עולם המשרה...':['يفحص من أي عالم السيرة الذاتية ومن أي عالم الوظيفة...','Checking which world the resume comes from and which world the posting comes from...','Vérification du monde du CV et du monde de l\'annonce...','Comprobando de qué mundo viene el currículum y de cuál la oferta...','Prüfe, aus welcher Welt der Lebenslauf und aus welcher die Anzeige stammt...','Verifico da quale mondo viene il CV e da quale l\'annuncio...','Verificando de que mundo vem o currículo e de qual vem a vaga...','Provjeravam iz kojeg svijeta dolazi životopis, a iz kojeg oglas...','Проверяю, из какого мира резюме и из какого вакансия...','履歴書と求人票がそれぞれどの世界のものかを確認中...','जाँच रहा है कि बायोडाटा किस जगत का है और विज्ञापन किस जगत का...'],
+'בודק מחדש את ההתאמה מול הגרסה החדשה...':['يعيد فحص التوافق مقابل النسخة الجديدة...','Re-checking the fit against the new version...','Nouvelle vérification de l\'adéquation avec la nouvelle version...','Volviendo a comprobar el ajuste con la versión nueva...','Passung wird gegen die neue Fassung erneut geprüft...','Nuova verifica della corrispondenza sulla nuova versione...','Verificando novamente a aderência com a nova versão...','Ponovno provjeravam podudarnost s novom verzijom...','Проверяю соответствие заново по новой версии...','新しい版で適合を再確認中...','नए संस्करण के सामने उपयुक्तता फिर जाँच रहा है...'],
 'בודק שגיאות כתיב לפני ההורדה...':['يجري فحص الأخطاء الإملائية قبل التنزيل...','Checking spelling before the download...','Vérification de l\'orthographe avant le téléchargement...','Comprobando la ortografía antes de la descarga...','Rechtschreibung wird vor dem Download geprüft...','Controllo dell\'ortografia prima del download...','Verificando a ortografia antes do download...','Provjeravam pravopis prije preuzimanja...','Проверяю орфографию перед загрузкой...','ダウンロード前に綴りを確認中...','डाउनलोड से पहले वर्तनी जाँच रहा है...'],
 'בחלון ההדפסה בחר יעד "שמור כ־PDF" / "Save as PDF". אל תבחר "Microsoft Print to PDF" — ':['في نافذة الطباعة اختر وجهة "حفظ بصيغة PDF" / "Save as PDF". لا تختر "Microsoft Print to PDF" — ','In the print window choose the destination "Save as PDF". Do not choose "Microsoft Print to PDF" — ','Dans la fenêtre d\'impression, choisissez la destination « Enregistrer au format PDF » / « Save as PDF ». Ne choisissez pas « Microsoft Print to PDF » — ','En la ventana de impresión elige el destino "Guardar como PDF" / "Save as PDF". No elijas "Microsoft Print to PDF" — ','Wählen Sie im Druckfenster das Ziel „Als PDF speichern“ / „Save as PDF“. Wählen Sie nicht „Microsoft Print to PDF“ — ','Nella finestra di stampa scegli la destinazione "Salva come PDF" / "Save as PDF". Non scegliere "Microsoft Print to PDF" — ','Na janela de impressão escolha o destino "Salvar como PDF" / "Save as PDF". Não escolha "Microsoft Print to PDF" — ','U prozoru za ispis odaberite odredište "Spremi kao PDF" / "Save as PDF". Nemojte odabrati "Microsoft Print to PDF" — ','В окне печати выберите назначение «Сохранить как PDF» / "Save as PDF". Не выбирайте "Microsoft Print to PDF" — ','印刷ウィンドウで出力先に「PDF として保存」／"Save as PDF" を選んでください。"Microsoft Print to PDF" は選ばないでください。','प्रिंट विंडो में गंतव्य "PDF के रूप में सहेजें" / "Save as PDF" चुनें। "Microsoft Print to PDF" न चुनें — '],
 'ביטול':['إلغاء','Cancel','Annuler','Cancelar','Abbrechen','Annulla','Cancelar','Odustani','Отмена','キャンセル','रद्द करें'],
@@ -15178,6 +15458,7 @@ var TT_TX = {
 'גרסה ':['إصدار ','Version ','Version ','Versión ','Version ','Versione ','Versão ','Verzija ','Версия ','バージョン ','संस्करण '],
 'דחה':['ارفض','Reject','Refuser','Rechazar','Ablehnen','Rifiuta','Rejeitar','Odbij','Отклонить','却下','अस्वीकार'],
 'דרישה שסומנה "ראיה מקבילה" לא תקבל את המילה עצמה לעולם, וזה בכוונה.</p>':['متطلب وُسم بـ"دليل مكافئ" لن يحصل على الكلمة نفسها أبدًا، وهذا مقصود.</p>','A requirement marked "equivalent evidence" never gets the word itself, and that is on purpose.</p>','Une exigence marquée « preuve équivalente » ne reçoit jamais le mot lui-même, et c\'est voulu.</p>','Un requisito marcado "evidencia equivalente" nunca recibe la palabra en sí, y es a propósito.</p>','Eine mit „gleichwertiger Nachweis“ markierte Anforderung erhält nie das Wort selbst, und das ist Absicht.</p>','Un requisito segnato "prova equivalente" non riceve mai la parola stessa, ed è voluto.</p>','Um requisito marcado como "evidência equivalente" nunca recebe a palavra em si, e isso é proposital.</p>','Zahtjev označen kao "istovrijedan dokaz" nikad ne dobiva samu riječ, i to je namjerno.</p>','Требование, помеченное «равнозначное доказательство», никогда не получает само слово, и это намеренно.</p>','「同等の裏づけ」と印の付いた要件には、その語自体は決して入りません。これは意図的です。</p>','"समकक्ष प्रमाण" चिह्नित आवश्यकता को वह शब्द कभी नहीं मिलता, और यह जानबूझकर है।</p>'],
+'דרישות החובה שנשארו פתוחות:':['متطلبات إلزامية بقيت مفتوحة:','Must have requirements still open:','Exigences obligatoires encore ouvertes :','Requisitos obligatorios aún abiertos:','Noch offene Muss-Anforderungen:','Requisiti obbligatori ancora aperti:','Requisitos obrigatórios ainda em aberto:','Obavezni zahtjevi koji su ostali otvoreni:','Обязательные требования, оставшиеся открытыми:','未充足のまま残る必須要件：','अभी खुली अनिवार्य आवश्यकताएँ:'],
 'דרישות החובה: ':['المتطلبات الإلزامية: ','The must have requirements: ','Les exigences obligatoires : ','Los requisitos obligatorios: ','Die Muss-Anforderungen: ','I requisiti obbligatori: ','Os requisitos obrigatórios: ','Obavezni zahtjevi: ','Обязательные требования: ','必須要件：','अनिवार्य आवश्यकताएँ: '],
 'דרישות חובה':['المتطلبات الإلزامية','Must have requirements','Exigences obligatoires','Requisitos obligatorios','Muss-Anforderungen','Requisiti obbligatori','Requisitos obrigatórios','Obavezni zahtjevi','Обязательные требования','必須要件','अनिवार्य आवश्यकताएँ'],
 'האפליקציה לא תומכת ב':['التطبيق لا يدعم ','This app does not support ','L\'application ne prend pas en charge ','La aplicación no admite ','Die Anwendung unterstützt kein ','L\'app non supporta ','O aplicativo não dá suporte a ','Aplikacija ne podržava ','Приложение не поддерживает ','このアプリが対応していない言語：','यह ऐप समर्थन नहीं करता: '],
@@ -15204,6 +15485,8 @@ var TT_TX = {
 'ההרצה נעצרה בגלל שגיאה: ':['توقّف التشغيل بسبب خطأ: ','The run stopped because of an error: ','L\'exécution s\'est arrêtée sur une erreur : ','La ejecución se detuvo por un error: ','Der Durchlauf wurde durch einen Fehler gestoppt: ','L\'esecuzione si è fermata per un errore: ','A execução parou por um erro: ','Izvođenje je zaustavljeno zbog pogreške: ','Выполнение остановлено из-за ошибки: ','エラーにより処理を中止しました：','त्रुटि के कारण प्रक्रिया रुकी: '],
 'ההרצה נעצרה. אפשר להחליף את המשרה או את קורות החיים ולהתחיל שוב.':['توقّف التشغيل. يمكن تغيير الوظيفة أو السيرة الذاتية والبدء من جديد.','The run stopped. You can change the posting or the resume and start again.','L\'exécution s\'est arrêtée. Vous pouvez changer l\'annonce ou le CV et recommencer.','La ejecución se detuvo. Puedes cambiar la oferta o el currículum y empezar de nuevo.','Der Durchlauf wurde gestoppt. Sie können die Anzeige oder den Lebenslauf wechseln und neu beginnen.','L\'esecuzione si è fermata. Puoi cambiare l\'annuncio o il CV e ricominciare.','A execução parou. Você pode trocar o anúncio ou o currículo e começar de novo.','Izvođenje je zaustavljeno. Možete promijeniti oglas ili životopis i početi ispočetka.','Выполнение остановлено. Можно сменить вакансию или резюме и начать заново.','処理を中止しました。求人票か履歴書を入れ替えて、やり直せます。','प्रक्रिया रुक गई। आप विज्ञापन या बायोडाटा बदलकर फिर शुरू कर सकते हैं।'],
 'ההתאמה כאן הופכת את השורות האלה לשורות של מה עשית, בלי להעלות אותך בדרגה שלא היית בה.':['التخصيص هنا يحوّل هذه الأسطر إلى أسطر عمّا فعلته، دون أن يرفعك إلى درجة لم تكن فيها.','The tailoring here turns those lines into lines about what you did, without promoting you to a level you never held.','L\'adaptation transforme ici ces lignes en lignes sur ce que vous avez fait, sans vous promouvoir à un niveau que vous n\'avez pas occupé.','La adaptación convierte aquí esas líneas en líneas sobre lo que hiciste, sin ascenderte a un nivel que nunca tuviste.','Die Anpassung macht diese Zeilen hier zu Zeilen darüber, was Sie getan haben, ohne Sie auf eine Stufe zu heben, die Sie nie hatten.','L\'adattamento qui trasforma quelle righe in righe su ciò che hai fatto, senza promuoverti a un livello che non hai mai avuto.','A adaptação aqui transforma essas linhas em linhas sobre o que você fez, sem promovê-lo a um nível que nunca teve.','Prilagodba ovdje pretvara te retke u retke o onome što ste radili, bez da vas promakne u razinu koju niste imali.','Адаптация здесь превращает эти строки в строки о том, что вы делали, не повышая вас до уровня, которого у вас не было.','ここでの調整は、それらの行を「あなたが何をしたか」の行に変えます。就いていない役職に格上げすることはしません。','यहाँ की तैयारी उन पंक्तियों को इसमें बदलती है कि आपने क्या किया, बिना आपको ऐसे स्तर पर चढ़ाए जिस पर आप कभी नहीं थे।'],
+'ההתאמה לא נמדדה מחדש':['لم يُعَد قياس التوافق','The fit was not measured again','L\'adéquation n\'a pas été remesurée','El ajuste no se volvió a medir','Die Passung wurde nicht neu gemessen','La corrispondenza non è stata rimisurata','A aderência não foi medida de novo','Podudarnost nije ponovno izmjerena','Соответствие заново не измерялось','適合は再測定されませんでした','उपयुक्तता दोबारा नहीं मापी गई'],
+'ההתאמה לפני ואחרי':['التوافق قبل وبعد','The fit, before and after','L\'adéquation, avant et après','El ajuste, antes y después','Die Passung, vorher und nachher','La corrispondenza, prima e dopo','A aderência, antes e depois','Podudarnost, prije i poslije','Соответствие, до и после','適合の前後','उपयुक्तता, पहले और बाद'],
 'הוא הופך את הקובץ לתמונה, והטקסט מפסיק להיות ניתן לסימון או לקריאה על ידי מערכות ATS.':['فهو يحوّل الملف إلى صورة، ويتوقف النص عن كونه قابلًا للتحديد أو للقراءة من أنظمة ATS.','It turns the file into an image, and the text stops being selectable or readable by ATS systems.','Il transforme le fichier en image, et le texte cesse d\'être sélectionnable ou lisible par les systèmes ATS.','Convierte el archivo en una imagen, y el texto deja de ser seleccionable o legible por los sistemas ATS.','Sie verwandelt die Datei in ein Bild, und der Text lässt sich weder markieren noch von ATS-Systemen lesen.','Trasforma il file in un\'immagine, e il testo smette di essere selezionabile o leggibile dai sistemi ATS.','Ele transforma o arquivo numa imagem, e o texto deixa de ser selecionável ou legível por sistemas ATS.','Pretvara datoteku u sliku, a tekst prestaje biti označiv ili čitljiv ATS sustavima.','Он превращает файл в изображение, и текст перестаёт выделяться и читаться системами ATS.','ファイルが画像になり、本文は選択も ATS による読み取りもできなくなります。','यह फ़ाइल को छवि में बदल देता है, और पाठ चुनने योग्य या ATS प्रणालियों द्वारा पढ़ने योग्य नहीं रहता।'],
 'הוספת כישור':['إضافة مهارة','Adding a skill','Ajout d\'une compétence','Añadir una habilidad','Kompetenz hinzufügen','Aggiunta di una competenza','Adicionar uma habilidade','Dodavanje vještine','Добавление навыка','スキルの追加','कौशल जोड़ना'],
 'הוסר':['أُزيل','Removed','Supprimé','Eliminado','Entfernt','Rimosso','Removido','Uklonjeno','Удалено','削除済み','हटाया गया'],
@@ -15244,8 +15527,11 @@ var TT_TX = {
 'הסרת סעיף לא רלוונטי':['إزالة بند غير ذي صلة','Removing an irrelevant point','Suppression d\'un élément hors sujet','Eliminar un punto irrelevante','Entfernen eines irrelevanten Punkts','Rimozione di un punto non pertinente','Remover um item irrelevante','Brisanje nevažne stavke','Удаление нерелевантного пункта','関係のない項目の削除','अप्रासंगिक बिंदु हटाना'],
 'הסרת תפקיד שלם':['إزالة وظيفة كاملة','Removing a whole role','Suppression d\'un poste entier','Eliminar un puesto completo','Ganze Position entfernen','Rimozione di un intero incarico','Remover um cargo inteiro','Brisanje cijelog radnog mjesta','Удаление целой должности','職歴を丸ごと削除','पूरा पद हटाना'],
 'הסתר פירוט':['أخفِ التفاصيل','Hide detail','Masquer le détail','Ocultar detalle','Details ausblenden','Nascondi dettagli','Ocultar detalhes','Sakrij detalje','Скрыть подробности','詳細を隠す','विवरण छिपाएँ'],
+'הפערים לא נסגרו.':['لم تُغلق الفجوات.','The gaps did not close.','Les écarts ne se sont pas comblés.','Las brechas no se cerraron.','Die Lücken haben sich nicht geschlossen.','Le lacune non si sono colmate.','As lacunas não se fecharam.','Nedostaci se nisu zatvorili.','Пробелы не закрылись.','不足は埋まりませんでした。','अंतर नहीं भरे।'],
 'הפריסה נקייה לפרסור':['التنسيق نظيف للتحليل','The layout is clean to parse','La mise en page est propre à analyser','El diseño es limpio de analizar','Das Layout ist gut auswertbar','L\'impaginazione è pulita da analizzare','O layout é limpo para leitura','Raspored je čist za obradu','Вёрстка легко разбирается','レイアウトは解析しやすい','लेआउट पार्स करने योग्य है'],
 'הצג פירוט':['أظهر التفاصيل','Show detail','Afficher le détail','Mostrar detalle','Details anzeigen','Mostra dettagli','Mostrar detalhes','Prikaži detalje','Показать подробности','詳細を表示','विवरण दिखाएँ'],
+'הציון נשאר כפי שהיה, וזה אומר שהפער הוא בניסיון עצמו ולא בניסוח. ':['بقيت الدرجة كما كانت، وهذا يعني أن الفجوة في الخبرة نفسها لا في الصياغة. ','The score stayed where it was, which means the gap is in the experience itself and not in the wording. ','Le score est resté au même niveau, ce qui signifie que l\'écart tient à l\'expérience elle-même et non à la formulation. ','La puntuación se quedó donde estaba, lo que significa que la brecha está en la experiencia misma y no en la redacción. ','Der Wert blieb, wo er war, was bedeutet: die Lücke liegt in der Erfahrung selbst, nicht in der Formulierung. ','Il punteggio è rimasto dov\'era, il che significa che il divario è nell\'esperienza stessa e non nella formulazione. ','A pontuação ficou onde estava, o que significa que a lacuna está na experiência em si e não na redação. ','Ocjena je ostala ista, što znači da je razmak u samom iskustvu, a ne u formulaciji. ','Оценка осталась на месте, а значит разрыв в самом опыте, а не в формулировках. ','スコアは動きませんでした。つまり隔たりは表現ではなく、経験そのものにあります。','अंक वहीं रहा, अर्थात अंतर शब्दावली में नहीं बल्कि अनुभव में ही है। '],
+'הציון עלה כי נכנסו עובדות חדשות למסמך, ולא כי השורות נוסחו אחרת.':['ارتفعت الدرجة لأن معلومات جديدة دخلت المستند، لا لأن الأسطر صيغت بشكل مختلف.','The score rose because new facts entered the document, not because lines were worded differently.','Le score a augmenté parce que des faits nouveaux sont entrés dans le document, pas parce que des lignes ont été reformulées.','La puntuación subió porque entraron datos nuevos en el documento, no porque se reformularan líneas.','Der Wert stieg, weil neue Angaben ins Dokument gekommen sind, nicht weil Zeilen anders formuliert wurden.','Il punteggio è salito perché sono entrati fatti nuovi nel documento, non perché delle righe siano state riformulate.','A pontuação subiu porque fatos novos entraram no documento, não porque linhas foram reescritas.','Ocjena je porasla jer su u dokument ušle nove činjenice, a ne zato što su redci drukčije formulirani.','Оценка выросла потому, что в документ вошли новые факты, а не потому, что строки переписаны иначе.','スコアが上がったのは、文書に新しい事実が入ったからで、行の言い回しが変わったからではありません。','अंक इसलिए बढ़ा क्योंकि दस्तावेज़ में नए तथ्य आए, इसलिए नहीं कि पंक्तियाँ अलग ढंग से लिखी गईं।'],
 'הצילום נסרק.':['تم مسح الصورة.','The screenshot was read.','La capture a été analysée.','La captura se leyó.','Der Screenshot wurde gelesen.','Lo screenshot è stato letto.','A captura foi lida.','Snimka je pročitana.','Снимок распознан.','スクリーンショットを読み取りました。','स्क्रीनशॉट पढ़ लिया गया।'],
 'הקובץ נטען.':['تم تحميل الملف.','The file was loaded.','Le fichier est chargé.','El archivo se cargó.','Die Datei wurde geladen.','Il file è stato caricato.','O arquivo foi carregado.','Datoteka je učitana.','Файл загружен.','ファイルを読み込みました。','फ़ाइल लोड हो गई।'],
 'הקטנה נוספת תפגע בקריאוּת, ולכן היא נעצרת כאן. כדי לרדת לשני עמודים צריך להסיר תוכן: חזור לשלב 5 ואשר את הסעיפים או התפקידים שסומנו כלא רלוונטיים למשרה.':['أي تصغير إضافي سيضرّ بالمقروئية، ولذلك يتوقف هنا. للنزول إلى صفحتين يجب إزالة محتوى: عد إلى المرحلة 5 ووافق على البنود أو الوظائف التي وُسمت كغير ذات صلة بالوظيفة.','Shrinking further would hurt readability, so it stops here. To get down to two pages content has to go: return to stage 5 and approve the points or roles that were marked as irrelevant to the posting.','Réduire davantage nuirait à la lisibilité, cela s\'arrête donc ici. Pour descendre à deux pages, il faut retirer du contenu : revenez à l\'étape 5 et validez les éléments ou postes marqués comme hors sujet.','Reducir más dañaría la legibilidad, así que se detiene aquí. Para bajar a dos páginas hay que quitar contenido: vuelve a la etapa 5 y aprueba los puntos o puestos marcados como irrelevantes para la oferta.','Weiteres Verkleinern würde die Lesbarkeit beeinträchtigen, daher endet es hier. Um auf zwei Seiten zu kommen, muss Inhalt weichen: Kehren Sie zu Schritt 5 zurück und geben Sie die als irrelevant markierten Punkte oder Stationen frei.','Ridurre ancora comprometterebbe la leggibilità, quindi ci si ferma qui. Per scendere a due pagine bisogna togliere contenuto: torna alla fase 5 e approva i punti o gli incarichi segnati come non pertinenti.','Reduzir mais prejudicaria a legibilidade, então para por aqui. Para chegar a duas páginas é preciso tirar conteúdo: volte à etapa 5 e aprove os itens ou cargos marcados como irrelevantes para a vaga.','Daljnje smanjivanje narušilo bi čitljivost, pa ovdje staje. Da se spusti na dvije stranice, sadržaj mora otići: vratite se na korak 5 i odobrite stavke ili radna mjesta označena kao nevažna za oglas.','Дальнейшее уменьшение повредит читаемости, поэтому оно останавливается здесь. Чтобы уложиться в две страницы, надо убрать содержание: вернитесь на этап 5 и утвердите пункты или должности, помеченные как нерелевантные.','これ以上の縮小は読みやすさを損なうため、ここで止まります。2 ページに収めるには内容を減らす必要があります。ステップ 5 に戻り、求人に無関係と印の付いた項目や職歴を承認してください。','और घटाने से पठनीयता बिगड़ेगी, इसलिए यह यहीं रुकता है। दो पृष्ठों तक आने के लिए सामग्री हटानी होगी: चरण 5 पर लौटें और विज्ञापन के लिए अप्रासंगिक चिह्नित बिंदु या पद स्वीकृत करें।'],
@@ -15275,6 +15561,7 @@ var TT_TX = {
 'התשובה של המודל לא הייתה JSON תקין.':['لم تكن إجابة النموذج JSON صالحًا.','The model\'s answer was not valid JSON.','La réponse du modèle n\'était pas du JSON valide.','La respuesta del modelo no era JSON válido.','Die Antwort des Modells war kein gültiges JSON.','La risposta del modello non era JSON valido.','A resposta do modelo não era JSON válido.','Odgovor modela nije bio ispravan JSON.','Ответ модели не был корректным JSON.','モデルの応答が正しい JSON ではありませんでした。','मॉडल का उत्तर वैध JSON नहीं था।'],
 'התשובה של המודל נקטעה באמצע כי חרגה ממכסת האורך (':['انقطعت إجابة النموذج في منتصفها لأنها تجاوزت حد الطول (','The model\'s answer was cut off midway because it exceeded the length limit (','La réponse du modèle a été coupée en cours parce qu\'elle dépassait la limite de longueur (','La respuesta del modelo se cortó a mitad porque superó el límite de longitud (','Die Antwort des Modells brach in der Mitte ab, weil sie das Längenlimit überschritt (','La risposta del modello si è interrotta a metà perché ha superato il limite di lunghezza (','A resposta do modelo foi cortada no meio porque excedeu o limite de comprimento (','Odgovor modela prekinut je na pola jer je premašio ograničenje duljine (','Ответ модели оборвался на середине, так как превысил лимит длины (','モデルの応答が長さの上限を超えて途中で切れました（','मॉडल का उत्तर बीच में कट गया क्योंकि वह लंबाई सीमा से बाहर गया ('],
 'התשובה שלך: ':['إجابتك: ','Your answer: ','Votre réponse : ','Tu respuesta: ','Ihre Antwort: ','La tua risposta: ','Sua resposta: ','Vaš odgovor: ','Ваш ответ: ','あなたの回答：','आपका उत्तर: '],
+'התשובות שלך סגרו ':['أغلقت إجاباتك ','Your answers closed ','Vos réponses ont comblé ','Tus respuestas cerraron ','Ihre Antworten haben ','Le tue risposte hanno colmato ','Suas respostas fecharam ','Vaši odgovori zatvorili su ','Ваши ответы закрыли ','あなたの回答で ','आपके उत्तरों ने बंद किए '],
 'ואותה שורה מסומנת גם באישור השינויים בתגית תכולה עם מספר התשובה.</p>':['ويُعلَّم السطر نفسه في الموافقة على التغييرات بوسم أزرق يحمل رقم الإجابة.</p>','and the same line is marked in the approval screen with a tag carrying the answer number.</p>','et la même ligne est marquée dans l\'écran de validation par une étiquette portant le numéro de la réponse.</p>','y la misma línea se marca en la pantalla de aprobación con una etiqueta con el número de la respuesta.</p>','und dieselbe Zeile wird im Freigabebildschirm mit einer Marke samt Antwortnummer gekennzeichnet.</p>','e la stessa riga è contrassegnata nella schermata di approvazione con un\'etichetta col numero della risposta.</p>','e a mesma linha é marcada na tela de aprovação com uma etiqueta com o número da resposta.</p>','a isti je redak označen na zaslonu odobrenja oznakom s brojem odgovora.</p>','и та же строка помечена на экране утверждения меткой с номером ответа.</p>','同じ行は承認画面でも、回答番号の付いたタグで示されます。</p>','और वही पंक्ति स्वीकृति स्क्रीन पर उत्तर संख्या वाले टैग से चिह्नित होती है।</p>'],
 'ואלה דרישות שהתוכן שלהן מוכח אבל לא השם, או שיש לך משהו אחר במקומן. הניקוד לא שילם על זה בכוונה, כי מסנן שמחפש שם לא מתרשם מטיעון. בראיון זה בדיוק ההפך, ולכן זו התשובה שצריך להיות מוכן אליה.':['وهذه متطلبات مضمونها مثبت لكن اسمها ليس كذلك، أو أن لديك شيئًا آخر مكانها. لم يمنحها التقييم نقاطًا عن قصد، لأن مرشّحًا يبحث عن اسم لا يتأثر بحجة. في المقابلة العكس تمامًا، ولذلك هذه هي الإجابة التي ينبغي أن تكون مستعدًا لها.','These are requirements whose substance is proved but whose name is not, or where you have something else in their place. The score deliberately did not pay for that, because a filter looking for a name is not moved by an argument. In an interview it is exactly the other way round, so this is the answer to be ready with.','Ce sont des exigences dont le fond est prouvé mais pas le nom, ou pour lesquelles vous avez autre chose. Le score n\'a délibérément rien accordé, car un filtre qui cherche un nom ne se laisse pas convaincre par un raisonnement. En entretien, c\'est exactement l\'inverse : voilà donc la réponse à préparer.','Son requisitos cuyo contenido está probado pero no el nombre, o para los que tienes otra cosa en su lugar. La puntuación no lo pagó a propósito, porque un filtro que busca un nombre no se deja convencer por un argumento. En una entrevista es justo al revés, así que esta es la respuesta para la que hay que estar preparado.','Das sind Anforderungen, deren Substanz belegt ist, aber nicht der Name, oder für die Sie etwas anderes haben. Die Punktzahl hat dafür bewusst nichts vergeben, denn ein Filter, der einen Namen sucht, lässt sich von einem Argument nicht beeindrucken. Im Gespräch ist es genau umgekehrt, darauf sollten Sie also vorbereitet sein.','Sono requisiti la cui sostanza è provata ma non il nome, o per i quali hai altro al loro posto. Il punteggio non ha pagato apposta, perché un filtro che cerca un nome non si lascia convincere da un ragionamento. In un colloquio è esattamente il contrario, quindi è questa la risposta a cui arrivare pronti.','São requisitos cujo conteúdo está comprovado mas o nome não, ou para os quais você tem outra coisa no lugar. A pontuação deliberadamente não pagou por isso, porque um filtro que procura um nome não se comove com um argumento. Numa entrevista é exatamente o contrário, então esta é a resposta para a qual convém estar preparado.','Ovo su zahtjevi čiji je sadržaj dokazan, ali naziv nije, ili za koje imate nešto drugo umjesto njih. Ocjena to namjerno nije platila, jer filtar koji traži naziv ne uvjerava argument. Na razgovoru je upravo obrnuto, pa je ovo odgovor za koji treba biti spreman.','Это требования, содержание которых доказано, а название — нет, или для которых у вас есть что-то другое. Оценка намеренно за это не заплатила, потому что фильтр, ищущий название, доводами не проймёшь. На собеседовании всё ровно наоборот, поэтому именно к этому ответу стоит быть готовым.','これらは中身は証明されていても名称が一致しない要件、あるいは別のもので代えている要件です。名称を探すフィルターは論拠に動かされないため、点数は意図的に加算していません。面接ではまったく逆なので、備えておくべき答えがこれです。','ये वे आवश्यकताएँ हैं जिनका सार सिद्ध है पर नाम नहीं, या जिनकी जगह आपके पास कुछ और है। अंक ने जानबूझकर इसका भुगतान नहीं किया, क्योंकि नाम खोजने वाला फ़िल्टर तर्क से प्रभावित नहीं होता। साक्षात्कार में ठीक उल्टा है, इसलिए यही वह उत्तर है जिसके लिए तैयार रहना चाहिए।'],
 'ואם משפט אחד לא מרגיש לך נכון, דחה את ההצעה כולה.':['وإذا لم تشعر أن جملة واحدة صحيحة، ارفض الاقتراح بأكمله.','And if a single sentence does not feel right to you, reject the whole suggestion.','Et si une seule phrase vous semble fausse, refusez la proposition entière.','Y si una sola frase no te parece correcta, rechaza toda la propuesta.','Und wenn ein einziger Satz sich falsch anfühlt, lehnen Sie den ganzen Vorschlag ab.','E se una sola frase non ti convince, rifiuta l\'intera proposta.','E se uma única frase não lhe parecer certa, rejeite a sugestão inteira.','A ako vam jedna jedina rečenica ne sjedne, odbijte cijeli prijedlog.','И если хоть одно предложение кажется вам неверным, отклоните весь вариант.','一文でも違うと感じたら、その提案ごと却下してください。','और यदि एक भी वाक्य सही न लगे, तो पूरा सुझाव अस्वीकार करें।'],
@@ -15345,6 +15632,7 @@ var TT_TX = {
 'לא בהכרח בעיה, אבל שורה שנפתחת ב"ניהול", "הטמעה", "צמצום" נקראת מהר יותר כהישג ולא כתיאור.':['ليست مشكلة بالضرورة، لكن سطرًا يبدأ بـ"إدارة" أو "تطبيق" أو "تقليص" يُقرأ أسرع كإنجاز لا كوصف.','Not necessarily a problem, but a line that opens with "managed", "implemented" or "reduced" reads faster as an achievement than as a description.','Pas forcément un problème, mais une ligne qui commence par « gestion », « mise en place », « réduction » se lit plus vite comme une réalisation que comme une description.','No es necesariamente un problema, pero una línea que empieza por "gestión", "implantación" o "reducción" se lee antes como logro que como descripción.','Nicht zwangsläufig ein Problem, aber eine Zeile, die mit „Leitung“, „Einführung“ oder „Reduzierung“ beginnt, liest sich schneller als Erfolg denn als Beschreibung.','Non è per forza un problema, ma una riga che apre con "gestione", "implementazione" o "riduzione" si legge prima come risultato che come descrizione.','Não é necessariamente um problema, mas uma linha que começa com "gestão", "implantação" ou "redução" lê-se antes como realização do que como descrição.','Nije nužno problem, ali redak koji počinje s "vođenje", "uvođenje" ili "smanjenje" brže se čita kao postignuće nego kao opis.','Не обязательно проблема, но строка, начинающаяся с «руководство», «внедрение», «сокращение», быстрее читается как достижение, а не как описание.','必ずしも問題ではありませんが、「管理」「導入」「削減」で始まる行は、説明よりも成果として速く読まれます。','ज़रूरी नहीं कि समस्या हो, पर "प्रबंधन", "कार्यान्वयन", "कटौती" से शुरू होने वाली पंक्ति विवरण के बजाय उपलब्धि के रूप में तेज़ी से पढ़ी जाती है।'],
 'לא הוזן מפתח.':['لم يُدخل أي مفتاح.','No key was entered.','Aucune clé n\'a été saisie.','No se introdujo ninguna clave.','Es wurde kein Schlüssel eingegeben.','Non è stata inserita alcuna chiave.','Nenhuma chave foi inserida.','Ključ nije unesen.','Ключ не введён.','キーが入力されていません。','कोई कुंजी दर्ज नहीं की गई।'],
 'לא הוצע אף שינוי.':['لم يُقترح أي تغيير.','No change was proposed.','Aucune modification n\'a été proposée.','No se propuso ningún cambio.','Es wurde keine Änderung vorgeschlagen.','Non è stata proposta alcuna modifica.','Nenhuma alteração foi proposta.','Nije predložena nijedna izmjena.','Ни одной правки не предложено.','変更案はありません。','कोई बदलाव प्रस्तावित नहीं हुआ।'],
+'לא הצלחתי למדוד מחדש את ההתאמה. הציון שמוצג הוא זה שנמדד לפני השכתוב.':['لم أتمكن من إعادة قياس التوافق. الدرجة المعروضة هي التي قيست قبل إعادة الكتابة.','I could not measure the fit again. The score shown is the one measured before the rewrite.','Je n\'ai pas pu remesurer l\'adéquation. Le score affiché est celui mesuré avant la réécriture.','No pude volver a medir el ajuste. La puntuación mostrada es la medida antes de la reescritura.','Ich konnte die Passung nicht erneut messen. Der angezeigte Wert stammt von vor der Neufassung.','Non sono riuscito a rimisurare la corrispondenza. Il punteggio mostrato è quello misurato prima della riscrittura.','Não consegui medir a aderência de novo. A pontuação exibida é a medida antes da reescrita.','Nisam mogao ponovno izmjeriti podudarnost. Prikazana ocjena je ona izmjerena prije prepisivanja.','Не удалось измерить соответствие заново. Показана оценка, снятая до переписывания.','適合を再測定できませんでした。表示しているのは書き直し前に測った値です。','मैं उपयुक्तता दोबारा नहीं माप सका। दिखाया गया अंक पुनर्लेखन से पहले मापा गया है।'],
 'לא הצלחתי לנסח שאלה: ':['لم أتمكن من صياغة سؤال: ','I could not write a question: ','Je n\'ai pas réussi à formuler une question : ','No pude formular una pregunta: ','Ich konnte keine Frage formulieren: ','Non sono riuscito a formulare una domanda: ','Não consegui formular uma pergunta: ','Nisam mogao sastaviti pitanje: ','Не удалось сформулировать вопрос: ','質問を作成できませんでした：','मैं प्रश्न नहीं बना सका: '],
 'לא הצלחתי לקבוע בוודאות. ':['لم أتمكن من التحديد بيقين. ','I could not tell for certain. ','Je n\'ai pas pu déterminer avec certitude. ','No pude determinarlo con certeza. ','Ich konnte es nicht sicher bestimmen. ','Non sono riuscito a stabilirlo con certezza. ','Não consegui determinar com certeza. ','Nisam mogao sa sigurnošću odrediti. ','Не удалось определить точно. ','確実には判断できませんでした。','मैं निश्चित रूप से तय नहीं कर सका। '],
 'לא הצלחתי לקרוא את תשובת ההשוואה. נסה שוב.':['لم أتمكن من قراءة إجابة المقارنة. حاول مرة أخرى.','I could not read the comparison answer. Try again.','Je n\'ai pas pu lire la réponse de comparaison. Réessayez.','No pude leer la respuesta de la comparación. Inténtalo de nuevo.','Ich konnte die Vergleichsantwort nicht lesen. Versuchen Sie es erneut.','Non sono riuscito a leggere la risposta del confronto. Riprova.','Não consegui ler a resposta da comparação. Tente de novo.','Nisam mogao pročitati odgovor usporedbe. Pokušajte ponovno.','Не удалось прочитать ответ сравнения. Попробуйте снова.','照合の応答を読み取れませんでした。もう一度お試しください。','तुलना का उत्तर नहीं पढ़ सका। फिर कोशिश करें।'],
@@ -15366,6 +15654,7 @@ var TT_TX = {
 'לא נמצאו שינויים להציע. ':['لم توجد تغييرات لاقتراحها. ','No changes were found to propose. ','Aucune modification à proposer. ','No se encontraron cambios que proponer. ','Es wurden keine Änderungen zum Vorschlagen gefunden. ','Non sono state trovate modifiche da proporre. ','Não foram encontradas alterações a propor. ','Nisu nađene izmjene za predložiti. ','Изменений для предложения не найдено. ','提案できる変更は見つかりませんでした。','प्रस्तावित करने योग्य बदलाव नहीं मिले। '],
 'לא נשאר טקסט אחרי הניקוי.':['لم يبق نص بعد التنظيف.','No text was left after cleaning.','Il ne reste aucun texte après nettoyage.','No quedó texto después de la limpieza.','Nach der Reinigung blieb kein Text übrig.','Dopo la pulizia non è rimasto testo.','Não sobrou texto após a limpeza.','Nakon čišćenja nije ostao tekst.','После очистки текста не осталось.','整形後に本文が残りませんでした。','साफ़ करने के बाद कोई पाठ नहीं बचा।'],
 'לא נשמר מפתח API. פתח את ההגדרות והזן מפתח.':['لم يُحفظ مفتاح API. افتح الإعدادات وأدخل مفتاحًا.','No API key was saved. Open the settings and enter one.','Aucune clé API enregistrée. Ouvrez les paramètres et saisissez-en une.','No se guardó ninguna clave API. Abre la configuración e introduce una.','Es wurde kein API-Schlüssel gespeichert. Öffnen Sie die Einstellungen und geben Sie einen ein.','Nessuna chiave API salvata. Apri le impostazioni e inseriscine una.','Nenhuma chave de API foi salva. Abra as configurações e insira uma.','Nije spremljen API ključ. Otvorite postavke i unesite ga.','Ключ API не сохранён. Откройте настройки и введите ключ.','API キーが保存されていません。設定を開いて入力してください。','कोई API कुंजी सहेजी नहीं गई। सेटिंग्स खोलकर कुंजी दर्ज करें।'],
+'לא ענית על אף שאלה, ולכן אין עובדות חדשות למדוד. הציון נשאר כפי שהיה.':['لم تجب عن أي سؤال، فلا توجد معلومات جديدة لقياسها. بقيت الدرجة كما كانت.','You did not answer any question, so there are no new facts to measure. The score stays as it was.','Vous n\'avez répondu à aucune question, il n\'y a donc aucun fait nouveau à mesurer. Le score reste inchangé.','No respondiste ninguna pregunta, así que no hay datos nuevos que medir. La puntuación queda como estaba.','Sie haben keine Frage beantwortet, es gibt also keine neuen Angaben zu messen. Der Wert bleibt, wie er war.','Non hai risposto ad alcuna domanda, quindi non ci sono fatti nuovi da misurare. Il punteggio resta com\'era.','Você não respondeu a nenhuma pergunta, então não há fatos novos a medir. A pontuação continua como estava.','Niste odgovorili ni na jedno pitanje, pa nema novih činjenica za mjerenje. Ocjena ostaje ista.','Вы не ответили ни на один вопрос, значит новых фактов для измерения нет. Оценка осталась прежней.','質問に一つも回答がないため、測定できる新しい事実がありません。スコアは元のままです。','आपने कोई प्रश्न नहीं उत्तरित किया, इसलिए मापने योग्य नए तथ्य नहीं हैं। अंक वैसा ही रहा।'],
 'לאיזו שפה לתרגם את הגרסה?':['إلى أي لغة تترجم هذه النسخة؟','Translate this version into which language?','Traduire cette version dans quelle langue ?','¿A qué idioma traducir esta versión?','In welche Sprache soll diese Version übersetzt werden?','In quale lingua tradurre questa versione?','Traduzir esta versão para qual idioma?','Na koji jezik prevesti ovu verziju?','На какой язык перевести эту версию?','このバージョンをどの言語に翻訳しますか。','इस संस्करण का अनुवाद किस भाषा में करें?'],
 'לאיזו שפה לתרגם את הקלט?':['إلى أي لغة تترجم المُدخل؟','Translate the input into which language?','Traduire la saisie dans quelle langue ?','¿A qué idioma traducir la entrada?','In welche Sprache soll die Eingabe übersetzt werden?','In quale lingua tradurre il testo inserito?','Traduzir a entrada para qual idioma?','Na koji jezik prevesti uneseni tekst?','На какой язык перевести введённый текст?','入力をどの言語に翻訳しますか。','इनपुट का अनुवाद किस भाषा में करें?'],
 'לאפליקציה אין מנוע בינה מלאכותית משלה. היא משתמשת ב־Gemini של גוגל, וכדי לפנות אליו צריך מפתח אישי, משהו כמו כרטיס כניסה על השם שלכם. המפתח ניתן בחינם, נוצר בדקה בדף הרשמי של גוגל, ונשמר רק בדפדפן שלכם.':['ليس للتطبيق محرّك ذكاء اصطناعي خاص به. هو يستخدم Gemini من Google، وللتوجّه إليه يلزم مفتاح شخصي، أشبه ببطاقة دخول باسمكم. المفتاح مجاني، ويُنشأ في دقيقة على صفحة Google الرسمية، ويُحفظ في متصفحكم فقط.','The app has no AI engine of its own. It uses Google\'s Gemini, and to reach it a personal key is needed, something like an entry card in your name. The key is free, is created in a minute on Google\'s official page, and is stored in your browser only.','L\'application n\'a pas de moteur d\'IA propre. Elle utilise Gemini de Google, et pour y accéder il faut une clé personnelle, une sorte de carte d\'accès à votre nom. La clé est gratuite, se crée en une minute sur la page officielle de Google, et n\'est conservée que dans votre navigateur.','La aplicación no tiene motor de IA propio. Usa Gemini de Google, y para acceder a él hace falta una clave personal, algo así como una tarjeta de acceso a tu nombre. La clave es gratuita, se crea en un minuto en la página oficial de Google y se guarda solo en tu navegador.','Die Anwendung hat keine eigene KI-Maschine. Sie nutzt Googles Gemini, und dafür braucht es einen persönlichen Schlüssel, so etwas wie eine Zutrittskarte auf Ihren Namen. Der Schlüssel ist kostenlos, in einer Minute auf Googles offizieller Seite erstellt und wird nur in Ihrem Browser gespeichert.','L\'app non ha un motore di IA proprio. Usa Gemini di Google, e per raggiungerlo serve una chiave personale, una sorta di tessera d\'accesso a tuo nome. La chiave è gratuita, si crea in un minuto sulla pagina ufficiale di Google e viene conservata solo nel tuo browser.','O aplicativo não tem motor de IA próprio. Ele usa o Gemini do Google, e para acessá-lo é preciso uma chave pessoal, algo como um cartão de entrada em seu nome. A chave é gratuita, é criada em um minuto na página oficial do Google e fica guardada apenas no seu navegador.','Aplikacija nema vlastiti mehanizam umjetne inteligencije. Koristi Googleov Gemini, a za pristup treba osobni ključ, nešto poput ulaznice na vaše ime. Ključ je besplatan, stvara se u minuti na Googleovoj službenoj stranici i čuva se samo u vašem pregledniku.','У приложения нет собственного ИИ-движка. Оно использует Gemini от Google, и для обращения к нему нужен личный ключ, что-то вроде пропуска на ваше имя. Ключ бесплатный, создаётся за минуту на официальной странице Google и хранится только в вашем браузере.','このアプリに独自の AI エンジンはありません。Google の Gemini を利用しており、そのためにはあなた名義の入場カードのような個人キーが必要です。キーは無料で、Google の公式ページで一分ほどで作成でき、保存先はあなたのブラウザだけです。','ऐप के पास अपना कोई AI इंजन नहीं है। यह Google के Gemini का उपयोग करता है, और उस तक पहुँचने के लिए एक व्यक्तिगत कुंजी चाहिए, कुछ-कुछ आपके नाम के प्रवेश कार्ड जैसी। कुंजी मुफ़्त है, Google के आधिकारिक पृष्ठ पर एक मिनट में बनती है, और केवल आपके ब्राउज़र में सहेजी जाती है।'],
@@ -15483,6 +15772,7 @@ var TT_TX = {
 'שגיאה מהשרת (':['خطأ من الخادم (','Server error (','Erreur du serveur (','Error del servidor (','Serverfehler (','Errore dal server (','Erro do servidor (','Pogreška poslužitelja (','Ошибка сервера (','サーバーエラー（','सर्वर त्रुटि ('],
 'שווה לפתוח את הפירוט ולהעביר כל שורה שסווגה לא נכון.</p>':['يستحق فتح التفاصيل ونقل كل سطر صُنّف بشكل خاطئ.</p>','It is worth opening the detail and moving any line that was classified wrongly.</p>','Il vaut la peine d\'ouvrir le détail et de déplacer toute ligne mal classée.</p>','Conviene abrir el detalle y mover cualquier línea mal clasificada.</p>','Es lohnt sich, die Details zu öffnen und jede falsch eingeordnete Zeile zu verschieben.</p>','Vale la pena aprire il dettaglio e spostare ogni riga classificata male.</p>','Vale a pena abrir o detalhe e mover qualquer linha mal classificada.</p>','Vrijedi otvoriti detalje i premjestiti svaki krivo razvrstan redak.</p>','Стоит открыть подробности и перенести каждую неверно отнесённую строку.</p>','詳細を開き、分類が誤っている行を移すとよいでしょう。</p>','विवरण खोलकर गलत वर्गीकृत हर पंक्ति को स्थानांतरित करना उचित है।</p>'],
 'שווה לשפר':['يستحق التحسين','Worth improving','À améliorer','Vale mejorarlo','Verbesserungswürdig','Da migliorare','Vale melhorar','Vrijedi poboljšati','Стоит улучшить','改善の余地あり','सुधार योग्य'],
+'שווה לשקול מחדש אם להתמודד על המשרה הזו, או להשקיע את הזמן במשרה קרובה יותר.':['يستحق إعادة التفكير في التقدّم لهذه الوظيفة، أو استثمار الوقت في وظيفة أقرب.','It is worth reconsidering whether to apply for this posting, or to spend the time on one closer to you.','Il vaut la peine de reconsidérer votre candidature à cette annonce, ou de consacrer ce temps à une annonce plus proche de vous.','Vale la pena reconsiderar si presentarte a esta oferta, o invertir el tiempo en una más cercana a ti.','Es lohnt sich zu überdenken, ob Sie sich auf diese Anzeige bewerben, oder die Zeit in eine passendere zu stecken.','Vale la pena riconsiderare se candidarti a questo annuncio, o investire il tempo in uno più vicino a te.','Vale a pena reconsiderar se candidatar-se a esta vaga, ou investir o tempo numa mais próxima de você.','Vrijedi ponovno razmisliti hoćete li se prijaviti na ovaj oglas, ili uložiti vrijeme u bliži.','Стоит заново взвесить, подавать ли на эту вакансию, или потратить время на более близкую.','この求人に応募するかどうか、あるいはご自身により近い求人に時間を使うかを、あらためて考える価値があります。','इस विज्ञापन पर आवेदन करना है या समय किसी अधिक निकट विज्ञापन में लगाना है, इस पर पुनर्विचार उचित है।'],
 'שום סעיף לא הועלה. הסדר המקורי כבר הציג את הדברים הרלוונטיים בראש, או שלא אישרת שינוי סדר.':['لم يُرفع أي بند. الترتيب الأصلي كان يعرض الأمور ذات الصلة في الأعلى أصلًا، أو أنك لم توافق على تغيير الترتيب.','No point was moved up. The original order already put the relevant things at the top, or you did not approve a reordering.','Aucun élément n\'a été remonté. L\'ordre d\'origine plaçait déjà les éléments pertinents en tête, ou vous n\'avez pas validé de réorganisation.','Ningún punto subió. El orden original ya ponía lo relevante arriba, o no aprobaste ningún cambio de orden.','Kein Punkt wurde nach oben gerückt. Die ursprüngliche Reihenfolge stellte das Relevante bereits nach oben, oder Sie haben keine Umstellung freigegeben.','Nessun punto è stato spostato in alto. L\'ordine originale metteva già in cima le cose pertinenti, oppure non hai approvato un riordino.','Nenhum item subiu. A ordem original já colocava o relevante no topo, ou você não aprovou nenhuma reordenação.','Nijedna stavka nije podignuta. Izvorni je redoslijed već stavljao važno na vrh, ili niste odobrili promjenu redoslijeda.','Ни один пункт не поднялся. Исходный порядок уже ставил важное наверх, либо вы не утвердили перестановку.','上に移した項目はありません。元の順序ですでに関連する内容が上にあったか、並べ替えを承認しなかったためです。','कोई बिंदु ऊपर नहीं आया। मूल क्रम पहले ही प्रासंगिक बातें ऊपर रख रहा था, या आपने क्रम बदलना स्वीकृत नहीं किया।'],
 'שורה בעברית שקיבלה מונחים באנגלית מהמשרה עוברת בלי בעיה. שורה שנכתבה כולה בשפה השנייה נזרקת, והשורה המקורית נשארת. ':['السطر بلغة المستند الذي أخذ مصطلحات لاتينية من الوظيفة يمرّ بلا مشكلة. أما سطر كُتب بالكامل باللغة الأخرى فيُرمى، ويبقى السطر الأصلي. ','A line in the document\'s language that picked up Latin terms from the posting passes without a problem. A line written entirely in the other language is thrown away, and the original line stays. ','Une ligne dans la langue du document qui a repris des termes latins de l\'annonce passe sans souci. Une ligne écrite entièrement dans l\'autre langue est rejetée et la ligne d\'origine reste. ','Una línea en el idioma del documento que tomó términos latinos de la oferta pasa sin problema. Una línea escrita por completo en el otro idioma se descarta y la línea original permanece. ','Eine Zeile in der Dokumentsprache, die lateinische Begriffe aus der Anzeige aufgenommen hat, geht problemlos durch. Eine ganz in der anderen Sprache geschriebene Zeile wird verworfen, und die Originalzeile bleibt. ','Una riga nella lingua del documento che ha preso termini latini dall\'annuncio passa senza problemi. Una riga scritta interamente nell\'altra lingua viene scartata e resta la riga originale. ','Uma linha na língua do documento que absorveu termos latinos da vaga passa sem problema. Uma linha escrita inteiramente na outra língua é descartada, e a linha original permanece. ','Redak na jeziku dokumenta koji je preuzeo latinske pojmove iz oglasa prolazi bez problema. Redak napisan u cijelosti na drugom jeziku se odbacuje, a izvorni redak ostaje. ','Строка на языке документа, вобравшая латинские термины из вакансии, проходит без проблем. Строка, целиком написанная на другом языке, отбрасывается, а исходная остаётся. ','求人票からラテン文字の用語を取り込んだ、文書の言語の行はそのまま通ります。まるごと別の言語で書かれた行は破棄され、元の行が残ります。','दस्तावेज़ की भाषा की वह पंक्ति जिसने विज्ञापन से लैटिन पद लिए, बिना समस्या पास होती है। पूरी तरह दूसरी भाषा में लिखी पंक्ति हटा दी जाती है, और मूल पंक्ति रहती है। '],
 'שורה חדשה':['سطر جديد','New line','Nouvelle ligne','Línea nueva','Neue Zeile','Nuova riga','Nova linha','Novi redak','Новая строка','新しい行','नई पंक्ति'],
@@ -15588,28 +15878,60 @@ function buildUiLangMenu() {
   });
 }
 
-/* Everything on screen that was produced by a renderer rather than by the
-   catalogue. applyUiLang used to rewrite only the static markup, so a status
-   line, a badge or a rendered card kept the language it happened to be built
-   in: the API key hint under the input was the visible case, painted at boot
-   before the language was even chosen.
+/* ---------- REPAINT ON A LANGUAGE CHANGE ----------
+   The first version of this was a hand written list of renderers to call with
+   no arguments. That is a guess twice over: a renderer missing from the list
+   is never repainted, and a renderer that needs an argument is called without
+   one and paints the wrong state. Both happened. The gap list under the
+   question counter was simply absent from the list, and the domain gate was on
+   it but was repainted into its unanswered state while the person had already
+   chosen, so the chosen paragraph stayed in the language it was written in.
 
-   Each call is guarded on its own. A renderer whose data does not exist yet
-   must not stop the ones after it, and a language switch must never be able to
-   throw. */
-function ttRepaintRuntime() {
-  [
-    'refreshKeyUi', 'updateLangBadges', 'updateLangButtons', 'setStatus',
-    'renderProgress', 'renderSignals', 'renderMatchVerdict', 'renderReview',
-    'renderDiff', 'renderKeywords', 'renderStructurePanel', 'renderPreview',
-    'renderAbout', 'renderDomainGate', 'renderAnswerUse', 'renderFinalStruct'
-  ].forEach(function (fn) {
-    try { if (typeof window[fn] === 'function') window[fn](); } catch (e) {}
+   This version does not guess. Every function that writes to the DOM is
+   wrapped once at boot to record the arguments it was last called with, and a
+   language change replays exactly those calls. A renderer that was never
+   called is never replayed, and one that was is replayed with the state it
+   actually had. */
+var TT_PAINTERS = ['aboutNote','applyUiLang','bindStructurePanel','buildUiLangMenu',
+  'chooseDomainMode','prepNote','previewNote','refreshKeyUi','renderAbout',
+  'renderAccentPicker','renderAnswerSpell','renderAnswerUse','renderAts','renderChat',
+  'renderChatProgress','renderCoverage','renderDiff','renderDomainGate','renderFinalStruct',
+  'renderFitBiasPicker','renderGrammarPanel','renderInterviewSheet','renderKeywords',
+  'renderMatchVerdict','renderNoRelation','renderPreview','renderProgress','renderQueue',
+  'renderReview','renderSignals','renderSpellNotice','renderStructurePanel',
+  'renderTemplatePicker','renderFitDelta','setChatBusy','setConsole','setFinalView','setKeyStatus',
+  'setStage','setStatus','showNotice','syncBulletToggle','ttRenderLangBadge',
+  'ttShareNote','updateLangButtons'];
+
+/* applyUiLang and buildUiLangMenu are in the list above only so that nothing
+   has to remember to keep two lists in step; they are skipped when replaying,
+   because replaying the thing that triggers the replay is a loop. */
+var TT_NO_REPLAY = { applyUiLang: 1, buildUiLangMenu: 1, ttRenderLangBadge: 1 };
+
+var TT_LAST_PAINT = {};
+
+function ttTrackPainters() {
+  TT_PAINTERS.forEach(function (name) {
+    var orig = window[name];
+    if (typeof orig !== 'function' || orig.__ttTracked) return;
+    var wrapped = function () {
+      TT_LAST_PAINT[name] = Array.prototype.slice.call(arguments);
+      return orig.apply(this, arguments);
+    };
+    wrapped.__ttTracked = true;
+    window[name] = wrapped;
   });
-  /* The stage rail and the console carry the stage NAME, so they have to be
-     redrawn too. setStage takes the current stage and repaints from it. */
-  try { if (typeof setStage === 'function') setStage(TT_STAGE || 1); } catch (e) {}
-  try { if (typeof renderChat === 'function') renderChat(); } catch (e) {}
+}
+
+function ttRepaintRuntime() {
+  Object.keys(TT_LAST_PAINT).forEach(function (name) {
+    if (TT_NO_REPLAY[name]) return;
+    try { window[name].apply(null, TT_LAST_PAINT[name]); } catch (e) {}
+  });
+  /* Two that paint from state rather than from a call, so they are refreshed
+     directly whether or not they were ever called with arguments. */
+  try { if (typeof updateLangBadges === 'function') updateLangBadges(); } catch (e) {}
+  try { if (typeof refreshKeyUi === 'function') refreshKeyUi(); } catch (e) {}
 }
 
 function applyUiLang(lang) {
