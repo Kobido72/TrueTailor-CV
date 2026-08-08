@@ -144,18 +144,23 @@
      If the address ever changes it changes in five places: the four og:/url
      lines here and TT_PUBLIC_URL in the sharing section of the script.
      ===================================================================== -->
-<meta name="description" content="כלי שמתאים קורות חיים למשרה אחת: ניתוח מול מודעת הדרושים, ציון התאמה ושכתוב לשיפור הסיכוי לעבור סינון ATS. רץ כולו בדפדפן.">
+<!-- Everything a share card can read is in English on purpose. A link posted
+     to LinkedIn or WhatsApp is seen by people who have no idea what language
+     the person who posted it works in, and a card in Hebrew tells most of them
+     nothing except that the tool is not for them. The interface itself still
+     speaks all twelve languages; only the card is fixed. -->
+<meta name="description" content="Tailor your resume to one job posting: it reads your CV against the posting, scores the fit and rewrites without inventing anything. Runs entirely in your browser.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="TrueTailor CV">
-<meta property="og:locale" content="he_IL">
-<meta property="og:locale:alternate" content="en_US">
-<meta property="og:title" content="TrueTailor CV — התאמת קורות חיים למשרה">
-<meta property="og:description" content="ניתוח קורות החיים מול מודעת המשרה, ציון התאמה ושכתוב שלא ממציא עובדות. חינמי, רץ כולו בדפדפן שלך.">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="he_IL">
+<meta property="og:title" content="TrueTailor CV — resume tailoring for one job">
+<meta property="og:description" content="Reads your resume against the job posting, scores the fit and rewrites it without inventing facts. Free, runs entirely in your browser, 12 interface languages.">
 <meta property="og:url" content="https://truetailor-app.github.io/TrueTailor-CV/">
 <meta property="og:image" content="https://truetailor-app.github.io/TrueTailor-CV/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="TrueTailor CV">
+<meta property="og:image:alt" content="TrueTailor CV — resume tailoring for one job">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1466,7 +1471,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v38.8</span>
+        <span class="tt-ver" id="verBadge">v38.13</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1727,6 +1732,9 @@
         </label>
         <button id="btnTranslateResume" class="tt-btn tt-btn-sm">🌐 תרגם קלט</button>
       </div>
+      <!-- A person applies to many jobs with one CV. Everything above this
+           line was being retyped or re-uploaded for every single one. -->
+      <div id="cvVault" class="mt-3"></div>
       <div class="tt-iogrow"></div>
       <!-- each box clears itself. One global reset could not say which box the
            user meant, and left the text sitting there after it ran. -->
@@ -1807,6 +1815,7 @@
          applying to at all. That answer exists the moment stage 2 finishes and
          it belongs at the top, in a colour that can be read from across the
          room. Filled by renderMatchVerdict(). -->
+    <div id="analysisLangBar" class="tt-hidden mb-3"></div>
     <div id="matchVerdict" class="mb-4"></div>
     <div class="grid md:grid-cols-2 gap-4">
       <div class="md:order-1">
@@ -1921,9 +1930,16 @@
          the header, which meant the candidate finished the last card at the
          bottom of a long list and had to scroll back up to find out what to do
          next. -->
+    <!-- The action comes first and the sentence about it comes after, which is
+         how .tt-launch is built and how every toolbar in this file is built.
+         Written the other way round, the button was the last item in a flex row
+         and flex rows follow the writing direction: it sat at the far left in
+         Hebrew and Arabic and at the far right in the other ten, which is the
+         opposite of where the eye finishes reading in each. Order in the markup
+         fixes it in both directions at once, with no rule to keep in step. -->
     <div class="tt-stepfoot">
-      <div class="tt-foot-msg" id="reviewFootMsg"></div>
       <button id="btnToPreview" class="tt-btn tt-btn-primary tt-btn-lg">המשך לבדיקות ולתצוגה ⟵</button>
+      <div class="tt-foot-msg" id="reviewFootMsg"></div>
     </div>
   </section>
 
@@ -2078,7 +2094,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v38.8';
+var TT_VERSION = 'v38.13';
 
 var APP = {
   apiKey: '',
@@ -2109,6 +2125,7 @@ var APP = {
   verdictAfter: null,   // the fit as measured again against the finished document
   fitDelta: null,       // what the answers bought, computed in runFitRecheck
   narrative: {},        // {before,after} -> {headline, explanation, lang}
+  analysisLang: '',     // the language stage 2 wrote its commentary in
   keyProblem: null,     // set when Google refuses the key, cleared on the next call that works
   world: null,          // stage 1b: what occupation each side belongs to
   route: '',            // stop | work | polish. what this run is actually for
@@ -3183,15 +3200,13 @@ function enforceLanguageLock(original, candidate) {
     });
     if (flags.length) {
       APP.rejectedByLanguageLock++;
-      logRefusal('cliche', original, candidate,
-        H('הניסוח שחזר נכתב בשפה שמזוהה כטקסט של בינה מלאכותית (') + flags.slice(0, 3).join(', ') + '), ' +
-        H('ולכן נדחה והשורה המקורית נשמרה. מגייס מזהה את הניסוחים האלה, והם עולים יותר ממה שהם קונים.'));
+      logRefusal('cliche', original, candidate, { k: 'cliche', flags: flags.slice(0, 3) });
       return original;
     }
     return candidate;
   }
   APP.rejectedByLanguageLock++;
-  logRefusal('lang', original, candidate, v.reason);
+  logRefusal('lang', original, candidate, { v: v.detail || v });
   return original;
 }
 
@@ -3468,8 +3483,27 @@ function sanitizeAiText(text, lang) {
 /* Every refusal the code makes on the candidate's behalf, so it can be shown
    rather than guessed at. A rewrite thrown away silently is a decision the app
    took instead of the person whose resume it is. */
-function logRefusal(kind, original, candidate, reason) {
-  APP.langLockLog.push({ kind: kind, before: original, after: candidate, reason: reason });
+/* The refusal log is written during the run and read at stage 6, which can be
+   several minutes and one language switch later. Storing the finished sentence
+   meant storing the language it was written in. What is kept now is the verdict
+   that caused the refusal plus an optional note key, and the sentence is
+   composed when the panel opens. A plain string is still accepted, so a caller
+   that has a message from outside this file does not have to invent a code. */
+function logRefusal(kind, original, candidate, rec) {
+  APP.langLockLog.push({ kind: kind, before: original, after: candidate, reason: rec });
+}
+
+function ttRefusalText(rec) {
+  if (!rec) return '';
+  if (typeof rec === 'string') return rec;
+  if (rec.k === 'cliche') {
+    return H('הניסוח שחזר נכתב בשפה שמזוהה כטקסט של בינה מלאכותית (') + (rec.flags || []).join(', ') + '), ' +
+           H('ולכן נדחה והשורה המקורית נשמרה. מגייס מזהה את הניסוחים האלה, והם עולים יותר ממה שהם קונים.');
+  }
+  var base = lockReasonText(rec.v);
+  if (rec.note === 'new_line') return base + H(' (שורה חדשה שהוצעה מתחת לשורה הזו)');
+  if (rec.label) return base + ' (' + rec.label + ')';
+  return base;
 }
 
 function offensiveRefusalReason(original, candidate) {
@@ -7314,6 +7348,11 @@ async function stepCoverage() {
   });
   var obj = safeJsonParse(raw);
   if (!obj) throw new Error(H('לא הצלחתי לקרוא את תשובת ההשוואה. נסה שוב.'));
+  /* Stage 2 is told to write its commentary in the interface language, and it
+     obeys. What it cannot do is follow a switch that happens afterwards, so the
+     language it wrote in is recorded and the offer to translate is made from
+     the difference rather than from a guess. */
+  APP.analysisLang = TT_UI_LANG;
   var byReq = {};
 
   (Array.isArray(obj.coverage) ? obj.coverage : []).forEach(function (c) {
@@ -7858,16 +7897,28 @@ function matchVerdict() {
   var mustShare = musts ? mustValue / musts : 1;
   var kwOverlap = kwCount ? kwSum / kwCount : null;
 
-  var band, reason, detail = '';
+  /* ---------- WHY THIS IS A RECIPE AND NOT A SENTENCE ----------
+     This verdict is measured once and kept, because the recheck at stage 6
+     rewrites the coverage rows it touched and the "before" panel has to keep
+     saying what it said before. Keeping the object meant keeping the sentence
+     inside it, and a sentence is written in one language: measure in Hebrew,
+     switch the interface to French, and the French panel reads a Hebrew line
+     that was correct at the moment it was built and has been frozen ever since.
+
+     No repaint can fix that, because there is nothing left to repaint from. So
+     nothing here writes prose any more. Each branch records WHICH sentence and
+     the numbers that go in it, and ttVerdictText() writes it out at the moment
+     the panel is drawn, in whatever language is on screen then. The rule this
+     follows is worth stating once: store the facts, render the sentence. */
+  var band, reason = null, detail = null;
 
   if (!direct && musts && (kwOverlap == null || kwOverlap < 0.5)) {
     band = 'low';
-    reason = H('אף דרישה לא נמצאה בקורות החיים באופן ישיר, וגם אוצר המילים של המשרה כמעט לא מופיע.');
-    detail = H('כשאין ולו התאמה ישירה אחת ואין חפיפה לשונית, בדרך כלל מדובר בשני תפקידים שונים ולא בפער ניסוח.');
+    reason = { k: 'no_direct' };
+    detail = { k: 'no_direct_detail' };
   } else if (pct < 42 || (musts >= 2 && mustShare < 0.34 && (kwOverlap == null || kwOverlap < 0.6))) {
     band = 'low';
-    reason = musts ? mustsProved + H(' מתוך ') + musts + H(' דרישות החובה מוכחות בקורות החיים.')
-                   : H('רוב מה שהמשרה מחפשת לא מקבל כיסוי בקורות החיים.');
+    reason = musts ? { k: 'musts_low', n: mustsProved, m: musts } : { k: 'most_uncovered' };
   /* A must have that is not fully proved keeps the verdict out of the top band,
      whatever the average says. "High" is read as "you are a fit", and a person
      who is missing something the posting marked as required is not a fit yet,
@@ -7875,12 +7926,10 @@ function matchVerdict() {
      they have done is still visible; the label does not lie about it. */
   } else if (pct < 70 || mustShare < 0.7 || (musts && mustShare < 0.999)) {
     band = 'mid';
-    reason = musts ? mustsProved + H(' מתוך ') + musts + H(' דרישות החובה מוכחות. השאר מבוסס על ניסיון מקביל או חלקי.')
-                   : H('חלק מהדרישות מקבלות כיסוי חלקי בלבד.');
+    reason = musts ? { k: 'musts_mid', n: mustsProved, m: musts } : { k: 'partial_cover' };
   } else {
     band = 'high';
-    reason = musts ? H('כל ') + musts + H(' דרישות החובה מוכחות ישירות בקורות החיים.')
-                   : H('רוב הדרישות מקבלות כיסוי ישיר.');
+    reason = musts ? { k: 'musts_high', m: musts } : { k: 'direct_cover' };
   }
 
   /* The ceiling. A named system the posting is built around and the resume does
@@ -7904,13 +7953,15 @@ function matchVerdict() {
     var order = { low: 0, mid: 1, high: 2 };
     if (order[band] > order[cap]) {
       band = cap;
-      reason = cap === 'low'
-        ? H('המשרה בנויה סביב ') + heaviest.name + H(', וזה לא מופיע בקורות החיים.')
-        : heaviest.name + H(' לא מופיע בקורות החיים, אבל זה לא כל המשרה.');
+      reason = { k: cap === 'low' ? 'tool_low' : 'tool_mid', name: heaviest.name };
     }
-    detail = H('הדרישות סביב ') + heaviest.name + H(' נושאות ') + Math.round(heaviest.share * 100) + H('% ממשקל המשרה') +
-      (heaviest.modules.length ? H(', כולל ') + heaviest.modules.join(', ') : '') +
-      (heaviest.adjacent ? H('. בקורות החיים מופיעה ') + heaviest.adjacent + ' — ' + hd.he + '.' : '.');
+    detail = {
+      k: 'tool_detail', name: heaviest.name,
+      pct: Math.round(heaviest.share * 100),
+      modules: heaviest.modules.slice(),
+      adjacent: heaviest.adjacent || '',
+      distance: heaviest.distance || 'unrelated'
+    };
   }
 
   /* ---------- THE FIVE READINGS ----------
@@ -7936,6 +7987,25 @@ function matchVerdict() {
   if (musts && mustShare < 0.34 && level > 2) level = 2;
   if (heaviest && cap === 'low' && level > 1) level = 1;
 
+  /* ---------- THE GATE CAP ----------
+     A weighted average over a long posting cannot be allowed to speak for the
+     gates, and until now it did. Measured on a real posting with thirteen hard
+     must haves: five of them unproved still produced "medium to high", because
+     the eight that were proved plus the partial credit the other five earned
+     from cousin systems carried the average to 71.
+
+     Partial credit is right and stays: experience with Salesforce against a
+     posting that wants HubSpot really is worth something, and the SCORE should
+     say so. What it may not do is buy a NAME. Two gates shut is not a medium to
+     high fit however well the rest reads, so the count of must haves that are
+     not directly proved sets a ceiling on the name, and only lowers it.
+
+     Advantages are deliberately not counted here. They move the score, by
+     weight, as they always did; they are not gates and they do not close one. */
+  var gatesMissing = musts - mustsProved;
+  var gateCap = gatesMissing === 0 ? 5 : gatesMissing === 1 ? 4 : gatesMissing === 2 ? 3 : 2;
+  if (musts && level > gateCap) level = gateCap;
+
   return {
     band: band, level: level, score: pct, rawScore: raw, reason: reason, detail: detail,
     musts: musts, mustsProved: mustsProved, direct: direct,
@@ -7946,6 +8016,396 @@ function matchVerdict() {
   };
 }
 
+
+/* A template discovered inside an uploaded file is built once, when the file is
+   read, and then kept for the rest of the session. Its name and note were
+   written with H() at that moment, so they froze in whatever language the
+   interface happened to be in when the file was dropped, and the card under the
+   thumbnail then said it in that language for ever. Same disease as the label
+   tables, same cure: keep the pieces, compose on read. */
+function ttLiveFileTemplate(tpl, font, noteHe) {
+  Object.defineProperty(tpl, 'name', {
+    get: function () { return H('כמו הקובץ שהעלית'); },
+    enumerable: true, configurable: true
+  });
+  Object.defineProperty(tpl, 'note', {
+    get: function () { return font + H(noteHe); },
+    enumerable: true, configurable: true
+  });
+  return tpl;
+}
+
+/* =========================================================================
+   THE SAVED RESUMES
+
+   One resume, fifteen applications. Until now every one of them started from an
+   empty box: paste or upload again, and lose with it every manual correction to
+   the structure and the layout read out of the original file.
+
+   WHAT IS STORED, AND WHY IT IS THE INPUT AND NOT THE RESULT
+
+   The obvious thing to keep is the parsed document. It is also the wrong thing.
+   A parsed document is derived state: it carries the shape this version of the
+   parser produced, and a slot written by v38.13 and restored by some later
+   version would rebuild a document the rest of that file no longer agrees with.
+   Silent, and very hard to trace.
+
+   So a slot keeps the inputs. The text as it was read, the original file bytes
+   when there was a file, and the manual structure marks. Restoring replays the
+   same path a fresh upload takes, through the same two functions, so whatever
+   the current version produces from that file is what the run gets: the layout,
+   the fonts, the bold, all of it, rebuilt rather than remembered.
+
+   It lives in this browser and goes nowhere. That is the same promise the API
+   key carries, and it matters more here, because this is the person's name,
+   their phone number and their employment history rather than a token.
+
+   Nothing is saved by itself and nothing is restored by itself. Saving is a
+   button and restoring is a button, because a resume appearing in a box on a
+   shared computer without anybody asking for it is not a convenience. */
+var TT_CV_SLOTS_KEY = 'tt_cv_slots_v1';
+var TT_CV_SLOT_MAX = 3;
+
+function ttCvLoadSlots() {
+  try {
+    var raw = localStorage.getItem(TT_CV_SLOTS_KEY);
+    var list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch (e) { return []; }
+}
+
+function ttCvWriteSlots(list) {
+  try {
+    localStorage.setItem(TT_CV_SLOTS_KEY, JSON.stringify(list));
+    return true;
+  } catch (e) {
+    /* The file bytes are the only large thing in here and the only part that is
+       a convenience rather than the point. Dropping them keeps the text and the
+       structure marks, which is most of the value, instead of failing whole. */
+    try {
+      var lean = list.map(function (sl) {
+        var c = {}; Object.keys(sl).forEach(function (k) { c[k] = sl[k]; });
+        c.file = null; return c;
+      });
+      localStorage.setItem(TT_CV_SLOTS_KEY, JSON.stringify(lean));
+      return 'lean';
+    } catch (e2) { return false; }
+  }
+}
+
+function ttCvLabel(text) {
+  var first = String(text || '').split('\n').map(function (l) { return l.trim(); })
+    .filter(Boolean)[0] || '';
+  return first.slice(0, 42) || H('קורות חיים');
+}
+
+/* The file the person uploaded, kept whole so the restore can re-read it. */
+var TT_CV_LAST_FILE = null;
+
+function ttFileToSlot(f) {
+  return new Promise(function (resolve) {
+    if (!f) { resolve(null); return; }
+    try {
+      var r = new FileReader();
+      r.onload = function () {
+        var out = String(r.result || '');
+        var comma = out.indexOf(',');
+        resolve({ name: f.name || 'resume', mime: f.type || '', b64: comma >= 0 ? out.slice(comma + 1) : '' });
+      };
+      r.onerror = function () { resolve(null); };
+      r.readAsDataURL(f);
+    } catch (e) { resolve(null); }
+  });
+}
+
+function ttSlotToFile(rec) {
+  if (!rec || !rec.b64) return null;
+  try {
+    var bin = atob(rec.b64), n = bin.length, bytes = new Uint8Array(n);
+    for (var i = 0; i < n; i++) bytes[i] = bin.charCodeAt(i);
+    return new File([bytes], rec.name || 'resume', { type: rec.mime || 'application/octet-stream' });
+  } catch (e) { return null; }
+}
+
+async function ttCvSaveCurrent() {
+  var box = $('resumeInput');
+  var text = box ? String(box.value || '').trim() : '';
+  if (!text) { setStatus(H('אין קורות חיים בתיבה לשמור.')); return; }
+
+  var list = ttCvLoadSlots();
+  var file = TT_CV_LAST_FILE ? await ttFileToSlot(TT_CV_LAST_FILE) : null;
+  var slot = {
+    id: 'cv' + Date.now(),
+    label: ttCvLabel(text),
+    lang: (typeof detectLang === 'function' ? detectLang(text) : '') || '',
+    savedAt: new Date().toISOString(),
+    text: text,
+    file: file,
+    overrides: {}
+  };
+  try { Object.keys(TT_STRUCT_OVERRIDE).forEach(function (k) { slot.overrides[k] = TT_STRUCT_OVERRIDE[k]; }); } catch (e) {}
+
+  /* Saving the same document twice is an update, not a second copy. Matched on
+     the text itself, because the label is only its first line. */
+  var replacedAt = -1;
+  list.forEach(function (sl, i) { if (sl && sl.text === text) replacedAt = i; });
+  if (replacedAt >= 0) list[replacedAt] = slot;
+  else {
+    list.unshift(slot);
+    list = list.slice(0, TT_CV_SLOT_MAX);
+  }
+
+  var res = ttCvWriteSlots(list);
+  renderCvVault();
+  if (res === 'lean') setStatus(H('נשמר, אבל בלי הקובץ המקורי: אין מספיק מקום בדפדפן. הטקסט והסימונים נשמרו.'));
+  else if (res) setStatus(replacedAt >= 0 ? H('קורות החיים השמורים עודכנו.') : H('קורות החיים נשמרו בדפדפן הזה.'));
+  else showError(H('לא הצלחתי לשמור: אין מקום פנוי באחסון הדפדפן.'));
+}
+
+async function ttCvUse(id) {
+  var slot = null;
+  ttCvLoadSlots().forEach(function (sl) { if (sl && sl.id === id) slot = sl; });
+  if (!slot) return;
+  var box = $('resumeInput');
+  if (box && String(box.value || '').trim() &&
+      !confirm(H('בתיבה יש כבר טקסט. להחליף אותו בקורות החיים השמורים?'))) return;
+
+  var f = ttSlotToFile(slot.file);
+  if (f) {
+    /* The same path an upload takes, so the template, the sizes and the bold
+       are produced by the current version rather than restored from an old one. */
+    setStatus(H('קורא את הקובץ...'), true);
+    try {
+      if (box) box.value = await extractFile(f);
+      var gotTemplate = await registerTemplateFromFile(f);
+      TT_CV_LAST_FILE = f;
+      setStatus(H('הקובץ נטען.') + (gotTemplate ? H(' נוסף טמפלט לפי העיצוב של הקובץ שהעלית.') : ''));
+      if (typeof renderTemplatePicker === 'function') { renderTemplatePicker(); renderAccentPicker(); }
+    } catch (e) {
+      if (box) box.value = slot.text;      // the bytes failed, the text still works
+      setStatus('');
+    }
+  } else {
+    if (box) box.value = slot.text;
+    TT_CV_LAST_FILE = null;
+    setStatus(H('קורות החיים השמורים הוטענו.'));
+  }
+
+  try {
+    clearStructOverrides();
+    Object.keys(slot.overrides || {}).forEach(function (k) { TT_STRUCT_OVERRIDE[k] = slot.overrides[k]; });
+  } catch (e) {}
+  if (typeof updateLangBadges === 'function') updateLangBadges();
+  renderCvVault();
+}
+
+function ttCvDelete(id) {
+  if (!confirm(H('למחוק את קורות החיים השמורים האלה מהדפדפן?'))) return;
+  ttCvWriteSlots(ttCvLoadSlots().filter(function (sl) { return sl && sl.id !== id; }));
+  renderCvVault();
+  setStatus(H('נמחק מהדפדפן.'));
+}
+
+function renderCvVault() {
+  var el = $('cvVault');
+  if (!el) return;
+  var list = ttCvLoadSlots();
+  var box = $('resumeInput');
+  var hasText = !!(box && String(box.value || '').trim());
+  if (!list.length && !hasText) { el.innerHTML = ''; return; }
+
+  var html = '<div class="rounded-lg border border-slate-200 p-2" dir="' + TT_LANG.dir(TT_UI_LANG) + '">';
+  html += '<div class="flex items-center gap-2 flex-wrap">' +
+    (hasText ? '<button type="button" id="btnCvSave" class="tt-btn tt-btn-sm">' +
+       escapeHtml(H('שמור את קורות החיים האלה')) + '</button>' : '') +
+    '<span class="text-[11px] text-slate-400">' + escapeHtml(H('נשמר בדפדפן הזה בלבד, ולא נשלח לשום מקום.')) + '</span>' +
+    '</div>';
+
+  if (list.length) {
+    html += '<ul class="mt-2 space-y-1">';
+    list.forEach(function (sl) {
+      var when = '';
+      try { when = new Date(sl.savedAt).toLocaleDateString(); } catch (e) {}
+      html += '<li class="flex items-center gap-2 flex-wrap text-xs">' +
+        '<button type="button" class="tt-btn tt-btn-sm tt-cv-use" data-cv="' + escapeHtml(sl.id) + '">' +
+          escapeHtml(H('השתמש')) + '</button>' +
+        '<span class="font-semibold">' + escapeHtml(sl.label || '') + '</span>' +
+        '<span class="text-slate-400">' + escapeHtml(when + (sl.file ? ' · ' + H('כולל הקובץ המקורי') : '')) + '</span>' +
+        '<button type="button" class="tt-btn tt-btn-sm tt-btn-danger tt-cv-del" style="margin-inline-start:auto" ' +
+          'data-cv="' + escapeHtml(sl.id) + '">🗑️</button>' +
+        '</li>';
+    });
+    html += '</ul>';
+  }
+  el.innerHTML = html + '</div>';
+
+  var save = $('btnCvSave');
+  if (save) save.addEventListener('click', function () { ttCvSaveCurrent(); });
+  var uses = el.querySelectorAll('.tt-cv-use');
+  for (var i = 0; i < uses.length; i++) {
+    uses[i].addEventListener('click', function (ev) { ttCvUse(ev.currentTarget.getAttribute('data-cv')); });
+  }
+  var dels = el.querySelectorAll('.tt-cv-del');
+  for (var j = 0; j < dels.length; j++) {
+    dels[j].addEventListener('click', function (ev) { ttCvDelete(ev.currentTarget.getAttribute('data-cv')); });
+  }
+}
+
+/* =========================================================================
+   THE ANALYSIS, IN THE LANGUAGE YOU ARE READING IN
+
+   Three kinds of text share one screen and only one of them is ours.
+
+   The resume and the posting are the candidate's documents and are never
+   touched. The requirement lines are the posting's own wording, quoted, and
+   translating them would hide what the posting actually says: a recruiter
+   filters on those words. What is left is the app's commentary about the two
+   documents, written by the model at stage 2 in the interface language of the
+   moment: what connects a requirement to a line, what the gaps are, and why a
+   rewrite was proposed. That is ours, it is about the reader, and it should be
+   in the reader's language.
+
+   It cannot repaint like the rest of the interface, because it is not in the
+   translation table: nobody wrote these sentences in advance. So it is offered
+   rather than done, on a bar that appears only when the two languages differ,
+   and one call translates the lot. The same mechanism the question switcher has
+   used all along, pointed at the analysis instead.
+   ========================================================================= */
+function ttAnalysisPieces() {
+  /* One flat list with a setter each, so the reply can be applied positionally
+     without walking the same structures a second time and hoping the shapes
+     match. */
+  var out = [];
+  (APP.coverage || []).forEach(function (c) {
+    (c.shared_properties || []).forEach(function (t, i) {
+      if (String(t || '').trim()) out.push({ text: t, set: function (v) { c.shared_properties[i] = v; } });
+    });
+  });
+  (APP.gaps || []).forEach(function (g) {
+    if (String(g.text || '').trim()) out.push({ text: g.text, set: function (v) { g.text = v; } });
+  });
+  (APP.changes || []).forEach(function (ch) {
+    if (String(ch.why || '').trim()) out.push({ text: ch.why, set: function (v) { ch.why = v; } });
+  });
+  return out;
+}
+
+function promptTranslateAnalysis(list, toLang, fromLang) {
+  return [
+    'Translate each item into ' + TT_LANG.name(toLang) + '.',
+    fromLang ? 'They are currently written in ' + TT_LANG.name(fromLang) + '.' : '',
+    'These are short notes about a resume and a job posting: what connects a requirement to a line,',
+    'what is missing, and why a line was rewritten.',
+    '',
+    'Keep every proper noun exactly as it is: system names, product names, employers, job titles,',
+    'certifications, and any abbreviation. Do not explain them and do not localise them.',
+    'Translate nothing else in either direction, add nothing, drop nothing, keep the order.',
+    'Return exactly ' + list.length + ' items.',
+    '',
+    'Return ONLY this JSON: {"items":["",""]}',
+    '',
+    'ITEMS:',
+    JSON.stringify(list)
+  ].filter(Boolean).join('\n');
+}
+
+function renderAnalysisLangBar() {
+  var el = $('analysisLangBar');
+  if (!el) return;
+  var from = APP.analysisLang;
+  if (!from || from === TT_UI_LANG || !ttAnalysisPieces().length) {
+    el.innerHTML = ''; hide('analysisLangBar'); return;
+  }
+  el.innerHTML = '<div class="tt-note" dir="' + TT_LANG.dir(TT_UI_LANG) + '" ' +
+    'style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+    '<span>' + escapeHtml(H('הניתוח בשלב הזה נכתב ב') + ttLangLabel(from) +
+      H('. החלפת שפת הממשק לא מתרגמת אותו, כי המודל כתב אותו פעם אחת.')) + '</span>' +
+    '<button type="button" id="btnTranslateAnalysis" class="tt-btn tt-btn-sm tt-btn-primary" style="margin-inline-start:auto">' +
+      escapeHtml(H('תרגם את הניתוח ל') + ttLangLabel(TT_UI_LANG)) + '</button>' +
+    '</div>';
+  show('analysisLangBar');
+  var b = $('btnTranslateAnalysis');
+  if (b) b.addEventListener('click', function () { translateAnalysis(TT_UI_LANG); });
+}
+
+async function translateAnalysis(lang) {
+  var pieces = ttAnalysisPieces();
+  if (!pieces.length) return;
+  if (!getApiKey()) {
+    showNotice(H('תרגום הניתוח דורש מפתח API.'));
+    return;
+  }
+  var btn = $('btnTranslateAnalysis');
+  if (btn) btn.disabled = true;
+  setStatus(H('מתרגם את הניתוח ל') + ttLangLabel(lang) + '...', true);
+  try {
+    var from = APP.analysisLang;
+    var raw = await callGemini(promptTranslateAnalysis(pieces.map(function (p) { return p.text; }), lang, from), {
+      json: true, temperature: 0, maxOutputTokens: TT_TOKENS.qtranslate, timeoutMs: 60000
+    });
+    var obj = safeJsonParse(raw);
+    var items = obj && Array.isArray(obj.items) ? obj.items : null;
+    /* A reply of a different length cannot be applied positionally, and applying
+       it anyway would put one requirement's note under another. Refused whole. */
+    if (!items || items.length !== pieces.length) {
+      throw new Error(H('התרגום חזר בגודל אחר מהרשימה שנשלחה.'));
+    }
+    pieces.forEach(function (p, i) {
+      var next = String(items[i] || '').trim();
+      if (next) p.set(next);
+    });
+    APP.analysisLang = lang;
+    ['renderSignals', 'renderCoverage', 'renderQueue', 'renderReview', 'renderAnalysisLangBar'].forEach(function (f) {
+      try { if (typeof window[f] === 'function') window[f](); } catch (e) {}
+    });
+    setStatus(H('הניתוח תורגם ל') + ttLangLabel(lang) + '.');
+  } catch (e) {
+    showNotice(H('לא הצלחתי לתרגם את הניתוח: ') + ((e && e.message) || '') +
+               H(' הוא נשאר כפי שנכתב.'));
+    setStatus('');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* The other half of the recipe. Every sentence the verdict can say lives here,
+   written when it is needed rather than when it was decided. Anything that is
+   already a plain string passes through, so a stored verdict from an older
+   session cannot blank the panel. */
+function ttVerdictText(rec) {
+  if (!rec) return '';
+  if (typeof rec === 'string') return rec;
+  switch (rec.k) {
+    case 'no_direct':
+      return H('אף דרישה לא נמצאה בקורות החיים באופן ישיר, וגם אוצר המילים של המשרה כמעט לא מופיע.');
+    case 'no_direct_detail':
+      return H('כשאין ולו התאמה ישירה אחת ואין חפיפה לשונית, בדרך כלל מדובר בשני תפקידים שונים ולא בפער ניסוח.');
+    case 'musts_low':
+      return rec.n + H(' מתוך ') + rec.m + H(' דרישות החובה מוכחות בקורות החיים.');
+    case 'most_uncovered':
+      return H('רוב מה שהמשרה מחפשת לא מקבל כיסוי בקורות החיים.');
+    case 'musts_mid':
+      return rec.n + H(' מתוך ') + rec.m + H(' דרישות החובה מוכחות. השאר מבוסס על ניסיון מקביל או חלקי.');
+    case 'partial_cover':
+      return H('חלק מהדרישות מקבלות כיסוי חלקי בלבד.');
+    case 'musts_high':
+      return H('כל ') + rec.m + H(' דרישות החובה מוכחות ישירות בקורות החיים.');
+    case 'direct_cover':
+      return H('רוב הדרישות מקבלות כיסוי ישיר.');
+    case 'tool_low':
+      return H('המשרה בנויה סביב ') + rec.name + H(', וזה לא מופיע בקורות החיים.');
+    case 'tool_mid':
+      return rec.name + H(' לא מופיע בקורות החיים, אבל זה לא כל המשרה.');
+    case 'tool_detail':
+      return H('הדרישות סביב ') + rec.name + H(' נושאות ') + rec.pct + H('% ממשקל המשרה') +
+        ((rec.modules && rec.modules.length) ? H(', כולל ') + rec.modules.join(', ') : '') +
+        (rec.adjacent
+          ? H('. בקורות החיים מופיעה ') + rec.adjacent + ' — ' +
+            ((TT_DISTANCE[rec.distance] || TT_DISTANCE.unrelated).he) + '.'
+          : '.');
+  }
+  return '';
+}
 
 /* ---------------- the five colours ----------------
    Red, orange, yellow, lime, green. Only the four values per level live here;
@@ -8084,7 +8544,8 @@ function ttNarrativeFor(kind, v) {
   if (n && n.lang === TT_UI_LANG && n.headline) return n;
   return {
     headline: ttLevelHeadline(v.level),
-    explanation: (v.reason || '') + (v.detail ? ' ' + v.detail : '')
+    explanation: ttVerdictText(v.reason) +
+      (v.detail ? ' ' + ttVerdictText(v.detail) : '')
   };
 }
 
@@ -9438,7 +9899,10 @@ async function runSynthesis() {
     settled.forEach(function (res) {
       var j = res.job;
       if (res.err) {
-        APP.parseFailures.push({ cat: j.cat, reason: (res.err && res.err.message) || H('הקריאה נכשלה.') });
+        /* The message from a thrown error is whatever the network or the model
+           said and cannot be translated. The app's own reasons can be, so they
+           travel as codes and are written out when the panel is drawn. */
+        APP.parseFailures.push({ cat: j.cat, code: 'call_failed', reason: (res.err && res.err.message) || '' });
         showError(H('כתיבת ') + j.label + H(' נכשלה: ') + ((res.err && res.err.message) || '') + H(' הסקציה נשארה כפי שהייתה.'));
         return;
       }
@@ -9446,12 +9910,12 @@ async function runSynthesis() {
          section was already perfect. It used to become {} here and vanish. */
       var obj = safeJsonParse(res.raw);
       if (!obj) {
-        APP.parseFailures.push({ cat: j.cat, reason: H('התשובה של המודל לא הייתה JSON תקין.') });
+        APP.parseFailures.push({ cat: j.cat, code: 'bad_json', reason: '' });
         showError(H('התשובה על ') + j.label + H(' חזרה בפורמט שלא ניתן לקרוא, ולכן הסקציה נשארה כפי שהייתה. אפשר לנסות שוב.'));
         return;
       }
       try { j.take(obj); }
-      catch (e) { APP.parseFailures.push({ cat: j.cat, reason: (e && e.message) || H('שגיאה בעיבוד התשובה.') }); }
+      catch (e) { APP.parseFailures.push({ cat: j.cat, code: 'process_failed', reason: (e && e.message) || '' }); }
     });
 
     /* Two independent things can be missing from a resume and both have to be
@@ -9489,7 +9953,7 @@ async function runSynthesis() {
   } catch (e) {
     /* Same rule as before: a crash outside the guarded calls used to leave the
        spinner running with nothing on the page left to press. */
-    APP.parseFailures.push({ cat: 'general', reason: (e && e.message) || H('שגיאה לא צפויה.') });
+    APP.parseFailures.push({ cat: 'general', code: 'unexpected', reason: (e && e.message) || '' });
     showError(H('שלב הכתיבה נעצר בגלל שגיאה: ') + ((e && e.message) ? e.message : '') +
               H(' מה שכבר הוצע מוצג למטה. הרצה חוזרת בדרך כלל פותרת את זה.'));
   } finally {
@@ -9954,7 +10418,7 @@ function collectLineChanges(cat, obj) {
     var verdict = languageLockVerdict(anchor.text, cleaned);
     if (!verdict.ok) {
       APP.rejectedByLanguageLock++;
-      logRefusal('lang', anchor.text, cleaned, verdict.reason + H(' (שורה חדשה שהוצעה מתחת לשורה הזו)'));
+      logRefusal('lang', anchor.text, cleaned, { v: verdict.detail || verdict, note: 'new_line' });
       continue;
     }
     // a brand new line has nothing to compare against, so anything insulting in
@@ -10098,7 +10562,7 @@ function cleanProposedLines(arr, lang, refText, label) {
       var verdict = languageLockVerdict(refText, t);
       if (!verdict.ok) {
         APP.rejectedByLanguageLock++;
-        logRefusal('lang', refText, t, verdict.reason + ' (' + label + ')');
+        logRefusal('lang', refText, t, { v: verdict.detail || verdict, label: label });
         continue;
       }
     }
@@ -10204,7 +10668,7 @@ function collectOrderChanges(cat, obj) {
     next.forEach(function (id, pos) {
       var from = block.lineIds.indexOf(id);
       if (from < 0 || from === pos) return;
-      moved.push(H('סעיף ') + (from + 1) + (from > pos ? ' עולה למקום ' : H(' יורד למקום ')) + (pos + 1));
+      moved.push(H('סעיף ') + (from + 1) + (from > pos ? H(' עולה למקום ') : H(' יורד למקום ')) + (pos + 1));
     });
 
     APP.changes.push({
@@ -10584,7 +11048,7 @@ function noChangesExplanation() {
     parts.push(H('לא הוצע אף שינוי.'));
     if (APP.parseFailures.length) {
       parts.push(H('הסיבה היא כשל טכני ולא החלטה: ') + APP.parseFailures.map(function (f) {
-        return (SECTION_NAMES[f.cat] || f.cat) + ' — ' + f.reason;
+        return (SECTION_NAMES[f.cat] || f.cat) + ' — ' + ttFailureText(f);
       }).join('; ') + H(' כדאי להריץ שוב.'));
     } else if (APP.rejectedByLanguageLock) {
       parts.push(APP.rejectedByLanguageLock + H(' ניסוחים חזרו ונדחו על ידי מנעול השפה, כלומר הם נכתבו בשפה אחרת מהשורה שהם באו להחליף.'));
@@ -10765,7 +11229,7 @@ function renderDiff() {
            what the page in front of them showed. */
         var note = '';
         if (wasAt[id] != null && wasAt[id] !== pos) {
-          note = (wasAt[id] > pos ? 'עלה מסעיף ' : H('ירד מסעיף ')) +
+          note = (wasAt[id] > pos ? H('עלה מסעיף ') : H('ירד מסעיף ')) +
                  (wasAt[id] + 1) + H(' למקום ') + (pos + 1);
         }
         html += lineHtml(pl, note);
@@ -10799,6 +11263,19 @@ function renderDiff() {
    screen from a section that needed no changes. It is not the same thing at
    all, and the difference is a button press away from being fixed, so it says
    so wherever the result is shown. */
+/* Written when the panel is drawn, not when the failure happened. */
+function ttFailureText(f) {
+  if (!f) return '';
+  if (f.reason) return f.reason;          // a message from the network or the model
+  switch (f.code) {
+    case 'call_failed':    return H('הקריאה נכשלה.');
+    case 'bad_json':       return H('התשובה של המודל לא הייתה JSON תקין.');
+    case 'process_failed': return H('שגיאה בעיבוד התשובה.');
+    case 'unexpected':     return H('שגיאה לא צפויה.');
+  }
+  return H('שגיאה לא צפויה.');
+}
+
 function failurePanel() {
   if (!APP.parseFailures.length) return '';
   var html = '<div class="mb-2 rounded-lg border border-red-300 bg-red-50 p-2 text-sm text-red-900" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
@@ -10806,7 +11283,7 @@ function failurePanel() {
     H('<p class="text-xs">הסקציות האלה לא נכתבו מחדש כי הקריאה למודל נכשלה או חזרה בפורמט שלא ניתן לקרוא. ') +
     H('הן נשארו בדיוק כפי שהיו. הרצה חוזרת בדרך כלל פותרת את זה.</p><ul class="list-disc ms-5 mt-1 text-xs">');
   APP.parseFailures.forEach(function (f) {
-    html += '<li>' + escapeHtml((SECTION_NAMES[f.cat] || f.cat) + ': ' + f.reason) + '</li>';
+    html += '<li>' + escapeHtml((SECTION_NAMES[f.cat] || f.cat) + ': ' + ttFailureText(f)) + '</li>';
   });
   return html + '</ul></div>';
 }
@@ -10826,7 +11303,7 @@ function langLockPanel() {
     H('בנוסף, ניסוח שהכניס מילה פוגענית שלא הייתה בשורה נזרק כולו, בלי לשאול.</p>');
   APP.langLockLog.slice(0, 12).forEach(function (r) {
     html += '<div class="mt-2 rounded border border-amber-200 bg-white p-2">' +
-      '<div class="text-[10px] text-slate-500 mb-1">' + escapeHtml(r.reason) + '</div>' +
+      '<div class="text-[10px] text-slate-500 mb-1">' + escapeHtml(ttRefusalText(r.reason)) + '</div>' +
       '<div class="text-xs text-slate-500" dir="' + dirForText(r.before, 'he') + '">' + escapeHtml(r.before) + '</div>' +
       '<div class="text-xs tt-del mt-1" dir="' + dirForText(r.after, 'he') + '">' + escapeHtml(r.after) + '</div></div>';
   });
@@ -11337,6 +11814,7 @@ async function runPipeline() {
          null, and silently renders nothing at all, which is exactly what it
          did when it was wired to the end of stage 1. */
       renderMatchVerdict();
+      try { renderAnalysisLangBar(); } catch (e) {}
       APP.route = decideRoute(matchVerdict());
       /* The written sentence, started here and not waited for. The panel above
          is already complete with the locally built headline, and this replaces
@@ -12354,9 +12832,8 @@ function templateFromDocxXml(xml) {
   var accent = colors.length ? commonest(colors, '111111') : '111111';
   var rule = /<w:pBdr>[\s\S]{0,200}?<w:bottom /.test(xml);
 
-  return {
-    name: H('כמו הקובץ שהעלית'),
-    note: font + H(', בגדלים ובצבע של הקובץ המקורי שלך.'),
+  return ttLiveFileTemplate({
+    name: '', note: '',            // both defined as live getters below
     css: "'" + font + "', Arial, sans-serif",
     docxFont: font,
     nameSize: Math.min(48, Math.max(body + 8, maxSize)),
@@ -12374,7 +12851,7 @@ function templateFromDocxXml(xml) {
     headRule: rule, ruleColor: accent === '111111' ? '999999' : accent, headTrack: 0,
     headBefore: 220, headAfter: 70, bodyAfter: 45, contactColor: '444444',
     fromFile: true
-  };
+  }, font, ', בגדלים ובצבע של הקובץ המקורי שלך.');
 }
 
 function installTemplate(tpl) {
@@ -12508,9 +12985,8 @@ function templateFromPdfStyle(style) {
   var font = commonest(fonts, 'Arial');
   var half = function (ptSize) { return Math.round(ptSize * 2); };
 
-  return {
-    name: H('כמו הקובץ שהעלית'),
-    note: font + H(', בגדלים של ה־PDF המקורי שלך.'),
+  return ttLiveFileTemplate({
+    name: '', note: '',            // both defined as live getters below
     css: "'" + font + "', Arial, sans-serif",
     docxFont: font,
     nameSize: Math.min(48, Math.max(half(bodyPt) + 8, half(maxPt))),
@@ -12526,7 +13002,7 @@ function templateFromPdfStyle(style) {
     headRule: true, ruleColor: '999999', headTrack: 0,
     headBefore: 220, headAfter: 70, bodyAfter: 45, contactColor: '444444',
     fromFile: true
-  };
+  }, font, ', בגדלים של ה־PDF המקורי שלך.');
 }
 
 async function extractFile(file) {
@@ -13242,6 +13718,7 @@ function bindIoUi() {
     try {
       $('resumeInput').value = await extractFile(f);
       updateLangBadges();
+      TT_CV_LAST_FILE = f;              // so it can be saved whole, not only as text
       var gotTemplate = await registerTemplateFromFile(f);
       setStatus(H('הקובץ נטען.') + (gotTemplate ? H(' נוסף טמפלט לפי העיצוב של הקובץ שהעלית.') : ''));
       if (typeof renderTemplatePicker === 'function') { renderTemplatePicker(); renderAccentPicker(); }
@@ -13853,6 +14330,13 @@ function bindUi() {
   $('btnGetKey').addEventListener('click', openAiStudio);
   $('btnModalGetKey').addEventListener('click', openAiStudio);
   $('btnRemoveKey').addEventListener('click', function () { ttRemoveKeyFlow(); });
+  /* The save button only exists while there is something to save. */
+  var cvBox = $('resumeInput');
+  if (cvBox) cvBox.addEventListener('input', function () {
+    var has = !!String(cvBox.value || '').trim();
+    var shown = !!$('btnCvSave');
+    if (has !== shown) renderCvVault();
+  });
   $('btnHowKey').addEventListener('click', function () { show('howKeyModal'); });
   $('btnHowKeyClose').addEventListener('click', function () { hide('howKeyModal'); });
 
@@ -14039,7 +14523,7 @@ function resetRun() {
      frozen on screen: the snapshot is taken only when it is missing, and it was
      not missing any more. */
   APP.verdictBefore = null; APP.verdictAfter = null; APP.fitDelta = null;
-  APP.narrative = {};
+  APP.narrative = {}; APP.analysisLang = '';
   /* The mode belongs to one run against one posting, never to the session. A
      mode that survived into the next run would silently answer a question the
      candidate was never asked about a job they had not seen yet. */
@@ -14093,6 +14577,9 @@ document.addEventListener('DOMContentLoaded', function () {
   refreshKeyUi();
   updateLangBadges();
   bindUi();
+  /* After bindUi, because the panel binds its own buttons every time it draws
+     and the box it watches has to exist first. */
+  try { renderCvVault(); } catch (e) {}
   /* After bindUi so the buttons exist, and before the version badge so the
      About panel is built with a version that is already set.
 
@@ -14221,7 +14708,7 @@ function renderReview() {
         : '') +
       (roleDrops.length
         ? '<br><span class="text-red-900 font-semibold">' + roleDrops.length + H(' תפקיד שלם סומן כלא רלוונטי למשרה הזו') +
-          (roleOn ? ' ויוסר בפועל.' : H(', והוא יישאר בקורות החיים עד שתאשר במפורש.')) +
+          (roleOn ? H(' ויוסר בפועל.') : H(', והוא יישאר בקורות החיים עד שתאשר במפורש.')) +
           H(' זו ההצעה הכי משמעותית ברשימה, שווה לקרוא את הכרטיס עצמו.</span>')
         : '');
   }
@@ -14362,9 +14849,9 @@ function renderChangeCard(ch) {
       '</span>' +
       '<div class="flex gap-1 shrink-0">' +
         '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (on ? (isRemoval(ch.kind) ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white') : 'border border-slate-300 hover:bg-white') + '" data-act="approve">' +
-          (isRemoval(ch.kind) ? 'הסר' : H('אשר')) + '</button>' +
+          (isRemoval(ch.kind) ? H('הסר') : H('אשר')) + '</button>' +
         '<button class="tt-ch-act text-xs px-2 py-1 rounded ' + (!on ? 'bg-slate-700 text-white' : 'border border-slate-300 hover:bg-white') + '" data-act="reject">' +
-          (isRemoval(ch.kind) ? 'השאר' : H('דחה')) + '</button>' +
+          (isRemoval(ch.kind) ? H('השאר') : H('דחה')) + '</button>' +
         (ch.kind === 'skill_order' || ch.kind === 'skill_drop' || ch.kind === 'line_order' || isStructural(ch.kind) || isRemoval(ch.kind) ? '' :
           H('<button class="tt-ch-act text-xs px-2 py-1 rounded border border-slate-300 hover:bg-white" data-act="edit">ערוך</button>')) +
       '</div>' +
@@ -14510,7 +14997,7 @@ function renderFitDelta() {
   var up = d.after - d.before;
   var score = '<div class="tt-vd-score is-delta">' +
     '<span class="tt-vd-was">' + d.before + '</span>' +
-    '<span class="tt-vd-arrow">' + (up > 0 ? '↑' : '→') + '</span>' +
+    '<span class="tt-vd-arrow">' + (up > 0 ? '↑' : up < 0 ? '↓' : '→') + '</span>' +
     '<b>' + d.after + '</b><span>/100</span></div>';
 
   /* Both names, side by side, whether or not they differ. "Still medium" is an
@@ -14526,12 +15013,17 @@ function renderFitDelta() {
 
   var txt = ttNarrativeFor('after', after);
   if (!(APP.narrative && APP.narrative.after && APP.narrative.after.lang === TT_UI_LANG)) {
+    var nDropped = (d.dropped || []).length;
     txt = {
       headline: up > 0 ? H('התשובות שלך הוסיפו עובדות שהמסמך לא אמר קודם')
+              : up < 0 ? H('התשובות שלך תיקנו כלפי מטה מה שהמסמך רמז עליו')
                        : H('התשובות לא הוסיפו עובדה שסוגרת דרישה חסרה'),
       explanation: up > 0
         ? H('התשובות שלך סגרו ') + d.closed.length + H(' פערים. ') +
           H('הציון עלה כי נכנסו עובדות חדשות למסמך, ולא כי השורות נוסחו אחרת.')
+        : up < 0
+        ? H('ציינת שאין לך ניסיון ב־') + nDropped + H(' מהדרישות, והקריאה הראשונה זקפה אותן לזכותך. ') +
+          H('הציון ירד כי התיקון שלך מדויק יותר ממה שהמסמך רמז, וזה עדיף על ציון שלא יחזיק בראיון.')
         : H('ענית על ') + d.asked + H(' שאלות, ואף אחת מהן לא הוסיפה עובדה שסוגרת דרישה שהייתה חסרה. ') +
           H('הציון נשאר כפי שהיה, וזה אומר שהפער הוא בניסיון עצמו ולא בניסוח.')
     };
@@ -14540,10 +15032,23 @@ function renderFitDelta() {
   var head = ttVerdictHead(after, H('רמת ההתאמה, אחרי התשובות שלך'), txt, score, pair);
 
   var body = '';
-  if (up > 0 && d.closed.length) {
+  if (d.closed && d.closed.length) {
     body += '<div class="tt-vd-more"><b>' + escapeHtml(H('מה נסגר')) + '</b><ul>' +
       d.closed.slice(0, 6).map(function (c) { return '<li>' + escapeHtml(c.text) + '</li>'; }).join('') +
       '</ul></div>';
+  }
+  /* Shown with the same weight as what closed. A correction the candidate made
+     about themselves is the most reliable thing on this screen. */
+  if (d.dropped && d.dropped.length) {
+    body += '<div class="tt-vd-more"><b>' + escapeHtml(H('מה ירד לפי מה שענית')) + '</b><ul>' +
+      d.dropped.slice(0, 6).map(function (c) { return '<li>' + escapeHtml(c.text) + '</li>'; }).join('') +
+      '</ul></div>';
+  }
+  /* The one case the old panel could not describe at all: an answer that said
+     something real and never reached the page. Silence about it read as if the
+     answer had simply not counted. */
+  if (d.landedNone) {
+    body += '<div class="tt-vd-more">' + escapeHtml(d.landedNone + H(' תשובות הוסיפו עובדה, אבל לא נמצאה להן שורה במסמך, ולכן הן לא הזיזו את הציון.')) + '</div>';
   }
   if (d.stillOpen.length) {
     body += '<div class="tt-vd-more"><b>' + escapeHtml(H('דרישות החובה שנשארו פתוחות:')) + '</b><ul>' +
@@ -14598,48 +15103,215 @@ function promptRecheck(finalText, reqs) {
   ].join('\n');
 }
 
+/* =========================================================================
+   WHAT AN ANSWER IS WORTH
+
+   The second measurement used to work like this: take every requirement that
+   was asked about, hand the finished document to the model, and ask what it
+   proves now. Two independent readings of the same text do not agree, the only
+   guard was that a row could never go DOWN, and so every disagreement was
+   recorded as progress. A candidate who answered "I have no experience with
+   these tools" watched that requirement appear under "what closed".
+
+   Nothing about that measured the answer. It measured a second opinion.
+
+   The app already knows the real chain and never used it. The writing stage
+   tags every line it builds with the answers it came from, the approval screen
+   records which of those lines the candidate let through, and each line carries
+   the requirements it serves. So the question "did this answer change anything"
+   has a factual answer that needs no model at all: did a line built from it get
+   approved into the document.
+
+   Two rules come out of that, and they are not symmetrical, which is the point.
+
+   A requirement may RISE only when an answer added a fact AND a line built from
+   that answer entered the document. No line, no rise, whatever any reading of
+   the text says. This is deliberately conservative: if the writing stage added
+   a real fact but the attribution failed, the score stays where it was. Missing
+   a deserved rise is a smaller wrong than showing an invented one.
+
+   A requirement FALLS when the candidate says they do not have it. That is not
+   a rewrite being punished, it is the person correcting a reading that was too
+   generous, and it is the only source in the whole app that outranks the
+   document: they know, and the document was only evidence.
+   ========================================================================= */
+
+/* Which lines a given answer actually put into the finished document. Only
+   approved ones: a suggestion that was rejected at stage 5 never existed. */
+function ttAnswerLanded(tag) {
+  var use = null;
+  (APP.answerUse || []).forEach(function (u) { if (u && u.tag === tag) use = u; });
+  if (!use || !use.lineIds || !use.lineIds.length) return 0;
+  return use.lineIds.filter(function (id) {
+    return (APP.changes || []).some(function (c) {
+      return c && c.lineId === id && c.status === 'approved';
+    });
+  }).length;
+}
+
+/* One row per (answer, requirement) the question actually covered. A question
+   that covered three requirements produces three rows, because the candidate
+   answered about all three and the verdict can differ between them. */
+function ttAnswerPairs() {
+  var out = [];
+  ((APP.chat && APP.chat.qa) || []).forEach(function (p, i) {
+    if (!p || p.skipped) return;
+    if (!String(p.a || '').trim()) return;
+    var tag = 'A' + (i + 1);
+    var ids = (p.reqIds && p.reqIds.length) ? p.reqIds : (p.reqId ? [p.reqId] : []);
+    ids.forEach(function (id) {
+      var req = reqById(id);
+      if (!req) return;
+      out.push({ tag: tag, reqId: id, req: req, q: p.q, a: p.aForCv || p.a, verdict: 'unclear' });
+    });
+  });
+  return out;
+}
+
+function promptAnswerVerdicts(pairs) {
+  return [
+    'A candidate was asked about specific requirements from a job posting and answered.',
+    'For each pair below decide what the ANSWER says about that requirement. Judge the answer only.',
+    'The resume is not given here and is not the subject: you are reading what the person said.',
+    '',
+    'verdict is exactly one of:',
+    '  adds    - the answer states experience, a number, a scope or a responsibility that they DO have',
+    '  denies  - the answer says they do not have it, never did it, or have not worked with it',
+    '  unclear - neither, or the answer is about something else',
+    '',
+    'A partial yes is adds. A yes about something adjacent but not this requirement is unclear.',
+    '"Not much", "a little", "only briefly" are adds, not denies: they still describe something done.',
+    'Only a real negative is denies.',
+    '',
+    'Return ONLY this JSON, nothing before it and nothing after it:',
+    '{"items":[{"tag":"","req_id":"","verdict":""}]}',
+    '',
+    'PAIRS:',
+    pairs.map(function (p) {
+      return p.tag + ' | ' + p.reqId + ' | REQUIREMENT: ' + p.req.text +
+             ' | QUESTION: ' + p.q + ' | ANSWER: ' + p.a;
+    }).join('\n')
+  ].join('\n');
+}
+
+/* The classification is the only part of this that needs a model, and a failure
+   here is survivable: nothing is marked as denied, and the rise gate still
+   requires an approved line, so a failed call can only make the result more
+   conservative, never more generous. */
+async function ttClassifyAnswers(pairs) {
+  if (!pairs.length) return pairs;
+  try {
+    var raw = await callGemini(promptAnswerVerdicts(pairs), {
+      json: true, temperature: 0, maxOutputTokens: 2000, timeoutMs: 60000
+    });
+    var obj = safeJsonParse(raw);
+    var items = (obj && Array.isArray(obj.items)) ? obj.items : [];
+    var by = {};
+    items.forEach(function (it) {
+      if (!it || !it.tag || !it.req_id) return;
+      by[String(it.tag) + '|' + String(it.req_id)] = String(it.verdict || '').toLowerCase();
+    });
+    pairs.forEach(function (p) {
+      var v = by[p.tag + '|' + p.reqId];
+      if (v === 'adds' || v === 'denies' || v === 'unclear') p.verdict = v;
+    });
+  } catch (e) {
+    /* left as unclear, which grants nothing and takes nothing away */
+  }
+  return pairs;
+}
+
 async function runFitRecheck() {
   if (!getApiKey()) return;
   var before = APP.verdictBefore || matchVerdict();
   if (!before) return;
   APP.verdictBefore = before;
 
-  var touched = ttTouchedReqIds();
-  if (!touched.length) { APP.fitDelta = { skipped: 'no_answers' }; renderFitDelta(); return; }
-
-  var reqs = touched.map(reqById).filter(Boolean);
-  if (!reqs.length) { APP.fitDelta = { skipped: 'no_answers' }; renderFitDelta(); return; }
+  var pairs = ttAnswerPairs();
+  if (!pairs.length) { APP.fitDelta = { skipped: 'no_answers' }; renderFitDelta(); return; }
 
   setStatus(H('בודק מחדש את ההתאמה מול הגרסה החדשה...'), true);
   try {
-    var raw = await callGemini(promptRecheck(APP.finalText || '', reqs), {
-      json: true, temperature: 0.2, maxOutputTokens: 8000, timeoutMs: 90000
+    await ttClassifyAnswers(pairs);
+
+    /* Two sets, built from facts this file already holds. A requirement can be
+       in neither, and most are. */
+    var mayRise = {}, denied = {};
+    pairs.forEach(function (p) {
+      if (p.verdict === 'denies') { denied[p.reqId] = p; return; }
+      if (p.verdict === 'adds' && ttAnswerLanded(p.tag) > 0) mayRise[p.reqId] = p;
     });
-    var obj = safeJsonParse(raw);
-    var items = (obj && obj.items) || [];
-    if (!items.length) { APP.fitDelta = { skipped: 'unreadable' }; renderFitDelta(); return; }
+    /* An answer that both adds and denies across two requirements is normal:
+       "I ran Salesforce but never HubSpot". A single requirement cannot be
+       both, and if the classification says so, the denial wins, because the
+       cost of a wrong rise is a candidate walking into an interview on a claim
+       the app inflated. */
+    Object.keys(denied).forEach(function (id) { delete mayRise[id]; });
 
+    var riseIds = Object.keys(mayRise);
     var byId = {};
-    items.forEach(function (it) { if (it && it.req_id) byId[it.req_id] = it; });
+    if (riseIds.length) {
+      /* The model is still asked, but only about requirements an answer has
+         already earned the right to move, and only to decide HOW FAR. It can no
+         longer decide THAT anything moved. */
+      var raw = await callGemini(promptRecheck(APP.finalText || '', riseIds.map(reqById).filter(Boolean)), {
+        json: true, temperature: 0.2, maxOutputTokens: 8000, timeoutMs: 90000
+      });
+      var obj = safeJsonParse(raw);
+      ((obj && obj.items) || []).forEach(function (it) {
+        if (it && it.req_id && mayRise[it.req_id]) byId[it.req_id] = it;
+      });
+    }
 
-    var closed = [], stillOpen = [];
+    var closed = [], dropped = [], stillOpen = [];
     APP.coverage = (APP.coverage || []).map(function (c) {
-      if (!c || !byId[c.req_id]) return c;
+      if (!c) return c;
       var req = reqById(c.req_id);
+      if (!req) return c;
       var wasVal = requirementValue(c, req);
       var next = {};
       Object.keys(c).forEach(function (k) { next[k] = c[k]; });
-      next.status = byId[c.req_id].status || c.status;
-      if (byId[c.req_id].adjacent) next.adjacent = normalizeAdjacent(byId[c.req_id].adjacent);
-      var nowVal = requirementValue(next, req);
-      /* A recheck may only reflect evidence that was added. It can never lower
-         a row: the earlier reading saw the earlier document, and a rewrite does
-         not take facts away. Letting it drop would turn a rephrasing into a
-         penalty, which is the exact failure this whole design avoids. */
-      if (nowVal < wasVal) return c;
-      if (nowVal > wasVal + 0.001) closed.push({ id: c.req_id, text: (req && req.text) || '', from: wasVal, to: nowVal });
-      else if (req && req.must_have && nowVal < 0.999) stillOpen.push({ id: c.req_id, text: req.text });
-      return next;
+
+      if (denied[c.req_id]) {
+        /* The person says they do not have it. Nothing in the document outranks
+           that, so the row goes to missing and the substitute that was being
+           credited goes with it. */
+        next.status = 'missing';
+        next.adjacent = null;
+        var lowVal = requirementValue(next, req);
+        if (lowVal < wasVal - 0.001) {
+          dropped.push({ id: c.req_id, text: req.text, must: !!req.must_have, from: wasVal, to: lowVal });
+          return next;
+        }
+        return c;
+      }
+
+      if (byId[c.req_id]) {
+        next.status = byId[c.req_id].status || c.status;
+        if (byId[c.req_id].adjacent) next.adjacent = normalizeAdjacent(byId[c.req_id].adjacent);
+        var nowVal = requirementValue(next, req);
+        /* Still never lower on this path: the earlier reading saw the earlier
+           document, and a rewrite does not take facts away. Lowering is the
+           denial branch above, and only the candidate can trigger it. */
+        if (nowVal < wasVal) return c;
+        if (nowVal > wasVal + 0.001) {
+          /* Only a gate counts as a gap closed. An advantage moves the score by
+             its weight, as it always did, and is not reported as a gap that was
+             shut, because it never was one. */
+          if (req.must_have) closed.push({ id: c.req_id, text: req.text, from: wasVal, to: nowVal });
+          return next;
+        }
+        return next;
+      }
+      return c;
+    });
+
+    /* Read after every change is applied, so it describes the document as it
+       now stands rather than as it stood halfway through the loop. */
+    (APP.coverage || []).forEach(function (c) {
+      var req = c && reqById(c.req_id);
+      if (!req || !req.must_have) return;
+      if (requirementValue(c, req) < 0.999) stillOpen.push({ id: c.req_id, text: req.text });
     });
 
     var after = matchVerdict();
@@ -14647,7 +15319,11 @@ async function runFitRecheck() {
     APP.fitDelta = {
       before: before.score, after: after ? after.score : before.score,
       bandBefore: before.band, bandAfter: after ? after.band : before.band,
-      closed: closed, stillOpen: stillOpen, asked: (APP.chat.qa || []).length
+      levelBefore: before.level, levelAfter: after ? after.level : before.level,
+      closed: closed, dropped: dropped, stillOpen: stillOpen,
+      asked: (APP.chat.qa || []).length,
+      answered: pairs.length,
+      landedNone: pairs.filter(function (p) { return p.verdict === 'adds' && !ttAnswerLanded(p.tag); }).length
     };
   } catch (e) {
     APP.fitDelta = { skipped: 'failed', why: String(e && e.message || e) };
@@ -14895,7 +15571,7 @@ function thinLastPageNote() {
   if (!APP.pageBreaks || !APP.pageBreaks.length) return '';
   var lines = APP.lastPageLines || 0;
   if (!lines || lines > 4 || (APP.lastPageFill || 1) > 0.15) return '';
-  return H('רק כ־') + lines + H(' שורות נשפכות לעמוד ') + (APP.lastPageNumber === 2 ? 'השני' : String(APP.lastPageNumber)) +
+  return H('רק כ־') + lines + H(' שורות נשפכות לעמוד ') + (APP.lastPageNumber === 2 ? H('השני') : String(APP.lastPageNumber)) +
     H(', והשאר נשאר ריק. קיצור קטן — משפט אחד או שניים — יסגור את הפער, והמסמך ייקרא כמסמך אחד שלם. ') +
     H('אפשר לערוך ישירות כאן בתצוגה, או לחזור לשלב 5 ולוותר על שורה שאינה משרתת את המשרה.');
 }
@@ -16201,6 +16877,42 @@ function ttFlagSvg(code, size) {
 var TT_TX_ORDER = ['ar', 'en', 'fr', 'es', 'de', 'it', 'pt', 'hr', 'ru', 'ja', 'hi'];
 var TT_TX_IDX = {}; TT_TX_ORDER.forEach(function (c, i) { TT_TX_IDX[c] = i; });
 var TT_TX = {
+'שמור את קורות החיים האלה':['احفظ هذه السيرة الذاتية','Save this resume','Enregistrer ce CV','Guardar este currículum','Diesen Lebenslauf speichern','Salva questo CV','Salvar este currículo','Spremi ovaj životopis','Сохранить это резюме','この履歴書を保存','यह बायोडाटा सहेजें'],
+'השתמש':['استخدم','Use','Utiliser','Usar','Verwenden','Usa','Usar','Koristi','Использовать','使う','उपयोग करें'],
+'קורות חיים':['سيرة ذاتية','Resume','CV','Currículum','Lebenslauf','CV','Currículo','Životopis','Резюме','履歴書','बायोडाटा'],
+'כולל הקובץ המקורי':['يشمل الملف الأصلي','includes the original file','inclut le fichier d’origine','incluye el archivo original','einschließlich der Originaldatei','include il file originale','inclui o arquivo original','uključuje izvornu datoteku','включая исходный файл','元のファイルを含む','मूल फ़ाइल सहित'],
+'נשמר בדפדפן הזה בלבד, ולא נשלח לשום מקום.':['يُحفظ في هذا المتصفح فقط ولا يُرسل إلى أي مكان.','Saved in this browser only, and sent nowhere.','Enregistré uniquement dans ce navigateur, et envoyé nulle part.','Se guarda solo en este navegador y no se envía a ninguna parte.','Wird nur in diesem Browser gespeichert und nirgendwohin gesendet.','Salvato solo in questo browser e non inviato da nessuna parte.','Guardado apenas neste navegador e não enviado a lugar nenhum.','Sprema se samo u ovom pregledniku i nikamo se ne šalje.','Хранится только в этом браузере и никуда не отправляется.','このブラウザにのみ保存され、どこにも送信されません。','केवल इस ब्राउज़र में सहेजा जाता है, कहीं नहीं भेजा जाता।'],
+'קורות החיים נשמרו בדפדפן הזה.':['حُفظت السيرة الذاتية في هذا المتصفح.','The resume was saved in this browser.','Le CV a été enregistré dans ce navigateur.','El currículum se guardó en este navegador.','Der Lebenslauf wurde in diesem Browser gespeichert.','Il CV è stato salvato in questo browser.','O currículo foi salvo neste navegador.','Životopis je spremljen u ovom pregledniku.','Резюме сохранено в этом браузере.','履歴書をこのブラウザに保存しました。','बायोडाटा इस ब्राउज़र में सहेजा गया।'],
+'קורות החיים השמורים עודכנו.':['تم تحديث السيرة الذاتية المحفوظة.','The saved resume was updated.','Le CV enregistré a été mis à jour.','Se actualizó el currículum guardado.','Der gespeicherte Lebenslauf wurde aktualisiert.','Il CV salvato è stato aggiornato.','O currículo salvo foi atualizado.','Spremljeni životopis je ažuriran.','Сохранённое резюме обновлено.','保存済みの履歴書を更新しました。','सहेजा गया बायोडाटा अपडेट हुआ।'],
+'קורות החיים השמורים הוטענו.':['تم تحميل السيرة الذاتية المحفوظة.','The saved resume was loaded.','Le CV enregistré a été chargé.','Se cargó el currículum guardado.','Der gespeicherte Lebenslauf wurde geladen.','Il CV salvato è stato caricato.','O currículo salvo foi carregado.','Spremljeni životopis je učitan.','Сохранённое резюме загружено.','保存済みの履歴書を読み込みました。','सहेजा गया बायोडाटा लोड हुआ।'],
+'אין קורות חיים בתיבה לשמור.':['لا توجد سيرة ذاتية في الحقل لحفظها.','There is no resume in the box to save.','Il n’y a pas de CV à enregistrer dans le champ.','No hay ningún currículum en el campo para guardar.','Im Feld steht kein Lebenslauf zum Speichern.','Non c’è alcun CV da salvare nel campo.','Não há currículo no campo para salvar.','U polju nema životopisa za spremanje.','В поле нет резюме для сохранения.','保存する履歴書が入力欄にありません。','सहेजने के लिए बॉक्स में कोई बायोडाटा नहीं है।'],
+'בתיבה יש כבר טקסט. להחליף אותו בקורות החיים השמורים?':['يوجد نص في الحقل بالفعل. هل تستبدله بالسيرة الذاتية المحفوظة؟','There is already text in the box. Replace it with the saved resume?','Le champ contient déjà du texte. Le remplacer par le CV enregistré ?','Ya hay texto en el campo. ¿Reemplazarlo por el currículum guardado?','Im Feld steht bereits Text. Durch den gespeicherten Lebenslauf ersetzen?','Nel campo c’è già del testo. Sostituirlo con il CV salvato?','Já há texto no campo. Substituir pelo currículo salvo?','U polju već ima teksta. Zamijeniti ga spremljenim životopisom?','В поле уже есть текст. Заменить его сохранённым резюме?','入力欄にすでにテキストがあります。保存済みの履歴書に置き換えますか？','बॉक्स में पहले से पाठ है। क्या उसे सहेजे गए बायोडाटा से बदलें?'],
+'למחוק את קורות החיים השמורים האלה מהדפדפן?':['هل تحذف هذه السيرة الذاتية المحفوظة من المتصفح؟','Delete this saved resume from the browser?','Supprimer ce CV enregistré du navigateur ?','¿Eliminar este currículum guardado del navegador?','Diesen gespeicherten Lebenslauf aus dem Browser löschen?','Eliminare questo CV salvato dal browser?','Excluir este currículo salvo do navegador?','Izbrisati ovaj spremljeni životopis iz preglednika?','Удалить это сохранённое резюме из браузера?','保存済みのこの履歴書をブラウザから削除しますか？','क्या यह सहेजा गया बायोडाटा ब्राउज़र से हटाएँ?'],
+'נמחק מהדפדפן.':['حُذف من المتصفح.','Deleted from the browser.','Supprimé du navigateur.','Eliminado del navegador.','Aus dem Browser gelöscht.','Eliminato dal browser.','Excluído do navegador.','Izbrisano iz preglednika.','Удалено из браузера.','ブラウザから削除しました。','ब्राउज़र से हटा दिया गया।'],
+'נשמר, אבל בלי הקובץ המקורי: אין מספיק מקום בדפדפן. הטקסט והסימונים נשמרו.':['حُفظ، لكن بدون الملف الأصلي: لا توجد مساحة كافية في المتصفح. حُفظ النص والعلامات.','Saved, but without the original file: there is not enough room in the browser. The text and the marks were kept.','Enregistré, mais sans le fichier d’origine : le navigateur manque de place. Le texte et les marques ont été conservés.','Guardado, pero sin el archivo original: no hay espacio suficiente en el navegador. Se conservaron el texto y las marcas.','Gespeichert, aber ohne die Originaldatei: im Browser ist nicht genug Platz. Text und Markierungen wurden behalten.','Salvato, ma senza il file originale: non c’è spazio sufficiente nel browser. Il testo e i contrassegni sono stati mantenuti.','Salvo, mas sem o arquivo original: não há espaço suficiente no navegador. O texto e as marcações foram mantidos.','Spremljeno, ali bez izvorne datoteke: u pregledniku nema dovoljno mjesta. Tekst i oznake su sačuvani.','Сохранено, но без исходного файла: в браузере не хватает места. Текст и пометки сохранены.','保存しましたが、元のファイルは含みません。ブラウザの空き容量が足りませんでした。本文と印は保持されています。','सहेजा गया, पर मूल फ़ाइल के बिना: ब्राउज़र में पर्याप्त जगह नहीं है। पाठ और चिह्न रख लिए गए।'],
+'לא הצלחתי לשמור: אין מקום פנוי באחסון הדפדפן.':['تعذّر الحفظ: لا توجد مساحة متاحة في تخزين المتصفح.','I could not save: there is no free room in the browser storage.','Impossible d’enregistrer : il n’y a plus de place dans le stockage du navigateur.','No pude guardar: no queda espacio en el almacenamiento del navegador.','Speichern nicht möglich: im Browser-Speicher ist kein Platz mehr.','Non sono riuscito a salvare: non c’è spazio libero nella memoria del browser.','Não consegui salvar: não há espaço livre no armazenamento do navegador.','Nisam uspio spremiti: u pohrani preglednika nema slobodnog mjesta.','Не удалось сохранить: в хранилище браузера нет свободного места.','保存できませんでした。ブラウザのストレージに空きがありません。','सहेज नहीं सका: ब्राउज़र संग्रहण में जगह नहीं है।'],
+'התשובות שלך תיקנו כלפי מטה מה שהמסמך רמז עליו':['إجاباتك صحّحت إلى الأسفل ما ألمح إليه المستند','Your answers corrected downward what the document implied','Vos réponses ont corrigé à la baisse ce que le document laissait entendre','Tus respuestas corrigieron a la baja lo que el documento insinuaba','Ihre Antworten haben nach unten korrigiert, was das Dokument nahelegte','Le tue risposte hanno corretto al ribasso ciò che il documento lasciava intendere','Suas respostas corrigiram para baixo o que o documento sugeria','Vaši odgovori ispravili su naniže ono što je dokument sugerirao','Ваши ответы скорректировали вниз то, на что намекал документ','あなたの回答が、文書の示唆を下方に修正しました','आपके उत्तरों ने दस्तावेज़ के संकेत को नीचे की ओर सुधारा'],
+'ציינת שאין לך ניסיון ב־':['ذكرت أنه ليست لديك خبرة في ','You stated that you have no experience with ','Vous avez indiqué ne pas avoir d’expérience sur ','Indicaste que no tienes experiencia en ','Sie haben angegeben, keine Erfahrung zu haben mit ','Hai indicato di non avere esperienza con ','Você indicou que não tem experiência com ','Naveli ste da nemate iskustva s ','Вы указали, что у вас нет опыта в ','次の要件について経験がないと回答しました：','आपने बताया कि आपको इनका अनुभव नहीं है: '],
+' מהדרישות, והקריאה הראשונה זקפה אותן לזכותך. ':[' من المتطلبات، وقد احتسبتها القراءة الأولى لصالحك. ',' of the requirements, and the first reading had credited them to you. ',' des exigences, et la première lecture vous les avait créditées. ',' de los requisitos, y la primera lectura te los había acreditado. ',' der Anforderungen, und die erste Lesung hatte sie Ihnen gutgeschrieben. ',' dei requisiti, e la prima lettura te li aveva accreditati. ',' dos requisitos, e a primeira leitura os havia creditado a você. ',' zahtjeva, a prvo čitanje pripisalo vam ih je u korist. ',' требований, а первое прочтение засчитало их вам. ',' 件で、最初の読み取りではあなたの実績として数えられていました。',' आवश्यकताओं में, और पहली पढ़त ने उन्हें आपके खाते में गिना था। '],
+'הציון ירד כי התיקון שלך מדויק יותר ממה שהמסמך רמז, וזה עדיף על ציון שלא יחזיק בראיון.':['انخفض الرقم لأن تصحيحك أدق مما ألمح إليه المستند، وهذا أفضل من رقم لا يصمد في المقابلة.','The score fell because your correction is more accurate than what the document implied, and that beats a score that would not survive the interview.','Le score a baissé parce que votre correction est plus exacte que ce que le document laissait entendre, et cela vaut mieux qu’un score qui ne tiendrait pas en entretien.','La puntuación bajó porque tu corrección es más exacta que lo que insinuaba el documento, y eso es preferible a una puntuación que no aguantaría la entrevista.','Der Wert ist gesunken, weil Ihre Korrektur genauer ist als das, was das Dokument nahelegte, und das ist besser als ein Wert, der im Gespräch nicht standhält.','Il punteggio è sceso perché la tua correzione è più accurata di quanto il documento lasciasse intendere, ed è meglio di un punteggio che non reggerebbe al colloquio.','A pontuação caiu porque sua correção é mais exata do que o documento sugeria, e isso é melhor do que uma pontuação que não se sustentaria na entrevista.','Rezultat je pao jer je vaš ispravak točniji od onoga što je dokument sugerirao, a to je bolje od rezultata koji ne bi izdržao na razgovoru.','Оценка снизилась, потому что ваша поправка точнее того, на что намекал документ, и это лучше оценки, которая не выдержит собеседования.','スコアが下がったのは、あなたの訂正のほうが文書の示唆より正確だからです。面接で崩れるスコアより、そのほうが good です。','अंक घटा क्योंकि आपका सुधार दस्तावेज़ के संकेत से अधिक सटीक है, और यह उस अंक से बेहतर है जो साक्षात्कार में टिक न सके।'],
+'מה ירד לפי מה שענית':['ما انخفض بحسب إجابتك','What went down according to your answer','Ce qui a baissé d’après votre réponse','Qué bajó según tu respuesta','Was nach Ihrer Antwort gesunken ist','Che cosa è sceso in base alla tua risposta','O que caiu conforme a sua resposta','Što je palo prema vašem odgovoru','Что снизилось по вашему ответу','回答により下がった点','आपके उत्तर के अनुसार क्या घटा'],
+' תשובות הוסיפו עובדה, אבל לא נמצאה להן שורה במסמך, ולכן הן לא הזיזו את הציון.':[' إجابات أضافت واقعة، لكن لم يُعثر لها على سطر في المستند، ولذلك لم تُحرّك الرقم.',' answers added a fact, but no line was found for them in the document, so they did not move the score.',' réponses ont apporté un fait, mais aucune ligne ne leur a été trouvée dans le document, elles n’ont donc pas fait bouger le score.',' respuestas aportaron un hecho, pero no se les encontró una línea en el documento, así que no movieron la puntuación.',' Antworten haben einen Fakt ergänzt, fanden im Dokument aber keine Zeile und haben den Wert daher nicht bewegt.',' risposte hanno aggiunto un fatto, ma non è stata trovata una riga nel documento, quindi non hanno mosso il punteggio.',' respostas acrescentaram um fato, mas não se encontrou uma linha para elas no documento, então não moveram a pontuação.',' odgovora dodalo je činjenicu, ali za njih nije pronađen redak u dokumentu pa nisu pomaknuli rezultat.',' ответов добавили факт, но строки для них в документе не нашлось, поэтому оценку они не сдвинули.',' 件の回答は事実を加えましたが、文書内に該当行が見つからず、スコアは動きませんでした。',' उत्तरों ने तथ्य जोड़ा, पर दस्तावेज़ में उनके लिए कोई पंक्ति नहीं मिली, इसलिए अंक नहीं बदला।'],
+'הניתוח בשלב הזה נכתב ב':['كُتب تحليل هذه المرحلة بـ','The analysis in this stage was written in','L’analyse de cette étape a été rédigée en','El análisis de esta etapa se escribió en','Die Analyse dieses Schritts wurde verfasst auf','L’analisi di questa fase è stata scritta in','A análise desta etapa foi escrita em','Analiza ove faze napisana je na','Анализ этого этапа написан на','このステップの分析は次の言語で書かれました：','इस चरण का विश्लेषण लिखा गया'],
+'. החלפת שפת הממשק לא מתרגמת אותו, כי המודל כתב אותו פעם אחת.':['. تغيير لغة الواجهة لا يترجمه، لأن النموذج كتبه مرة واحدة.','. Changing the interface language does not translate it, because the model wrote it once.','. Changer la langue de l’interface ne le traduit pas, car le modèle l’a écrit une seule fois.','. Cambiar el idioma de la interfaz no lo traduce, porque el modelo lo escribió una sola vez.','. Ein Wechsel der Oberflächensprache übersetzt sie nicht, denn das Modell hat sie einmal geschrieben.','. Cambiare la lingua dell’interfaccia non la traduce, perché il modello l’ha scritta una volta sola.','. Trocar o idioma da interface não a traduz, porque o modelo a escreveu uma única vez.','. Promjena jezika sučelja ne prevodi je, jer ju je model napisao jednom.','. Смена языка интерфейса её не переводит: модель написала её один раз.','。インターフェースの言語を変えても翻訳されません。モデルが一度だけ書いたものだからです。','। इंटरफ़ेस की भाषा बदलने से यह अनूदित नहीं होता, क्योंकि मॉडल ने इसे एक ही बार लिखा था।'],
+'תרגם את הניתוח ל':['ترجم التحليل إلى','Translate the analysis into','Traduire l’analyse en','Traducir el análisis al','Analyse übersetzen ins','Traduci l’analisi in','Traduzir a análise para','Prevedi analizu na','Перевести анализ на','分析を次の言語に翻訳：','विश्लेषण का अनुवाद करें'],
+'מתרגם את הניתוח ל':['يترجم التحليل إلى','Translating the analysis into','Traduction de l’analyse en','Traduciendo el análisis al','Übersetze die Analyse ins','Traduco l’analisi in','Traduzindo a análise para','Prevodim analizu na','Перевожу анализ на','分析を翻訳しています：','विश्लेषण का अनुवाद हो रहा है'],
+'הניתוח תורגם ל':['تُرجم التحليل إلى','The analysis was translated into','L’analyse a été traduite en','El análisis se tradujo al','Die Analyse wurde übersetzt ins','L’analisi è stata tradotta in','A análise foi traduzida para','Analiza je prevedena na','Анализ переведён на','分析を翻訳しました：','विश्लेषण का अनुवाद किया गया'],
+'לא הצלחתי לתרגם את הניתוח: ':['تعذّر ترجمة التحليل: ','I could not translate the analysis: ','Je n’ai pas pu traduire l’analyse : ','No pude traducir el análisis: ','Die Analyse konnte nicht übersetzt werden: ','Non sono riuscito a tradurre l’analisi: ','Não consegui traduzir a análise: ','Nisam uspio prevesti analizu: ','Не удалось перевести анализ: ','分析を翻訳できませんでした：','विश्लेषण का अनुवाद नहीं हो सका: '],
+' הוא נשאר כפי שנכתב.':[' وبقي كما كُتب.',' It stays as it was written.',' Elle reste telle qu’elle a été écrite.',' Se queda tal como se escribió.',' Sie bleibt so, wie sie geschrieben wurde.',' Resta come è stata scritta.',' Ela permanece como foi escrita.',' Ostaje kako je napisana.',' Он остаётся в том виде, в каком был написан.',' 書かれたままになります。',' यह जैसा लिखा गया था वैसा ही रहेगा।'],
+'תרגום הניתוח דורש מפתח API.':['ترجمة التحليل تتطلب مفتاح API.','Translating the analysis requires an API key.','La traduction de l’analyse nécessite une clé API.','Traducir el análisis requiere una clave API.','Für die Übersetzung der Analyse wird ein API-Schlüssel benötigt.','La traduzione dell’analisi richiede una chiave API.','Traduzir a análise exige uma chave de API.','Prijevod analize zahtijeva API ključ.','Для перевода анализа нужен ключ API.','分析の翻訳には API キーが必要です。','विश्लेषण के अनुवाद के लिए API कुंजी चाहिए।'],
+'   [חובה]':['   [إلزامي]','   [required]','   [obligatoire]','   [obligatorio]','   [Pflicht]','   [obbligatorio]','   [obrigatório]','   [obavezno]','   [обязательно]','   [必須]','   [अनिवार्य]'],
+' ויוסר בפועל.':[' وسيُحذف فعليًا.',' and it will actually be removed.',' et il sera effectivement supprimé.',' y se eliminará realmente.',' und er wird tatsächlich entfernt.',' e verrà effettivamente rimosso.',' e ele será de fato removido.',' i doista će biti uklonjen.',' и он действительно будет удалён.',' 実際に削除されます。',' और यह वास्तव में हटा दिया जाएगा।'],
+' עולה למקום ':[' يرتفع إلى الموضع ',' moves up to position ',' monte à la position ',' sube a la posición ',' rückt auf Position ',' sale alla posizione ',' sobe para a posição ',' pomiče se na mjesto ',' поднимается на позицию ',' が上位 ',' ऊपर स्थान '],
+' שורה מכילה נתון מדיד':[' سطر يحتوي على رقم قابل للقياس',' line contains a measurable figure',' ligne contient un chiffre mesurable',' línea contiene un dato medible',' Zeile enthält eine messbare Zahl',' riga contiene un dato misurabile',' linha contém um dado mensurável',' redak sadrži mjerljiv podatak',' строка содержит измеримую величину',' 行に測定可能な数値があります',' पंक्ति में मापने योग्य आँकड़ा है'],
+'הסר':['أزل','Remove','Retirer','Quitar','Entfernen','Rimuovi','Remover','Ukloni','Удалить','削除','हटाएँ'],
+'השאר':['أبقِ','Keep','Conserver','Mantener','Behalten','Mantieni','Manter','Zadrži','Оставить','残す','रखें'],
+'השני':['الثانية','second','deux','dos','zwei','due','dois','dva','вторую','2','दूसरे'],
+'עלה מסעיף ':['ارتفع من البند ','moved up from point ','remonté du point ','subió del punto ','aufgestiegen von Punkt ','salito dal punto ','subiu do ponto ','pomaknuto gore s točke ','поднялось с пункта ','項目 ','बिंदु से ऊपर आया '],
 'אין תשובה בתיבה. כתוב תשובה, או לחץ "דלג על השאלה".':['لا توجد إجابة في الحقل. اكتب إجابة أو اضغط "تخطَّ السؤال".','There is no answer in the box. Write one, or press "Skip the question".','Le champ est vide. Écrivez une réponse ou appuyez sur « Passer la question ».','No hay respuesta en el campo. Escribe una, o pulsa «Omitir la pregunta».','Im Feld steht keine Antwort. Schreiben Sie eine, oder klicken Sie auf „Frage überspringen“.','Non c’è una risposta nel campo. Scrivine una, oppure premi "Salta la domanda".','Não há resposta no campo. Escreva uma, ou clique em "Pular a pergunta".','U polju nema odgovora. Napišite ga ili pritisnite "Preskoči pitanje".','В поле нет ответа. Напишите его или нажмите «Пропустить вопрос».','入力欄が空です。回答を書くか、「質問をスキップ」を押してください。','बॉक्स में कोई उत्तर नहीं है। उत्तर लिखें, या "सवाल छोड़ें" दबाएँ।'],
 'כתבת תשובה ולא שלחת אותה. אם תמשיך היא תימחק.\n\nלהמשיך בכל זאת?':['كتبت إجابة ولم ترسلها. إذا تابعت ستُحذف.\n\nهل تتابع على أي حال؟','You wrote an answer and did not send it. If you continue it will be lost.\n\nContinue anyway?','Vous avez écrit une réponse sans l’envoyer. Si vous continuez, elle sera perdue.\n\nContinuer quand même ?','Escribiste una respuesta y no la enviaste. Si continúas, se perderá.\n\n¿Continuar de todos modos?','Sie haben eine Antwort geschrieben und nicht gesendet. Wenn Sie fortfahren, geht sie verloren.\n\nTrotzdem fortfahren?','Hai scritto una risposta senza inviarla. Se continui andrà persa.\n\nContinuare comunque?','Você escreveu uma resposta e não a enviou. Se continuar, ela será perdida.\n\nContinuar mesmo assim?','Napisali ste odgovor i niste ga poslali. Nastavite li, bit će izgubljen.\n\nSvejedno nastaviti?','Вы написали ответ и не отправили его. Если продолжить, он пропадёт.\n\nВсё равно продолжить?','回答を書いたまま送信していません。このまま進むと失われます。\n\n続けますか？','आपने उत्तर लिखा है पर भेजा नहीं। आगे बढ़ने पर वह मिट जाएगा।\n\nफिर भी जारी रखें?'],
 'שלב 4: מנסה שוב ':['المرحلة 4: إعادة محاولة ','Stage 4: retrying ','Étape 4 : nouvelle tentative sur ','Etapa 4: reintentando ','Schritt 4: erneuter Versuch für ','Fase 4: nuovo tentativo su ','Etapa 4: nova tentativa em ','Faza 4: ponovni pokušaj za ','Этап 4: повтор для ','ステップ 4: 再試行 ','चरण 4: पुनः प्रयास '],
@@ -17025,7 +17737,7 @@ var TT_PAINTERS = ['aboutNote','applyUiLang','bindStructurePanel','buildUiLangMe
   'renderFitBiasPicker','renderGrammarPanel','renderInterviewSheet','renderKeywords',
   'renderMatchVerdict','renderNoRelation','renderPreview','renderProgress','renderQueue',
   'renderReview','renderSignals','renderSpellNotice','renderStructurePanel',
-  'renderTemplatePicker','renderFitDelta','renderKeyProblem','setChatBusy','setConsole','setFinalView','setKeyStatus',
+  'renderTemplatePicker','renderFitDelta','renderKeyProblem','renderAnalysisLangBar','renderCvVault','setChatBusy','setConsole','setFinalView','setKeyStatus',
   'setStage','setStatus','showNotice','syncBulletToggle','ttRenderLangBadge',
   'ttShareNote','updateLangButtons'];
 
@@ -17215,8 +17927,11 @@ function ttShareLink(source) {
    own Gemini key before the app does anything at all, and finding that out
    after arriving is a worse experience than being told in the message. */
 function ttShareText() {
-  return L('TrueTailor CV \u2014 \u05d4\u05ea\u05d0\u05de\u05ea \u05e7\u05d5\u05e8\u05d5\u05ea \u05d7\u05d9\u05d9\u05dd \u05dc\u05de\u05e9\u05e8\u05d4 \u05d1\u05e2\u05d6\u05e8\u05ea AI. \u05de\u05e0\u05ea\u05d7 \u05d0\u05ea \u05e7\u05d5\u05e8\u05d5\u05ea \u05d4\u05d7\u05d9\u05d9\u05dd \u05de\u05d5\u05dc \u05de\u05d5\u05d3\u05e2\u05ea \u05d4\u05d3\u05e8\u05d5\u05e9\u05d9\u05dd, \u05de\u05e6\u05d9\u05d2 \u05e6\u05d9\u05d5\u05df \u05d4\u05ea\u05d0\u05de\u05d4 \u05d5\u05de\u05e9\u05db\u05ea\u05d1 \u05db\u05d3\u05d9 \u05dc\u05e9\u05e4\u05e8 \u05d0\u05ea \u05d4\u05e1\u05d9\u05db\u05d5\u05d9 \u05dc\u05e2\u05d1\u05d5\u05e8 \u05e1\u05d9\u05e0\u05d5\u05df ATS. \u05d7\u05d9\u05e0\u05de\u05d9, \u05e8\u05e5 \u05db\u05d5\u05dc\u05d5 \u05d1\u05d3\u05e4\u05d3\u05e4\u05df \u05d5\u05dc\u05d0 \u05de\u05de\u05e6\u05d9\u05d0 \u05db\u05dc\u05d5\u05dd. \u05e0\u05d3\u05e8\u05e9 \u05de\u05e4\u05ea\u05d7 Gemini API \u05d0\u05d9\u05e9\u05d9 (\u05d7\u05d9\u05e0\u05de\u05d9 \u05de\u05d0\u05ea Google AI Studio).',
-           'TrueTailor CV \u2014 tailors a resume to one job posting with AI. It reads your resume against the posting, scores the fit and rewrites to improve your chances of passing an ATS screen. Free, runs entirely in the browser and invents nothing. Needs your own Gemini API key (free from Google AI Studio).');
+  /* Not translated, and not by oversight. This sentence is not read by the
+     person using the app: it is read by whoever they sent it to. */
+  return 'TrueTailor CV \u2014 tailors a resume to one job posting with AI. It reads your resume against the posting, ' +
+         'scores the fit and rewrites to improve your chances of passing an ATS screen. Free, runs entirely in the ' +
+         'browser and invents nothing. Needs your own Gemini API key (free from Google AI Studio).';
 }
 
 function ttShareNote(msg, kind) {
@@ -17995,7 +18710,7 @@ function interviewSheetText() {
   }
   out.push('', H('3. מה המשרה מבקשת ואין לזה כיסוי'));
   if (!s.missing.length && !s.nameGaps.length) out.push(H('   אין דרישה שנשארה בלי כיסוי.'));
-  s.missing.forEach(function (g) { out.push('   • ' + g.text + (g.must ? '   [חובה]' : '')); });
+  s.missing.forEach(function (g) { out.push('   • ' + g.text + (g.must ? H('   [חובה]') : '')); });
   if (s.nameGaps.length) {
     out.push(H('  מוכח בתוכן ולא בשם:'));
     s.nameGaps.forEach(function (g) {
@@ -18537,7 +19252,7 @@ function buriedMetricPanel(doc) {
   return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
     H('<div class="text-xs uppercase tracking-wide text-slate-500 mb-1">מספרים שקבורים בסוף השורה</div>') +
     '<div class="text-slate-700">' + buried.length +
-    (buried.length === 1 ? ' שורה מכילה נתון מדיד' : H(' שורות מכילות נתון מדיד')) +
+    (buried.length === 1 ? H(' שורה מכילה נתון מדיד') : H(' שורות מכילות נתון מדיד')) +
     H(' שמופיע רק אחרי המילה ה־') + first.at + H('. קורא שסורק עוצר הרבה לפני זה, ') +
     H('ולכן הנתון נספר במדדים כקיים אבל בפועל לא נראה.</div>') +
     '<div class="text-xs text-slate-500 mt-1">' + escapeHtml(first.text.slice(0, 90)) +
