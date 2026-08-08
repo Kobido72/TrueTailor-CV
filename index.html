@@ -1271,10 +1271,192 @@
     }
   }
 
+  /* =========================================================================
+     v38.5
+     Three visual changes and nothing else. Written last, so it overrides by
+     position as well as by weight, exactly like the theme block above it.
+     ========================================================================= */
+
+  /* ---- 1. the two input boxes, level with each other ----
+     .tt-card + .tt-card exists so that stacked cards down the page keep 16px
+     between them. Inside #inputCard the two cards are adjacent siblings in a
+     GRID, where the gap already provides that space, so the rule was adding a
+     top margin to the second card only. In a grid the item still stretches to
+     the row, which is why the posting box ended level with the resume box at
+     the bottom and sat 16px lower at the top: same height row, shorter box.
+     On a narrow screen the same rule was adding 16px on top of the 16px gap. */
+  #inputCard > .tt-card + .tt-card { margin-top: 0; }
+
+  /* ---- 2. the beige band ----
+     The shell is a near white and the working surfaces are white, which is a
+     four per cent difference in luminance and reads as one flat surface with
+     faint outlines drawn on it. The band gives the cards something to sit on.
+
+     It is the CONTAINER that is tinted, not the page: .tt-top is pulled to the
+     padding edge of this same element with a negative margin, so the band comes
+     out at exactly the width of the top bar and stops there.
+
+     Phones keep the old white. At that width the container is nearly the whole
+     screen, so a tint on it is a tint on everything, and the effect the band
+     exists for cannot happen. */
+  @media (min-width: 768px) {
+    .tt-shell {
+      background: #F2EBDD;
+      border-inline: 1px solid rgba(60, 74, 62, .16);
+      border-bottom: 1px solid rgba(60, 74, 62, .16);
+      border-radius: 0 0 var(--r-lg) var(--r-lg);
+    }
+    /* The launch bar was a teal and brass wash chosen against a near white
+       ground. On beige it reads as a stain, so it becomes paper like the cards
+       around it and keeps its hairline. */
+    .tt-shell .tt-launch {
+      background: #FBF7EF;
+      border-color: rgba(60, 74, 62, .18);
+    }
+    /* Nothing else is retinted. The step pills were a candidate and were left
+       alone deliberately: .tt-shell .tt-step and .tt-step.is-now carry the same
+       specificity, so a border colour written here would have come later in the
+       file and quietly won, and the ring that marks which stage you are on
+       would have gone flat. The pills are white on olive inside the top bar
+       anyway, so the beige never reaches them. */
+  }
+
+  /* ---- 3. the top bar cannot overlap itself any more ----
+     .tt-brand carries min-width:0 so that it may shrink, and a flex item that
+     may shrink below its content does not clip that content: it lets it spill.
+     Below roughly 860px the brand, the version badge and the three buttons stop
+     fitting on one line, and what spilled was the badge, straight under the
+     buttons. Wrapping is the fix; the buttons take a line of their own and
+     nothing overlaps at any width. */
+  @media (max-width: 860px) {
+    .tt-top-in { flex-wrap: wrap; row-gap: 9px; }
+    .tt-brand  { flex: 1 1 100%; }
+    .tt-topctl { flex: 1 1 100%; align-items: flex-end; }
+    .tt-topctl-row { flex-wrap: wrap; justify-content: flex-end; }
+  }
+  /* Belt and braces at every width: the text block may shrink, and when it does
+     it wraps instead of running out of its own box. */
+  .tt-brand > span:not(.tt-mark):not(.tt-ver) { min-width: 0; }
+  .tt-brandname, .tt-brandsub { overflow-wrap: anywhere; }
+
+  /* ---- 4. the fit verdict ----
+     One panel, drawn twice: once when the comparison finishes and once after
+     the answers have been measured against the finished document. The five
+     colours are set as variables on the wrapper, so the whole panel is retinted
+     by changing four values and nothing inside it needs to know the level. */
+  .tt-vd {
+    border: 1px solid var(--vd-line); background: var(--vd-bg);
+    border-radius: var(--r-lg); overflow: hidden; color: var(--vd-ink);
+  }
+  .tt-vd-top {
+    display: flex; align-items: flex-start; gap: 18px;
+    padding: 16px 18px; border-inline-start: 6px solid var(--vd-key);
+  }
+  .tt-vd-main { flex: 1 1 auto; min-width: 0; }
+  .tt-vd-kicker {
+    font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    opacity: .72; margin-bottom: 7px;
+  }
+  .tt-vd-pillrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tt-vd-pill {
+    background: var(--vd-key); color: #fff; border-radius: 999px;
+    padding: 4px 13px; font-size: .76rem; font-weight: 800; white-space: nowrap;
+  }
+  .tt-vd-meter { display: inline-flex; gap: 3px; }
+  .tt-vd-seg {
+    width: 20px; height: 6px; border-radius: 999px;
+    background: rgba(0, 0, 0, .10);
+  }
+  .tt-vd-seg.is-on { background: var(--vd-key); }
+  .tt-vd-head {
+    font-family: var(--tt-display); font-size: 1.14rem; font-weight: 800;
+    line-height: 1.3; margin: 0 0 6px; color: var(--vd-ink);
+  }
+  .tt-vd-text { font-size: .88rem; line-height: 1.55; margin: 0; color: var(--vd-ink); opacity: .92; }
+  .tt-vd-facts { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: .75rem; opacity: .85; }
+  .tt-vd-facts b { font-weight: 800; }
+  .tt-vd-score {
+    flex: none; text-align: center; line-height: 1; padding-top: 4px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .tt-vd-score b {
+    font-family: var(--tt-display); font-size: 2.7rem; font-weight: 900;
+    color: var(--vd-key); letter-spacing: -.03em;
+  }
+  .tt-vd-score span { font-size: .74rem; opacity: .7; }
+  /* The before and after reading. The old number is not struck through: it was
+     an honest measurement of an honest document and it is still true of the one
+     the candidate started with. */
+  .tt-vd-score.is-delta { flex-direction: row; align-items: baseline; gap: 7px; padding-top: 2px; }
+  .tt-vd-was { font-family: var(--tt-display); font-size: 1.5rem; font-weight: 800; opacity: .5; }
+  .tt-vd-arrow { font-size: 1.05rem; opacity: .6; }
+  .tt-vd-more {
+    border-top: 1px solid var(--vd-line); padding: 11px 18px; font-size: .78rem;
+    background: rgba(255, 255, 255, .45);
+  }
+  .tt-vd-more + .tt-vd-more { border-top: 1px solid var(--vd-line); }
+  .tt-vd-more b { font-weight: 800; }
+  .tt-vd-more ul { list-style: disc; padding-inline-start: 18px; margin-top: 4px; }
+  .tt-vd-note {
+    border-top: 1px solid var(--vd-line); padding: 12px 18px;
+    background: rgba(255, 255, 255, .6); font-size: .86rem; line-height: 1.55;
+  }
+  .tt-vd-note p { margin: 0; }
+  .tt-vd-pair { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; font-size: .78rem; }
+  .tt-vd-pair .tt-vd-pill { font-size: .72rem; padding: 3px 11px; }
+  .tt-vd-pair .tt-vd-was-pill { background: rgba(0, 0, 0, .28); }
+  @media (max-width: 620px) {
+    .tt-vd-top { flex-direction: column; gap: 10px; }
+    .tt-vd-score { flex-direction: row; align-items: baseline; gap: 6px; align-self: flex-start; }
+    .tt-vd-score b { font-size: 2.1rem; }
+  }
+
+  /* ---- v38.6: the dialog shell ----
+     .tt-modal and .tt-modal-box were referenced by the translate target dialog
+     and never defined anywhere, so that dialog was rendering as an unstyled
+     block appended to the end of the document, below the fold, while the page
+     behind it stayed live. Defining them here fixes that dialog as well as the
+     one this version adds. */
+  .tt-modal {
+    position: fixed; inset: 0; z-index: 60;
+    background: rgba(13, 24, 38, .5);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+    animation: ttfade .16s ease both;
+  }
+  .tt-modal-box {
+    background: var(--c-paper); color: var(--c-ink);
+    border-radius: var(--r-lg); box-shadow: 0 30px 70px -30px rgba(13, 24, 38, .7);
+    padding: 20px; width: 100%; max-width: 420px;
+    max-height: 86vh; overflow: auto;
+    animation: ttrise .22s cubic-bezier(.2,.8,.3,1) both;
+  }
+  @keyframes ttfade { from { opacity: 0 } to { opacity: 1 } }
+
+  /* Also referenced and never defined: the neutral note used when the second
+     fit reading could not be taken. */
+  .tt-note {
+    border: 1px solid var(--c-line-2); background: #F8FAFC;
+    border-radius: var(--r-md); padding: 12px 14px; font-size: .86rem; line-height: 1.55;
+    color: var(--c-ink-2);
+  }
+
+  /* ---- the key alarm ----
+     Amber, not red. The key being refused is not an error the candidate made
+     and not a failure of the app; it is a state with two known causes and two
+     buttons that fix it. Red would say something has gone wrong that they
+     should worry about. */
+  .tt-keyalarm {
+    border: 1px solid #FCD34D; background: #FFFBEB; color: #78350F;
+    border-radius: var(--r-md); padding: 13px 15px;
+  }
+  .tt-keyalarm h4 { font-family: var(--tt-display); font-weight: 800; font-size: .98rem; margin: 0 0 4px; }
+  .tt-keyalarm p { font-size: .85rem; line-height: 1.55; margin: 0; }
+  .tt-keyalarm .tt-keyalarm-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
+
 </style>
 </head>
 <body>
-<div class="max-w-6xl mx-auto p-4 pb-28">
+<div class="max-w-6xl mx-auto p-4 pb-28 tt-shell">
 
   <header class="tt-top">
     <div class="tt-top-in">
@@ -1284,7 +1466,7 @@
           <span class="tt-brandname">TrueTailor <em>CV</em></span>
           <span class="tt-brandsub">התאמת קורות חיים למשרה, בלי להמציא כלום</span>
         </span>
-        <span class="tt-ver" id="verBadge">v38.4</span>
+        <span class="tt-ver" id="verBadge">v38.8</span>
       </div>
       <!-- The animation owns the middle of the bar. A posting rolls in from
            one side, a resume from the other, they meet, and one finished
@@ -1443,6 +1625,10 @@
              class="tt-field flex-1 min-w-[240px] font-mono" style="padding:9px 12px">
       <button id="btnSaveKey" class="tt-btn tt-btn-dark">שמור</button>
       <button id="btnTestKey" class="tt-btn tt-btn-primary">בדוק חיבור</button>
+      <!-- Only shown when there is something to remove. A destructive control
+           that is present and inert on an empty form is a control that gets
+           pressed to find out what it does. -->
+      <button id="btnRemoveKey" class="tt-btn tt-btn-danger tt-hidden" title="הסר מפתח">🗑️ הסר מפתח</button>
       <button id="btnGetKey" class="tt-btn tt-btn-ok">🔑 קבל מפתח API בחינם</button>
       <button id="btnHowKey" class="tt-btn">איך עושים את זה?</button>
     </div>
@@ -1454,6 +1640,9 @@
       <input id="keyPersistToggle" type="checkbox" checked class="w-4 h-4 accent-emerald-600">
       <span>זכור את המפתח במחשב הזה</span>
     </label>
+    <!-- Filled by renderKeyProblem() when Google refuses the key. Empty and
+         hidden the rest of the time. -->
+    <div id="keyProblem" class="tt-hidden mt-3"></div>
     <p id="keyStatus" class="text-sm mt-2 text-slate-500">המפתח נשמר בדפדפן שלך בלבד ולא נשלח לשום מקום מלבד Google. אם תסירו את הסימון למעלה, הוא יימחק עם סגירת הלשונית.</p>
   </section>
 
@@ -1469,6 +1658,12 @@
         <li>העתק את המפתח שנוצר.</li>
         <li>חזור לאפליקציה, הדבק בתיבה למעלה, לחץ <b>שמור</b> ואז <b>בדוק חיבור</b>.</li>
       </ol>
+      <!-- The one thing that actually kills a key in practice. Google is a
+           secret scanning partner of the public code hosts, so a key pushed to
+           a public repository is reported to Google and disabled, usually
+           within minutes. Said here, before the key exists, because afterwards
+           it is a post mortem. -->
+      <p id="howKeyExposure" class="text-sm mt-3 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">שמור את המפתח לעצמך. מפתח שנדחף למאגר קוד ציבורי מדווח ל־Google ומושבת אוטומטית, ואז יהיה צריך להנפיק אחד חדש.</p>
       <div class="flex gap-2 mt-4">
         <button id="btnModalGetKey" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm">פתח את AI Studio</button>
         <button id="btnHowKeyClose" class="px-4 py-2 rounded-lg border border-slate-300 text-sm">סגור</button>
@@ -1613,7 +1808,6 @@
          it belongs at the top, in a colour that can be read from across the
          room. Filled by renderMatchVerdict(). -->
     <div id="matchVerdict" class="mb-4"></div>
-    <div id="fitDelta" class="mb-4"></div>
     <div class="grid md:grid-cols-2 gap-4">
       <div class="md:order-1">
         <h3 id="analysisJobHead" class="text-sm font-semibold text-slate-600 mb-2">מה המשרה מבקשת</h3>
@@ -1735,6 +1929,12 @@
 
   <!-- STEP 6a  CHECKS AND RESULT  (now ahead of the preview) -->
   <section id="resultCard" class="tt-hidden tt-card mb-4">
+    <!-- The second reading of the fit, placed where the candidate actually is
+         when it finishes. It used to be drawn into the stage 1 and 2 card at
+         the top of the page, which is three screens behind them by this point,
+         so the one panel that answers "did any of that help" was rendered into
+         a place nobody was looking at. -->
+    <div id="fitDelta" class="mb-4"></div>
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
       <h2 class="tt-card-title"><span class="tt-tag">שלב 6</span>בדיקות ותוצאה</h2>
       <div class="tt-tabbar">
@@ -1878,7 +2078,7 @@
    friends without a module loader.
    ========================================================================= */
 
-var TT_VERSION = 'v38.4';
+var TT_VERSION = 'v38.8';
 
 var APP = {
   apiKey: '',
@@ -1905,6 +2105,11 @@ var APP = {
      it sits inside the space that already exists above a heading and therefore
      costs no height at all. Both of those were measured, not assumed. */
   sectionRule: true,
+  verdictBefore: null,  // the fit as first measured, kept for the before and after
+  verdictAfter: null,   // the fit as measured again against the finished document
+  fitDelta: null,       // what the answers bought, computed in runFitRecheck
+  narrative: {},        // {before,after} -> {headline, explanation, lang}
+  keyProblem: null,     // set when Google refuses the key, cleared on the next call that works
   world: null,          // stage 1b: what occupation each side belongs to
   route: '',            // stop | work | polish. what this run is actually for
   skillModel: null,     // parsed skills section: groups + items
@@ -3795,6 +4000,23 @@ function getApiKey() {
   return APP.apiKey;
 }
 
+/* Removing the key from this browser. Deliberately NOT called "revoke": the
+   key belongs to the candidate's own Google account and this file has no way to
+   cancel it there, so the wording everywhere around this function says browser
+   and never says revoked. Saying otherwise would be a security promise the app
+   cannot keep, and someone whose key had leaked would stop worrying about it. */
+function clearApiKey() {
+  APP.apiKey = '';
+  try { localStorage.removeItem(TT_KEY_NAME); } catch (e) {}
+  try { sessionStorage.removeItem(TT_KEY_NAME); } catch (e) {}
+  /* The model list was discovered with that key and describes what that key
+     could reach. Kept, and it would be presented as the truth about the next
+     one. */
+  try { localStorage.removeItem(TT_MODELS_CACHE_KEY); } catch (e) {}
+  TT_DISCOVERED = null;
+  APP.keyProblem = null;
+}
+
 function saveApiKey(key) {
   APP.apiKey = String(key || '').trim();
   var store = keyPersists() ? 'local' : 'session';
@@ -3869,10 +4091,45 @@ function finishReasonOf(json) {
 }
 function wasTruncated(json) { return /MAX_TOKENS/i.test(finishReasonOf(json)); }
 
+/* ---------- when Google stops accepting the key ----------
+   Two different things arrive as the same refusal and the difference matters to
+   the candidate: a key that was never right, and a key that was right and has
+   been switched off. Google disables keys that turn up in public code, because
+   it is a secret scanning partner of the public code hosts, and the message it
+   returns for that is the same API_KEY_INVALID as for a key with a character
+   missing. Nothing in the browser can tell them apart, so the panel names both
+   and claims neither.
+
+   Recorded as state rather than shouted, because this funnel is reached once
+   per model in the cascade: seven refusals for one dead key would otherwise be
+   seven scrolls back to the settings card. */
+function ttNoteKeyProblem(kind) {
+  var first = !APP.keyProblem;
+  APP.keyProblem = { kind: kind, at: Date.now() };
+  try { renderKeyProblem(); } catch (e) {}
+  if (first) {
+    try {
+      show('settingsCard');
+      var el = $('keyProblem');
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (e) {}
+  }
+}
+
+function ttClearKeyProblem() {
+  if (!APP.keyProblem) return;
+  APP.keyProblem = null;
+  try { renderKeyProblem(); } catch (e) {}
+}
+
 function apiErrorMessage(status, json) {
   var detail = (json && json.error && json.error.message) || '';
   if (status === 400 && /API key not valid|API_KEY_INVALID/i.test(detail)) {
+    ttNoteKeyProblem('invalid');
     return H('המפתח שהוזן אינו תקין. בדוק שהעתקת אותו במלואו מ־Google AI Studio.');
+  }
+  if (status === 403 && /API_KEY|api key|SERVICE_DISABLED|PERMISSION_DENIED|suspended/i.test(detail)) {
+    ttNoteKeyProblem('denied');
   }
   /* Decision 24. Google returns the same 400 or 403 for a key that is fine but
      used from a country the API does not serve. Left generic, the person is
@@ -3880,10 +4137,8 @@ function apiErrorMessage(status, json) {
      temporary, and there is nothing they can do about this one. Naming it is
      the whole fix. */
   if (/User location is not supported|location is not supported|FAILED_PRECONDITION/i.test(detail)) {
-    return L(H('המפתח תקין, אבל Gemini API אינו זמין במדינה שממנה אתה גולש. ') +
-             H('זו מגבלה של גוגל ולא של האפליקציה, ואין דרך לעקוף אותה מכאן.'),
-             'The key is valid, but the Gemini API is not available in the country you are browsing from. ' +
-             'That is a Google restriction, not an app one, and it cannot be worked around from here.');
+    return H('המפתח תקין, אבל Gemini API אינו זמין במדינה שממנה אתה גולש. ') +
+             H('זו מגבלה של גוגל ולא של האפליקציה, ואין דרך לעקוף אותה מכאן.');
   }
   if (status === 403) return H('הגישה נדחתה (403). ייתכן שה־API לא מופעל בפרויקט או שהמפתח מוגבל.');
   if (status === 429) return H('חרגת ממכסת השימוש (429). נסה שוב בעוד דקה או השתמש במפתח אחר.');
@@ -3922,6 +4177,8 @@ async function callGeminiRaw(contents, opts) {
       continue;                                    // straight to the next model
     }
     if (r.ok) {
+      /* Whatever was wrong with the key is not wrong any more. */
+      try { ttClearKeyProblem(); } catch (e) {}
       var text = extractText(r.json);
       if (!text) {
         var blocked = r.json && r.json.promptFeedback && r.json.promptFeedback.blockReason;
@@ -6309,11 +6566,92 @@ function termWeight(term, req, ctx, freq) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
-var TT_KW_TIERS = [
-  { min: 75, key: 'critical',  label: H('קריטית'), cls: 'bg-red-100 text-red-900' },
-  { min: 50, key: 'important', label: H('חשובה'),  cls: 'bg-amber-100 text-amber-900' },
-  { min: 0,  key: 'minor',     label: H('משנית'),  cls: 'bg-slate-100 text-slate-600' }
-];
+/* =========================================================================
+   LABEL TABLES THAT DO NOT FREEZE
+
+   A table written as   var KIND_LABEL = { tool: H('כלי'), ... }   calls H at the
+   moment the file is parsed. At that moment the interface language is Hebrew,
+   because nothing has read the saved preference yet, so H returns the Hebrew and
+   the table keeps that string for the rest of the session. Every later switch of
+   the interface language repaints the panels correctly and the panels then read
+   Hebrew out of these tables and print it. That is the whole bug: eleven tables,
+   fifty one labels, and none of them ever translated. It is invisible in Hebrew,
+   which is why it survived.
+
+   ttLive stores the Hebrew and translates on READ instead. Every existing use
+   site keeps working untouched: KIND_LABEL.tool is still a property access, it
+   simply resolves through H at the moment it is read, which is render time, when
+   the language is known.
+
+   Values that are not translatable pass through H unchanged, because H returns
+   its argument when the key is not in the table. So a CSS class or a hex colour
+   sitting in the same object costs one failed lookup and nothing else. */
+function ttLive(o) {
+  /* Arrays get the same treatment as objects and for the same reason: the
+     section label pairs are stored as ['תקציר','Summary'], and mapping a string
+     element through ttLive would return the string itself, leaving the Hebrew
+     in place. Index properties are defined the same way as named ones. */
+  if (Array.isArray(o)) {
+    var arr = [];
+    o.forEach(function (v, i) {
+      if (typeof v === 'string') {
+        (function (raw) {
+          Object.defineProperty(arr, i, {
+            get: function () { return H(raw); },
+            enumerable: true, configurable: true
+          });
+        })(v);
+      } else {
+        arr[i] = ttLive(v);
+      }
+    });
+    arr.length = o.length;
+    return arr;
+  }
+  if (!o || typeof o !== 'object') return o;
+  var out = {};
+  Object.keys(o).forEach(function (k) {
+    var v = o[k];
+    if (typeof v === 'string') {
+      (function (raw) {
+        Object.defineProperty(out, k, {
+          get: function () { return H(raw); },
+          enumerable: true, configurable: true
+        });
+      })(v);
+    } else {
+      out[k] = ttLive(v);
+    }
+  });
+  return out;
+}
+
+/* Same idea, for tables where only named fields are prose and the rest is
+   typography that must stay exactly as written. Mutates in place and returns the
+   table, so it can be applied after a definition that is too long to wrap. */
+function ttLiveFields(map, fields) {
+  Object.keys(map).forEach(function (k) {
+    var entry = map[k];
+    if (!entry || typeof entry !== 'object') return;
+    fields.forEach(function (f) {
+      var raw = entry[f];
+      if (typeof raw !== 'string') return;
+      (function (r) {
+        Object.defineProperty(entry, f, {
+          get: function () { return H(r); },
+          enumerable: true, configurable: true
+        });
+      })(raw);
+    });
+  });
+  return map;
+}
+
+var TT_KW_TIERS = ttLive([
+  { min: 75, key: 'critical',  label: 'קריטית', cls: 'bg-red-100 text-red-900' },
+  { min: 50, key: 'important', label: 'חשובה',  cls: 'bg-amber-100 text-amber-900' },
+  { min: 0,  key: 'minor',     label: 'משנית',  cls: 'bg-slate-100 text-slate-600' }
+]);
 
 function keywordTier(weight) {
   for (var i = 0; i < TT_KW_TIERS.length; i++) if (weight >= TT_KW_TIERS[i].min) return TT_KW_TIERS[i];
@@ -6857,10 +7195,10 @@ function sectionKeywordGaps(sectionText, limit) {
   return lines.join('\n');
 }
 
-var KIND_LABEL = {
-  hard_skill: H('כישור'), tool: H('כלי'), soft_skill: H('כישור רך'), responsibility: H('תחום אחריות'),
-  domain: H('תחום'), certification: H('הסמכה'), education: H('השכלה')
-};
+var KIND_LABEL = ttLive({
+  hard_skill: 'כישור', tool: 'כלי', soft_skill: 'כישור רך', responsibility: 'תחום אחריות',
+  domain: 'תחום', certification: 'הסמכה', education: 'השכלה'
+});
 
 function renderSignals() {
   var s = APP.signals, el = $('signalsOut');
@@ -6904,7 +7242,7 @@ function renderSignals() {
               '<div dir="' + d + '">';
       top.forEach(function (k) {
         html += '<span class="inline-block rounded-full px-2 py-0.5 text-xs mb-1 me-1 bg-red-100 text-red-900 font-semibold" ' +
-                'title="' + escapeHtml(H('משקל ') + k.weight + (k.freq ? H(', מופיעה במודעה ') + k.freq + ' פעמים' : H(', לא מופיעה מילולית במודעה'))) + '">' +
+                'title="' + escapeHtml(H('משקל ') + k.weight + (k.freq ? H(', מופיעה במודעה ') + k.freq + H(' פעמים') : H(', לא מופיעה מילולית במודעה'))) + '">' +
                 escapeHtml(k.term) + '</span>';
       });
       html += H('</div><div class="text-[11px] text-red-800 mt-1">נמדד מתוך המודעה: הופעה בכותרת התפקיד, חזרתיות, מיקום בפתיחה, וסימון כחובה.</div></div>');
@@ -6962,6 +7300,12 @@ var TT_DISTANCE = {
   neighbor_class: { value: 0.30, capShare: 0.30, penalty: 0.94, he: '\u05de\u05e9\u05e4\u05d7\u05d4 \u05e9\u05db\u05e0\u05d4' },
   unrelated:      { value: 0.05, capShare: 0.18, penalty: 0.82, he: '\u05e2\u05d5\u05dc\u05dd \u05d0\u05d7\u05e8 \u05dc\u05d2\u05de\u05e8\u05d9' }
 };
+/* The .he field is printed to the candidate in three places, and it was printed
+   as written whatever the interface language was: "the same thing, a different
+   variant" in Hebrew, in the middle of an English sentence about an English
+   posting. The property keeps its name so that no call site changes; what it
+   returns is now translated at the moment it is read. */
+ttLiveFields(TT_DISTANCE, ['he']);
 
 async function stepCoverage() {
   var raw = await callGemini(promptCoverage(surgeonView(APP.doc), APP.signals, TT_UI_LANG, APP.resumeRaw), {
@@ -7031,16 +7375,16 @@ async function stepCoverage() {
   return { coverage: out, findings: findings };
 }
 
-var COVER_STYLE = {
-  direct:     { label: H('מוכח'),        cls: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-  equivalent: { label: H('ראיה מקבילה'), cls: 'bg-sky-100 text-sky-800 border-sky-300' },
-  partial:    { label: H('חלקי'),        cls: 'bg-amber-100 text-amber-800 border-amber-300' },
+var COVER_STYLE = ttLive({
+  direct:     { label: 'מוכח',        cls: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  equivalent: { label: 'ראיה מקבילה', cls: 'bg-sky-100 text-sky-800 border-sky-300' },
+  partial:    { label: 'חלקי',        cls: 'bg-amber-100 text-amber-800 border-amber-300' },
   /* Not a verdict. The resume is silent, and silence about a degree or a
      headcount proves nothing in either direction. It goes to stage 3 as a
      question rather than being counted as a failure. */
-  unknown:    { label: H('לא ידוע'),     cls: 'bg-slate-100 text-slate-700 border-slate-300' },
-  missing:    { label: H('חסר'),         cls: 'bg-red-100 text-red-800 border-red-300' }
-};
+  unknown:    { label: 'לא ידוע',     cls: 'bg-slate-100 text-slate-700 border-slate-300' },
+  missing:    { label: 'חסר',         cls: 'bg-red-100 text-red-800 border-red-300' }
+});
 
 /* One number, one definition of what a covered requirement is worth.
 
@@ -7569,8 +7913,31 @@ function matchVerdict() {
       (heaviest.adjacent ? H('. בקורות החיים מופיעה ') + heaviest.adjacent + ' — ' + hd.he + '.' : '.');
   }
 
+  /* ---------- THE FIVE READINGS ----------
+     Three names could not carry what the number already knew. Any must have
+     that is not fully proved keeps the verdict out of the top band whatever the
+     rest of the document says, which is correct, and the consequence was that
+     66 and 91 arrived on screen wearing the same word. A candidate cannot act
+     on a label that covers half the scale.
+
+     Five names split that range and change nothing underneath: the score, the
+     gates, the penalties and the ceiling are computed exactly as they were, and
+     the level is a reading of the result rather than an input to it.
+
+     The caps are the part that matters, and they only ever lower. A name is
+     read as a verdict, so no name may say more than the evidence does: an
+     unproven must have cannot reach the top two names, a gate that is barely
+     touched cannot leave the bottom two, and a posting built around a system
+     the resume never names stays at the floor. */
+  var level = pct >= 80 ? 5 : pct >= 65 ? 4 : pct >= 50 ? 3 : pct >= 35 ? 2 : 1;
+  if (band === 'mid' && level > 4) level = 4;
+  if (band === 'low' && level > 2) level = 2;
+  if (musts && mustShare < 0.999 && level > 4) level = 4;
+  if (musts && mustShare < 0.34 && level > 2) level = 2;
+  if (heaviest && cap === 'low' && level > 1) level = 1;
+
   return {
-    band: band, score: pct, rawScore: raw, reason: reason, detail: detail,
+    band: band, level: level, score: pct, rawScore: raw, reason: reason, detail: detail,
     musts: musts, mustsProved: mustsProved, direct: direct,
     kwOverlap: kwOverlap, missingMusts: missingMusts.slice(0, 4),
     missingCerts: missingCerts, scaleGaps: scaleGaps,
@@ -7580,49 +7947,81 @@ function matchVerdict() {
 }
 
 
-var TT_VERDICT_STYLE = {
-  low:  { wrap: 'border-red-400 bg-red-50', dot: 'bg-red-500', text: 'text-red-900', label: H('רמת תאימות נמוכה') },
-  mid:  { wrap: 'border-amber-400 bg-amber-50', dot: 'bg-amber-500', text: 'text-amber-900', label: H('רמת תאימות בינונית') },
-  high: { wrap: 'border-emerald-400 bg-emerald-50', dot: 'bg-emerald-500', text: 'text-emerald-900', label: H('רמת תאימות גבוהה') }
+/* ---------------- the five colours ----------------
+   Red, orange, yellow, lime, green. Only the four values per level live here;
+   nothing inside the panel knows which level it is drawing, it reads the
+   variables off the wrapper. */
+var TT_LEVEL_STYLE = {
+  1: { k: '#B7261C', bg: '#FDECEA', ln: '#F0C4C0', ink: '#7A1712' },
+  2: { k: '#C2410C', bg: '#FDF0E6', ln: '#F2D2BA', ink: '#7C2D12' },
+  3: { k: '#B45309', bg: '#FEF8E6', ln: '#EEDFAD', ink: '#713F12' },
+  4: { k: '#4D7C0F', bg: '#F4F8E8', ln: '#D8E6BC', ink: '#3F6212' },
+  5: { k: '#15803D', bg: '#EAF7EE', ln: '#BFE2CC', ink: '#14532D' }
 };
 
-function renderMatchVerdict() {
-  /* The first reading is kept as it was. Without a snapshot there is nothing
-     to compare against later, and the recheck overwrites the coverage rows it
-     touches. */
-  if (!APP.verdictBefore) {
-    try { APP.verdictBefore = matchVerdict(); } catch (e) {}
-  }
-  var el = $('matchVerdict');
-  if (!el) return;
-  var v = matchVerdict();
-  if (!v) { el.innerHTML = ''; return; }
-  var s = TT_VERDICT_STYLE[v.band];
+/* Names and headlines are functions, not a table. A table of H() calls is
+   evaluated once when the file loads, which is in Hebrew, and then keeps
+   saying Hebrew for the rest of the session however many times the interface
+   language changes afterwards. The three colour table this replaces had
+   exactly that flaw, and it is invisible until somebody switches language. */
+function ttLevelName(lv) {
+  return lv <= 1 ? H('התאמה נמוכה')
+       : lv === 2 ? H('התאמה נמוכה־בינונית')
+       : lv === 3 ? H('התאמה בינונית')
+       : lv === 4 ? H('התאמה בינונית־גבוהה')
+       : H('התאמה גבוהה');
+}
 
-  var advice =
-    v.band === 'low'
-      ? H('<p class="text-sm mt-2"><b>התאמה כאן כנראה לא תעזור.</b> האפליקציה מנסחת מחדש את מה שכתוב, ') +
-        H('היא לא ממציאה ניסיון שאינו קיים. כשהפער הוא בתפקיד עצמו ולא בניסוח, קורות חיים מותאמים לא ישנו את התוצאה. ') +
-        H('עדיף להשקיע את הזמן במשרה קרובה יותר לניסיון שלך.</p>')
-      : v.band === 'mid'
-      ? H('<p class="text-sm mt-2">יש בסיס אמיתי לעבוד איתו, אבל הוא לא מלא. התשובות בשלב 3 יקבעו כמה מהפערים ייסגרו, ') +
-        H('ומה שאין לך לא ייכנס לקובץ.</p>')
-      : H('<p class="text-sm mt-2">קורות החיים כבר מכילים את מה שהמשרה מחפשת. העבודה כאן היא בעיקר ניסוח, ') +
-        H('כדי שהדברים ייאמרו בשפה שהמשרה משתמשת בה.</p>');
+/* The fallback headline. It is written from the level alone, so it is true of
+   every profession and says nothing the measurement did not establish. When the
+   model's sentence arrives it replaces this one; when it does not, or when the
+   interface language has moved on since it was written, this is what stays. */
+function ttLevelHeadline(lv) {
+  return lv <= 1 ? H('הפער כאן הוא בניסיון עצמו, לא בניסוח')
+       : lv === 2 ? H('יש נקודות השקה, אבל ליבת המשרה עדיין לא מכוסה')
+       : lv === 3 ? H('בסיס אמיתי קיים, וחלק מהדרישות עדיין לא מוכחות')
+       : lv === 4 ? H('התאמה טובה, עם כמה פערים שאפשר לסגור')
+       : H('קורות החיים מכסים את מה שהמשרה מבקשת');
+}
 
-  /* The numbers the verdict was computed from, shown rather than summarised.
-     A candidate who is being told their fit is poor is owed the evidence, and
-     the two figures below are the ones a screener effectively uses: how many
-     gates they pass, and how much of the posting's own vocabulary is anywhere
-     in their document. */
-  var facts = '<div class="flex flex-wrap gap-3 mt-2 text-xs ' + s.text + ' opacity-90">' +
+function ttLevelMeter(lv) {
+  var out = '<span class="tt-vd-meter" aria-hidden="true">';
+  for (var i = 1; i <= 5; i++) out += '<span class="tt-vd-seg' + (i <= lv ? ' is-on' : '') + '"></span>';
+  return out + '</span>';
+}
+
+function ttVerdictShell(lv, inner) {
+  var st = TT_LEVEL_STYLE[lv] || TT_LEVEL_STYLE[3];
+  return '<div class="tt-vd" dir="' + TT_LANG.dir(TT_UI_LANG) + '" style="' +
+    '--vd-key:' + st.k + ';--vd-bg:' + st.bg + ';--vd-line:' + st.ln + ';--vd-ink:' + st.ink + '">' +
+    inner + '</div>';
+}
+
+/* The numbers the verdict was computed from, shown rather than summarised. A
+   candidate who is being told their fit is poor is owed the evidence, and these
+   are the two figures a screener effectively uses: how many gates they pass,
+   and how much of the posting's own vocabulary is anywhere in their document. */
+function ttVerdictFacts(v) {
+  return '<div class="tt-vd-facts">' +
     (v.musts ? H('<span>דרישות חובה מוכחות: <b>') + v.mustsProved + '/' + v.musts + '</b></span>' : '') +
     (v.kwOverlap != null ? H('<span>חפיפת מילות מפתח: <b>') + Math.round(v.kwOverlap * 100) + '%</b></span>' : '') +
     H('<span>התאמות ישירות: <b>') + v.direct + '</b></span>' +
     '</div>';
+}
 
-  var gaps = v.missingMusts.length
-    ? '<div class="mt-2 text-xs ' + s.text + H('"><b>דרישות חובה שאינן מוכחות:</b><ul class="list-disc pr-4 mt-1">') +
+/* What is missing, said with its own name. The three blocks answer three
+   different questions and are kept apart on purpose: a requirement that is not
+   proved, a number that is an order of magnitude short, and a fact the document
+   simply does not state. Only the third of those is something stage 3 can fix.
+
+   The H() keys below open with "> because they were written as the tail of a
+   class attribute in the version this replaces. They are kept exactly as they
+   were so that all eleven translations of them stay in force. */
+function ttVerdictDetail(v) {
+  var out = '';
+
+  if (v.missingMusts.length) {
+    out += '<div class="tt-vd-more' + H('"><b>דרישות חובה שאינן מוכחות:</b><ul class="list-disc pr-4 mt-1">') +
       v.missingMusts.map(function (m) {
         var note = m.adjacent
                  ? H(' — בקורות החיים ') + m.adjacent.name + ', ' +
@@ -7632,42 +8031,207 @@ function renderMatchVerdict() {
                  : m.status === 'unknown' ? H(' — לא מצוין בקורות החיים')
                  : H(' — לא נמצא כלל');
         return '<li>' + escapeHtml(m.text) + escapeHtml(note) + '</li>';
-      }).join('') + '</ul></div>'
-    : '';
+      }).join('') + '</ul></div>';
+  }
 
   /* A gap of an order of magnitude is not a wording problem and no rewrite will
      touch it, so it is named with both numbers rather than folded into a score
      the candidate cannot take apart. */
-  var scale = v.scaleGaps.length
-    ? '<div class="mt-2 text-xs ' + s.text + H('"><b>פערי סדר גודל:</b><ul class="list-disc pr-4 mt-1">') +
+  if (v.scaleGaps.length) {
+    out += '<div class="tt-vd-more' + H('"><b>פערי סדר גודל:</b><ul class="list-disc pr-4 mt-1">') +
       v.scaleGaps.map(function (g) {
         return '<li>' + escapeHtml(g.text) + H(' — במשרה ') + g.want +
                H(', בקורות החיים ') + g.got + (g.unit ? ' ' + escapeHtml(g.unit) : '') +
                (g.times >= 5 ? H(' <b>(פי ') + g.times + ')</b>' : '') + '</li>';
-      }).join('') + '</ul></div>'
-    : '';
+      }).join('') + '</ul></div>';
+  }
 
   /* What the document does not say, as distinct from what it fails to prove.
      This block is the promise that stage 3 keeps. */
-  var open = v.openQuestions.length
-    ? '<div class="mt-2 text-xs ' + s.text + ' opacity-90">' +
-      '<b>' + v.openQuestions.length + H(' דברים שקורות החיים לא אומרים</b> ונשאל עליהם בשלב 3: ') +
+  if (v.openQuestions.length) {
+    out += '<div class="tt-vd-more"><b>' + v.openQuestions.length +
+      H(' דברים שקורות החיים לא אומרים</b> ונשאל עליהם בשלב 3: ') +
       escapeHtml(v.openQuestions.slice(0, 3).map(function (q) { return q.text; }).join(' · ')) +
-      (v.openQuestions.length > 3 ? ' ועוד' : '') + '</div>'
-    : '';
+      (v.openQuestions.length > 3 ? H(' ועוד') : '') + '</div>';
+  }
 
-  el.innerHTML =
-    '<div class="rounded-xl border-2 ' + s.wrap + ' p-3">' +
-      '<div class="flex items-center gap-2 flex-wrap">' +
-        '<span class="inline-block w-3 h-3 rounded-full ' + s.dot + '"></span>' +
-        '<span class="font-bold text-lg ' + s.text + '">' + s.label + '</span>' +
-        '<span class="text-sm ' + s.text + ' opacity-75">' + v.score + '/100</span>' +
-      '</div>' +
-      '<p class="text-sm mt-1 ' + s.text + '">' + escapeHtml(v.reason) + '</p>' +
-      (v.detail ? '<p class="text-sm mt-1 ' + s.text + ' opacity-85">' + escapeHtml(v.detail) + '</p>' : '') +
-      facts + gaps + scale + open +
-      '<div class="' + s.text + '">' + advice + '</div>' +
-    '</div>';
+  return out;
+}
+
+/* The one paragraph that says what to do about it. Unchanged in wording from
+   the version before this one, and now shown in one place only. */
+function ttVerdictAdvice(v) {
+  var body =
+    v.level <= 2
+      ? H('<p class="text-sm mt-2"><b>התאמה כאן כנראה לא תעזור.</b> האפליקציה מנסחת מחדש את מה שכתוב, ') +
+        H('היא לא ממציאה ניסיון שאינו קיים. כשהפער הוא בתפקיד עצמו ולא בניסוח, קורות חיים מותאמים לא ישנו את התוצאה. ') +
+        H('עדיף להשקיע את הזמן במשרה קרובה יותר לניסיון שלך.</p>')
+      : v.level <= 4
+      ? H('<p class="text-sm mt-2">יש בסיס אמיתי לעבוד איתו, אבל הוא לא מלא. התשובות בשלב 3 יקבעו כמה מהפערים ייסגרו, ') +
+        H('ומה שאין לך לא ייכנס לקובץ.</p>')
+      : H('<p class="text-sm mt-2">קורות החיים כבר מכילים את מה שהמשרה מחפשת. העבודה כאן היא בעיקר ניסוח, ') +
+        H('כדי שהדברים ייאמרו בשפה שהמשרה משתמשת בה.</p>');
+  return '<div class="tt-vd-note">' + body + '</div>';
+}
+
+/* The model's sentence, or the local one. The stored sentence carries the
+   language it was written in: a candidate who switches the interface to Spanish
+   after the run must not be left with a Hebrew headline, and translating it
+   again would cost another call to say something the local text already says
+   correctly in all twelve languages. */
+function ttNarrativeFor(kind, v) {
+  var n = APP.narrative && APP.narrative[kind];
+  if (n && n.lang === TT_UI_LANG && n.headline) return n;
+  return {
+    headline: ttLevelHeadline(v.level),
+    explanation: (v.reason || '') + (v.detail ? ' ' + v.detail : '')
+  };
+}
+
+function ttVerdictHead(v, kicker, txt, scoreHtml, pillsHtml) {
+  return '<div class="tt-vd-top">' +
+    '<div class="tt-vd-main">' +
+      '<div class="tt-vd-kicker">' + escapeHtml(kicker) + '</div>' +
+      (pillsHtml != null ? pillsHtml :
+      '<div class="tt-vd-pillrow">' +
+        '<span class="tt-vd-pill">' + escapeHtml(ttLevelName(v.level)) + '</span>' +
+        ttLevelMeter(v.level) +
+      '</div>') +
+      '<h3 class="tt-vd-head">' + escapeHtml(txt.headline) + '</h3>' +
+      '<p class="tt-vd-text">' + escapeHtml(txt.explanation) + '</p>' +
+      ttVerdictFacts(v) +
+    '</div>' +
+    scoreHtml +
+  '</div>';
+}
+
+/* ---------------- the verdict, before the questions ----------------
+   Drawn from the FIRST reading and only from it. The recheck at stage 6 rewrites
+   the coverage rows it touched, so calling matchVerdict() here after that point
+   would quietly relabel the "before" panel with the "after" numbers and the two
+   panels would agree with each other about a change neither of them showed. */
+function renderMatchVerdict() {
+  if (!APP.verdictBefore) {
+    try { APP.verdictBefore = matchVerdict(); } catch (e) {}
+  }
+  var el = $('matchVerdict');
+  if (!el) return;
+  var v = APP.verdictBefore;
+  if (!v) { el.innerHTML = ''; return; }
+
+  var score = '<div class="tt-vd-score"><b>' + v.score + '</b><span>/100</span></div>';
+  el.innerHTML = ttVerdictShell(v.level,
+    ttVerdictHead(v, H('רמת ההתאמה, לפני שאלות ההתאמה'), ttNarrativeFor('before', v), score) +
+    ttVerdictDetail(v) +
+    ttVerdictAdvice(v));
+}
+
+
+/* =========================================================================
+   THE SENTENCE AT THE TOP OF THE PANEL
+
+   Everything else in the verdict is computed, and computed text reads like it:
+   "3 of 4 must have requirements are proved" is accurate and it is not what a
+   person asks. What they ask is whether this is worth an evening, and the
+   answer to that is a sentence naming the strongest thing they have and the
+   thing that is missing, in the posting's own words.
+
+   Three properties make this safe to hand to a model. It is written from the
+   measurement and not from the resume, so it cannot introduce a claim: every
+   fact in the prompt is one this file already established. It is not awaited,
+   so a slow or failed call costs nothing but the locally built headline, which
+   is already on screen. And it carries the language it was written in, so a
+   later switch of the interface falls back to the local text rather than
+   leaving one paragraph stranded in the previous language.
+   ========================================================================= */
+function promptVerdictNarrative(v, kind, d) {
+  var s = APP.signals || {};
+  var langName = TT_LANG.name(TT_UI_LANG) || 'English';
+  var proved = (APP.coverage || []).filter(function (c) { return c && c.status === 'direct'; })
+    .map(function (c) { var r = reqById(c.req_id); return r ? r.text : ''; })
+    .filter(Boolean).slice(0, 8);
+  var missing = (v.missingMusts || []).map(function (m) { return m.text; }).slice(0, 5);
+  var open = (v.openQuestions || []).map(function (q) { return q.text; }).slice(0, 5);
+
+  var lines = [
+    'You are writing the two lines a candidate reads before deciding whether to spend an evening',
+    'on this application. Write in ' + langName + '.',
+    '',
+    'Return ONLY this JSON, nothing before it and nothing after it:',
+    '{"headline":"","explanation":""}',
+    '',
+    'headline: one line, at most 10 words, no full stop at the end. Name the strongest thing this',
+    'resume brings to this posting and the main thing it is missing, in the same line.',
+    'explanation: 2 or 3 sentences. Say what aligns, then what is underrepresented, using the',
+    'posting\'s own vocabulary. Address the candidate directly.',
+    '',
+    'HARD RULES. Use only the facts listed below. Never state or imply that the candidate has',
+    'experience that is not listed as proved. Never promise that tailoring will close a gap in',
+    'experience. No praise, no encouragement, no exclamation marks. If the fit is poor, say so',
+    'plainly. Do not repeat the score as a number, it is already on screen next to your sentence.',
+    '',
+    'THE POSTING: ' + [s.role_title, s.seniority, s.domain].filter(Boolean).join(', '),
+    'FIT SCORE: ' + v.score + ' out of 100',
+    'MUST HAVE REQUIREMENTS PROVED: ' + v.mustsProved + ' of ' + v.musts,
+    'REQUIREMENTS PROVED DIRECTLY: ' + v.direct,
+    'VOCABULARY OVERLAP: ' + (v.kwOverlap == null ? 'unknown' : Math.round(v.kwOverlap * 100) + '%'),
+    'PROVED IN THE RESUME: ' + (proved.length ? proved.join(' | ') : 'nothing was proved directly'),
+    'REQUIRED AND NOT PROVED: ' + (missing.length ? missing.join(' | ') : 'none'),
+    'THE RESUME DOES NOT SAY: ' + (open.length ? open.join(' | ') : 'nothing outstanding')
+  ];
+
+  if (kind === 'after' && d) {
+    lines.push('');
+    lines.push('THIS IS THE SECOND READING, taken after the candidate answered questions and approved');
+    lines.push('or rejected the proposed rewrites. The document was re-read and only requirements that');
+    lines.push('an answer actually addressed were re-measured.');
+    lines.push('SCORE BEFORE: ' + d.before + '   SCORE NOW: ' + d.after);
+    lines.push('QUESTIONS ANSWERED: ' + d.asked);
+    lines.push('GAPS CLOSED BY THE ANSWERS: ' +
+      ((d.closed || []).length ? d.closed.map(function (c) { return c.text; }).slice(0, 6).join(' | ') : 'none'));
+    lines.push('STILL OPEN: ' +
+      ((d.stillOpen || []).length ? d.stillOpen.map(function (r) { return r.text; }).slice(0, 6).join(' | ') : 'none'));
+    lines.push('');
+    lines.push('The explanation must say WHY the score moved, or why it did not. If it did not move,');
+    lines.push('say that the answers did not add a fact that closes a requirement, and that rewording');
+    lines.push('alone cannot move this number. That is the design, not a fault.');
+  }
+
+  return lines.join('\n');
+}
+
+async function stepVerdictNarrative(kind) {
+  if (!getApiKey()) return;
+  var v = kind === 'after' ? (APP.verdictAfter || APP.verdictBefore) : APP.verdictBefore;
+  if (!v) return;
+  try {
+    var raw = await callGemini(promptVerdictNarrative(v, kind, APP.fitDelta), {
+      json: true, temperature: 0.4, maxOutputTokens: 900, timeoutMs: 45000, maxAttempts: 2
+    });
+    var o = safeJsonParse(raw);
+    if (!o || !o.headline) return;
+    if (!APP.narrative) APP.narrative = {};
+    APP.narrative[kind] = {
+      headline: String(o.headline || '').trim().slice(0, 140),
+      explanation: String(o.explanation || '').trim().slice(0, 700),
+      lang: TT_UI_LANG
+    };
+  } catch (e) {
+    /* Silent on purpose. The panel is already correct and already on screen;
+       this call can only ever replace two lines of it with better ones. */
+  }
+}
+
+/* Fire and forget, from code that is not itself waiting for it. */
+function ttNarrativeRun(kind) {
+  try {
+    var p = stepVerdictNarrative(kind);
+    if (p && p.then) {
+      p.then(function () {
+        try { if (kind === 'after') renderFitDelta(); else renderMatchVerdict(); } catch (e) {}
+      }, function () {});
+    }
+  } catch (e) {}
 }
 
 function renderCoverage() {
@@ -7677,9 +8241,14 @@ function renderCoverage() {
   var sc = coverageScore();
   var d = dirForText(APP.jobRaw);
 
+  /* The weighted coverage figure used to be printed here in bold, a hand's
+     width from the fit score in the verdict panel above. They are two different
+     measurements of two different things and they rarely agree, so the screen
+     carried two large percentages and no way to tell which one answers "should
+     I apply". The bar and the four counts stay, because they say what the
+     statuses are without claiming to be the verdict. */
   var html = '<div class="mb-3 rounded-lg border border-slate-200 p-2">' +
-    H('<div class="flex items-baseline justify-between mb-1"><span class="text-xs text-slate-500">כיסוי הדרישות</span>') +
-    '<span class="font-bold text-lg">' + sc.weighted + '%</span></div>' +
+    H('<div class="text-xs text-slate-500 mb-1">כיסוי הדרישות</div>') +
     '<div class="h-2 rounded-full bg-slate-200 overflow-hidden flex">' +
       bar(sc.counts.direct, 'bg-emerald-500') + bar(sc.counts.equivalent, 'bg-sky-500') +
       bar(sc.counts.partial, 'bg-amber-400') + bar(sc.counts.missing, 'bg-red-400') +
@@ -7709,7 +8278,7 @@ function renderCoverage() {
     html += '<div class="rounded-lg border p-2 ' + st.cls.replace(/bg-\S+/, 'bg-white') + '" dir="' + d + '">' +
       '<div class="flex gap-2 items-start">' +
         '<span class="shrink-0 text-[10px] rounded px-1.5 py-0.5 ' + st.cls + '">' + st.label + '</span>' +
-        '<span class="flex-1"><span class="text-[10px] text-slate-400">' + escapeHtml(c.req_id) + (r.must_have ? ' · חובה' : '') + '</span> ' +
+        '<span class="flex-1"><span class="text-[10px] text-slate-400">' + escapeHtml(c.req_id) + (r.must_have ? H(' · חובה') : '') + '</span> ' +
         escapeHtml(r.text) + '</span>' +
       '</div>';
     if (c.shared_properties.length) {
@@ -7738,11 +8307,11 @@ function renderCoverage() {
   el.innerHTML = html;
 }
 
-var GAP_STYLE = {
-  weak_point:   { label: H('נקודה חלשה'), cls: 'border-amber-300 bg-amber-50' },
-  missing_proof:{ label: H('חסרה הוכחה'), cls: 'border-blue-300 bg-blue-50' },
-  red_flag:     { label: H('סימן אזהרה'), cls: 'border-red-300 bg-red-50' }
-};
+var GAP_STYLE = ttLive({
+  weak_point:   { label: 'נקודה חלשה', cls: 'border-amber-300 bg-amber-50' },
+  missing_proof:{ label: 'חסרה הוכחה', cls: 'border-blue-300 bg-blue-50' },
+  red_flag:     { label: 'סימן אזהרה', cls: 'border-red-300 bg-red-50' }
+});
 
 /* ---------------- the question priority queue ----------------
    Built locally from the coverage map, so the model cannot decide to ask
@@ -8242,7 +8811,21 @@ async function submitAnswer(skipped) {
   if (APP.chat.done || !APP.chat.pendingQuestion) return;
   var box = $('chatAnswer');
   var text = skipped ? '' : String(box.value || '').trim();
-  if (!skipped && !text) return;
+  /* Pressing send on an empty box did nothing at all: no message, no movement,
+     no error. A button that does nothing reads as a broken button, and the next
+     thing a person does is press it again, or press something else. Refusing is
+     right; refusing silently is not. */
+  if (!skipped && !text) {
+    var hint = $('chatCounter');
+    if (hint) {
+      hint.textContent = H('אין תשובה בתיבה. כתוב תשובה, או לחץ "דלג על השאלה".');
+      hint.setAttribute('data-tt-hint', '1');
+      hint.style.color = '#B45309';
+    }
+    if (box && box.focus) box.focus();
+    return;
+  }
+  ttClearAnswerHint();
 
   APP.chat.turns.push({
     role: 'user',
@@ -8368,6 +8951,33 @@ var TT_CLOSING_Q = {
 };
 
 function finishChat(note) {
+  /* ---------- a question that was asked and not answered ----------
+     There is no timer here and nothing advances the conversation on its own:
+     the only three ways in are the model saying it is done, the budget running
+     out, and the candidate pressing finish. In the first two the pending
+     question has already been consumed, so this does nothing. In the third it
+     matters, and it used to be wrong: pressing finish while a question was on
+     screen overwrote it with the closing question, and the overwritten one left
+     no trace at all. It was never added to qa, so the answers report did not
+     list it, the queue did not know it had been asked, and the second fit
+     reading counted it as a question that was never put. Recorded as skipped,
+     which is what it is, and which is exactly what the skip button records. */
+  if (APP.chat.pendingQuestion && !APP.chat.isClosing) {
+    APP.chat.turns.push({
+      role: 'user',
+      text: APP.chat.lang === 'en' ? '(skipped)' : H('(דילגתי)'),
+      lang: APP.chat.lang, skipped: true
+    });
+    APP.chat.qa.push({
+      q: APP.chat.pendingQuestion, a: '', skipped: true,
+      reqId: APP.chat.pendingReqId, reqIds: (APP.chat.pendingReqIds || []).slice(),
+      closing: false, aForCv: '', aLangFrom: '', translateNote: ''
+    });
+    APP.chat.pendingQuestion = '';
+    APP.chat.pendingReqId = '';
+    APP.chat.pendingReqIds = [];
+  }
+
   /* Every path out of the conversation funnels through here: the model saying
      it is done, the question budget running out, and the candidate pressing the
      finish button. So this is the one place the closing question can be added
@@ -8406,6 +9016,16 @@ function finishChat(note) {
   runSynthesis();
 }
 
+/* The hint above is transient and belongs to one keystroke, not to the turn. */
+function ttClearAnswerHint() {
+  var hint = $('chatCounter');
+  if (hint && hint.getAttribute('data-tt-hint')) {
+    hint.textContent = '';
+    hint.removeAttribute('data-tt-hint');
+    hint.style.color = '';
+  }
+}
+
 function showChatRetry(on) {
   var b = $('btnRetryQ');
   if (b) b.classList.toggle('tt-hidden', !on);
@@ -8428,7 +9048,7 @@ function setChatBusy(busy) {
     var b = $(id); if (b) b.disabled = !!busy;
   });
   var c = $('chatCounter');
-  if (c) c.textContent = busy ? 'מנסח את השאלה הבאה...' : '';
+  if (c) c.textContent = busy ? H('מנסח את השאלה הבאה...') : '';
   renderChatProgress(busy);
 }
 
@@ -8529,7 +9149,7 @@ function renderChat() {
     if (typeof renderAnswerSpell === 'function') renderAnswerSpell();
   }
   var c = $('chatCounter');
-  if (c) c.textContent = APP.chat.done ? 'השיחה הסתיימה.' : '';
+  if (c) c.textContent = APP.chat.done ? H('השיחה הסתיימה.') : '';
   renderChatProgress(false);
 }
 
@@ -8590,8 +9210,7 @@ async function retranslateQuestions(lang) {
   // answer is dropped rather than pasted over the newer language
   var token = (APP.chat.langSeq = (APP.chat.langSeq || 0) + 1);
   setLangButtonsBusy(true);
-  setStatus(L(H('מתרגם את השאלות ל') + ttLangLabel(lang) + '...',
-                'Translating the questions into ' + TT_LANG.name(lang) + '...'), true);
+  setStatus(H('מתרגם את השאלות ל') + ttLangLabel(lang) + '...', true);
   try {
     var raw = await callGemini(promptTranslateQuestions(list, lang, APP.chat.lang), {
       json: true, temperature: 0, maxOutputTokens: TT_TOKENS.qtranslate, timeoutMs: 45000
@@ -8703,10 +9322,12 @@ function bindQLangMenu() {
 /* ---------------- stage 4: proposals ----------------
    Nothing is applied here. Every rewrite becomes a change card that the
    candidate approves, rejects or edits in stage 5. */
-var SECTION_NAMES = {
+/* Printed to the candidate inside the failure panel, and plain Hebrew until
+   now, so an English or German reader was told which section failed in Hebrew. */
+var SECTION_NAMES = ttLive({
   summary: 'הסיכום', experience: 'הניסיון', skills: 'הכישורים', other: 'הסעיפים הנוספים',
   general: 'שלב הכתיבה'      // for a failure that belongs to no single section
-};
+});
 
 async function runSynthesis() {
   if (APP.synthesisRunning) return;      // "סיימתי" and a question landing together must not run this twice
@@ -8790,6 +9411,27 @@ async function runSynthesis() {
         function (e)   { return { job: j, raw: null, err: e }; }
       );
     }));
+
+    /* ---------- one more attempt before giving up on a section ----------
+       A reply that is not valid JSON is the most common way a section is lost,
+       and it is the one failure that is usually gone on the next try: the same
+       prompt, a fresh sampling. Every other JSON call in this file already
+       retries. This one did not, so a single malformed reply meant the section
+       was silently left as it was and the candidate was told to re-run the whole
+       pipeline. A transport error is NOT retried here, because callGeminiRaw
+       has already worked its way down the whole model cascade for it. */
+    var unreadable = settled.filter(function (r) { return !r.err && !safeJsonParse(r.raw); });
+    if (unreadable.length) {
+      setStatus(H('שלב 4: מנסה שוב ') + unreadable.length +
+                H(' מקטעים שהתשובה עליהם לא נקראה...'), true);
+      var again = await Promise.all(unreadable.map(function (r) {
+        return r.job.run().then(function (raw) { return { res: r, raw: raw }; },
+                                function ()    { return { res: r, raw: null }; });
+      }));
+      again.forEach(function (a) {
+        if (a.raw && safeJsonParse(a.raw)) a.res.raw = a.raw;
+      });
+    }
 
     /* Collected in declaration order, so the review list reads summary,
        experience, extras, skills, exactly as it did when this ran serially. */
@@ -8922,7 +9564,7 @@ function renderAnswerUse() {
         '<span class="text-[10px] rounded px-1.5 py-0.5 bg-slate-200 text-slate-700">' + escapeHtml(u.tag) + '</span>' +
         (r ? '<span class="text-[10px] text-slate-500">' + escapeHtml(r.id + ' · ' + r.text) + '</span>' : '') +
         '<span class="text-[10px] ms-auto ' + (u.skipped ? 'text-slate-500' : ok ? 'text-emerald-700' : 'text-amber-800') + '">' +
-          (u.skipped ? 'דילגת' : ok ? H('✓ נכנס ל־') + landed.length + ' שורות, הן מופיעות כאן למטה' : H('⚠ לא נמצא לו מקום')) + '</span>' +
+          (u.skipped ? H('דילגת') : ok ? H('✓ נכנס ל־') + landed.length + H(' שורות, הן מופיעות כאן למטה') : H('⚠ לא נמצא לו מקום')) + '</span>' +
       '</div>' +
       '<div class="text-xs text-slate-500" dir="' + qDir + '">' + escapeHtml(u.q) + '</div>' +
       (u.skipped ? '' : '<div class="text-sm mt-0.5" dir="' + aDir + '">' + escapeHtml(u.a) + '</div>') +
@@ -9414,7 +10056,7 @@ function summaryAuditPanel(doc) {
   }
 
   if (!rows.length) return '';
-  return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm space-y-1" dir="rtl">' +
+  return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm space-y-1" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
     H('<div class="text-xs uppercase tracking-wide text-slate-500 mb-1">התקציר, נמדד לבדו</div>') +
     rows.join('') +
     H('<div class="text-xs text-slate-500 pt-1">נמדד בדפדפן על התקציר בלבד, בלי קריאה למודל.</div>') +
@@ -9854,7 +10496,7 @@ function renderProgress() {
            '<span class="font-semibold ' + tone + '">' + b + '</span>';
   };
 
-  var html = '<div class="rounded-lg border border-slate-200 p-3 mb-3" dir="rtl">' +
+  var html = '<div class="rounded-lg border border-slate-200 p-3 mb-3" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
     H('<div class="text-xs text-slate-500 mb-2">מדידה שנייה, אחרי ההתאמה. מחושבת במחשב שלך.</div>') +
     '<div class="grid grid-cols-2 gap-3">' +
 
@@ -9881,7 +10523,7 @@ function renderProgress() {
   if (p.promoted.length) {
     html += '<div class="mt-2 text-xs text-emerald-800">' +
       H('<b>מה שההתאמה הוסיפה בפועל:</b> ') + escapeHtml(p.promoted.slice(0, 4).join(' · ')) +
-      (p.promoted.length > 4 ? ' ועוד' : '') + '</div>';
+      (p.promoted.length > 4 ? H(' ועוד') : '') + '</div>';
   }
   if (p.stillOpen.length) {
     html += '<div class="mt-2 text-xs text-slate-500">' +
@@ -9974,12 +10616,12 @@ function renderDiff() {
   var panels = failurePanel() + langLockPanel();
 
   if (!doc) {
-    el.innerHTML = '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" dir="rtl">' +
+    el.innerHTML = '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
       H('אין עדיין מסמך מפורק להשוות מולו.</div>') + panels;
     return;
   }
   if (!approved.length) {
-    el.innerHTML = '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" dir="rtl">' +
+    el.innerHTML = '<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
       escapeHtml(noChangesExplanation()) + '</div>' + panels;
     return;
   }
@@ -10096,7 +10738,7 @@ function renderDiff() {
       var n = perCat[l.cat] || 0;
       html += '<div class="tt-sec" dir="' + d + '"><span>' + escapeHtml(l.text) + '</span>' +
               '<span class="tt-seccount' + (n ? '' : ' is-zero') + '">' +
-              (n ? n + ' שינויים' : H('ללא שינוי')) + '</span></div>';
+              (n ? n + H(' שינויים') : H('ללא שינוי')) + '</span></div>';
       return;
     }
     if (l.subtype === 'roleheader') {
@@ -10134,7 +10776,7 @@ function renderDiff() {
   });
 
   var legend =
-    '<div class="tt-legend" dir="rtl">' +
+    '<div class="tt-legend" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
       H('<span><b class="tt-ins">ירוק</b> נוסף</span>') +
       H('<span><b class="tt-del">אדום</b> הוסר</span>') +
       H('<span><b style="background:var(--c-accent-w);color:var(--c-accent-d)">פס בצד</b> שורה שהשתנתה</span>') +
@@ -10143,7 +10785,7 @@ function renderDiff() {
       '</label>' +
     '</div>';
 
-  var head = '<div class="text-sm mb-2" dir="rtl" style="color:var(--c-ink-2)"><b>' + approved.length +
+  var head = '<div class="text-sm mb-2" dir="' + TT_LANG.dir(TT_UI_LANG) + '" style="color:var(--c-ink-2)"><b>' + approved.length +
     H('</b> שינויים אושרו, מוצגים במקום שבו הם יושבים בקורות החיים. השכלה, שפות ושירות צבאי לא נגעו בהם.</div>');
 
   el.innerHTML = head + panels + legend +
@@ -10159,7 +10801,7 @@ function renderDiff() {
    so wherever the result is shown. */
 function failurePanel() {
   if (!APP.parseFailures.length) return '';
-  var html = '<div class="mb-2 rounded-lg border border-red-300 bg-red-50 p-2 text-sm text-red-900" dir="rtl">' +
+  var html = '<div class="mb-2 rounded-lg border border-red-300 bg-red-50 p-2 text-sm text-red-900" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
     H('<div class="font-semibold text-xs mb-1">כשל טכני, לא החלטה על התוכן</div>') +
     H('<p class="text-xs">הסקציות האלה לא נכתבו מחדש כי הקריאה למודל נכשלה או חזרה בפורמט שלא ניתן לקרוא. ') +
     H('הן נשארו בדיוק כפי שהיו. הרצה חוזרת בדרך כלל פותרת את זה.</p><ul class="list-disc ms-5 mt-1 text-xs">');
@@ -10175,7 +10817,7 @@ function failurePanel() {
 function langLockPanel() {
   if (!APP.langLockLog.length) return '';
   var content = APP.langLockLog.filter(function (r) { return r.kind === 'content'; }).length;
-  var html = '<details class="mb-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm" dir="rtl">' +
+  var html = '<details class="mb-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
     '<summary class="cursor-pointer text-amber-900 font-semibold text-xs">' +
     APP.langLockLog.length + H(' ניסוחים נדחו על ידי הקוד') +
     (content ? H(', מתוכם ') + content + ' בגלל מילים פוגעניות' : '') + '</summary>' +
@@ -10542,11 +11184,11 @@ function atsBaseScore(text) {
   return TT_ATS_BASE.score;
 }
 
-var ATS_STYLE = {
-  bad:  { label: H('לתקן'), cls: 'border-red-300 bg-red-50', dot: 'text-red-600', icon: '✕' },
-  warn: { label: H('שווה לשפר'), cls: 'border-amber-300 bg-amber-50', dot: 'text-amber-600', icon: '!' },
-  ok:   { label: H('תקין'), cls: 'border-emerald-200 bg-emerald-50/40', dot: 'text-emerald-600', icon: '✓' }
-};
+var ATS_STYLE = ttLive({
+  bad:  { label: 'לתקן', cls: 'border-red-300 bg-red-50', dot: 'text-red-600', icon: '✕' },
+  warn: { label: 'שווה לשפר', cls: 'border-amber-300 bg-amber-50', dot: 'text-amber-600', icon: '!' },
+  ok:   { label: 'תקין', cls: 'border-emerald-200 bg-emerald-50/40', dot: 'text-emerald-600', icon: '✓' }
+});
 
 function renderAts() {
   var el = $('atsOut');
@@ -10577,7 +11219,7 @@ function renderAts() {
       '<div class="h-full ' + (score >= 85 ? 'bg-emerald-500' : score >= 65 ? 'bg-amber-400' : 'bg-red-400') + '" style="width:' + score + '%"></div>' +
     '</div>' +
     '<div class="text-xs text-slate-500 mt-1">' +
-      (problems ? problems + ' דברים לתקן, כולם מפורטים למטה עם השורות עצמן.' : H('כל הבדיקות עברו.')) +
+      (problems ? problems + H(' דברים לתקן, כולם מפורטים למטה עם השורות עצמן.') : H('כל הבדיקות עברו.')) +
     '</div>' +
     H('<div class="text-[11px] text-slate-400 mt-1">הציון הוא סכום הבדיקות שעברו ותו לא. אלה בדיקות מבנה, לא שיפוט על התוכן, ') +
     H('והתאמת המילים למשרה נמדדת בלשונית "מילות מפתח".</div></div>');
@@ -10696,6 +11338,10 @@ async function runPipeline() {
          did when it was wired to the end of stage 1. */
       renderMatchVerdict();
       APP.route = decideRoute(matchVerdict());
+      /* The written sentence, started here and not waited for. The panel above
+         is already complete with the locally built headline, and this replaces
+         two lines of it when and if it comes back. */
+      ttNarrativeRun('before');
     } catch (e) {
       setStatus('');
       showError((e && e.message ? e.message : H('הניתוח נכשל.')) + H(' אפשר לנסות שוב.'));
@@ -10985,7 +11631,7 @@ function renderDomainGate(gap) {
     gap.equivalent.slice(0, 4).forEach(function (e) {
       var shared = e.shared.length ? H(' · אצלך: ') + escapeHtml(e.shared.join(', ')) : '';
       html += '<li>' + escapeHtml(e.keyword || e.text) +
-              (e.must_have ? ' <span class="text-xs font-semibold">(חובה)</span>' : '') +
+              (e.must_have ? H(' <span class="text-xs font-semibold">(חובה)</span>') : '') +
               '<span class="text-xs">' + shared + '</span></li>';
     });
     if (gap.equivalent.length > 4) {
@@ -11120,7 +11766,15 @@ function renderQueue() {
 function bindStageUi() {
   $('btnSendAnswer').addEventListener('click', function () { submitAnswer(false); });
   $('btnSkipQ').addEventListener('click', function () { submitAnswer(true); });
-  $('btnDoneQ').addEventListener('click', function () { finishChat(); });
+  $('btnDoneQ').addEventListener('click', function () {
+    /* Typed and unsent is the one thing here that cannot be recovered: the
+       question is recorded as skipped either way, but the words in the box are
+       gone. Worth one question before throwing them away. */
+    var box = $('chatAnswer');
+    var typed = box ? String(box.value || '').trim() : '';
+    if (typed && !confirm(H('כתבת תשובה ולא שלחת אותה. אם תמשיך היא תימחק.\n\nלהמשיך בכל זאת?'))) return;
+    finishChat();
+  });
   /* Repeats the turn that failed. The failed exchange is dropped off the end of
      the history first, so a retry asks the same thing again instead of stacking
      another copy of it on top of the one that already did not work. */
@@ -11135,6 +11789,7 @@ function bindStageUi() {
   $('chatAnswer').addEventListener('keydown', function (ev) {
     if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) submitAnswer(false);
   });
+  $('chatAnswer').addEventListener('input', ttClearAnswerHint);
   var stop = $('btnNoRelationStop');
   if (stop) stop.addEventListener('click', function () {
     hide('noRelationCard');
@@ -11310,6 +11965,12 @@ var TT_ACCENTS = {
   charcoal: { name: '\u05e4\u05d7\u05dd', ink: '2B2B2B', rule: '6E6E6E', tint: 'EFEFEF' },
   black:    { name: '\u05e9\u05d7\u05d5\u05e8 \u05d1\u05dc\u05d1\u05d3', ink: '111111', rule: '999999', tint: 'EFEFEF' }
 };
+/* The six colour names and the three layout names and notes were plain Hebrew
+   strings printed straight into the picker, so an English or German interface
+   showed a row of Hebrew captions under the thumbnails. Only the prose fields
+   are made live: everything else in a layout is typography that must stay
+   exactly as written. */
+ttLiveFields(TT_ACCENTS, ['name']);
 var TT_ACCENT_ORDER = ['navy', 'teal', 'wine', 'olive', 'charcoal', 'black'];
 
 /* Sizes are half points, which is what Word wants: 21 is 10.5pt.
@@ -11345,6 +12006,7 @@ var TT_LAYOUTS = {
     headBefore: 250, headAfter: 80, bodyAfter: 40
   }
 };
+ttLiveFields(TT_LAYOUTS, ['name', 'note']);
 var TT_LAYOUT_ORDER = ['classic', 'business', 'band'];
 TT_TEMPLATE_ORDER = TT_LAYOUT_ORDER.slice();
 
@@ -11447,11 +12109,11 @@ var TT_FIT_LADDERS = {
    The choice changes ONLY which ladder fitPageToLimit walks. It never changes
    the page limit, never changes what fits, and never removes a word: a document
    that needs content removed still needs it under all three, and still says so. */
-var TT_FIT_BIAS_NAMES = {
-  auto:  { label: H('איזון אוטומטי'), hint: H('מרווחים קודם, גופן רק אם צריך') },
-  space: { label: H('לשמור על גודל הטקסט'), hint: H('מכווץ מרווחים עד הסוף לפני שנוגע בגופן') },
-  font:  { label: H('לשמור על אוויר בדף'), hint: H('מקטין גופן קודם, שומר על ההפרדה בין הסעיפים') }
-};
+var TT_FIT_BIAS_NAMES = ttLive({
+  auto:  { label: 'איזון אוטומטי', hint: 'מרווחים קודם, גופן רק אם צריך' },
+  space: { label: 'לשמור על גודל הטקסט', hint: 'מכווץ מרווחים עד הסוף לפני שנוגע בגופן' },
+  font:  { label: 'לשמור על אוויר בדף', hint: 'מקטין גופן קודם, שומר על ההפרדה בין הסעיפים' }
+});
 var TT_FIT_BIAS_ORDER = ['auto', 'space', 'font'];
 
 function fitLadder() {
@@ -12520,8 +13182,7 @@ function ttAskTranslateTarget(sourceLang, titleText) {
 
     var sub = document.createElement('p');
     sub.className = 'tt-about-sub';
-    sub.textContent = L(H('הטקסט בתיבה יוחלף בתרגום.'),
-                        'The text in the box will be replaced by the translation.');
+    sub.textContent = H('הטקסט בתיבה יוחלף בתרגום.');
     box.appendChild(sub);
 
     function row(code, why) {
@@ -12543,7 +13204,7 @@ function ttAskTranslateTarget(sourceLang, titleText) {
     more.style.marginTop = '4px';
     var sum = document.createElement('summary');
     sum.style.cssText = 'cursor:pointer;font-size:.82rem;color:#5A6B72';
-    sum.textContent = L(H('שפות נוספות'), 'More languages');
+    sum.textContent = H('שפות נוספות');
     more.appendChild(sum);
     TT_LANG.all().forEach(function (l) {
       if (l.code === sourceLang) return;
@@ -12555,7 +13216,7 @@ function ttAskTranslateTarget(sourceLang, titleText) {
     cancel.type = 'button';
     cancel.className = 'tt-btn tt-btn-ghost tt-btn-sm';
     cancel.style.marginTop = '8px';
-    cancel.textContent = L(H('ביטול'), 'Cancel');
+    cancel.textContent = H('ביטול');
     cancel.addEventListener('click', function () { close(null); });
     box.appendChild(cancel);
 
@@ -12582,7 +13243,7 @@ function bindIoUi() {
       $('resumeInput').value = await extractFile(f);
       updateLangBadges();
       var gotTemplate = await registerTemplateFromFile(f);
-      setStatus(H('הקובץ נטען.') + (gotTemplate ? ' נוסף טמפלט לפי העיצוב של הקובץ שהעלית.' : ''));
+      setStatus(H('הקובץ נטען.') + (gotTemplate ? H(' נוסף טמפלט לפי העיצוב של הקובץ שהעלית.') : ''));
       if (typeof renderTemplatePicker === 'function') { renderTemplatePicker(); renderAccentPicker(); }
     } catch (e) { setStatus(''); showError(e.message); }
     ev.target.value = '';
@@ -12619,9 +13280,9 @@ function bindIoUi() {
     if (!text) { showError(H('אין טקסט לתרגום.')); return; }
     if (!requireKeyOrOnboard()) return;
     var target = await ttAskTranslateTarget(detectLang(text),
-      L(H('לאיזו שפה לתרגם את הקלט?'), 'Translate the input into which language?'));
+      H('לאיזו שפה לתרגם את הקלט?'));
     if (!target) return;
-    setStatus(L(H('מתרגם את הקלט...'), 'Translating the input...'), true);
+    setStatus(H('מתרגם את הקלט...'), true);
     try {
       var src = ttLangState().doc || detectLang(text);
       $('resumeInput').value = await translateText(text, target, src);
@@ -12647,9 +13308,9 @@ function bindIoUi() {
     if (!text) { showError(H('אין טקסט לתרגום.')); return; }
     if (!requireKeyOrOnboard()) return;
     var target = await ttAskTranslateTarget(detectLang(text),
-      L(H('לאיזו שפה לתרגם את הגרסה?'), 'Translate this version into which language?'));
+      H('לאיזו שפה לתרגם את הגרסה?'));
     if (!target) return;
-    setStatus(L(H('מתרגם את הגרסה הסופית...'), 'Translating the final version...'), true);
+    setStatus(H('מתרגם את הגרסה הסופית...'), true);
     try {
       var srcFinal = ttLangState().doc || detectLang(text);
       APP.finalText = await translateText(text, target, srcFinal);
@@ -12720,22 +13381,144 @@ function bindIoUi() {
 
 var AI_STUDIO_URL = 'https://aistudio.google.com/apikey';
 
+
+/* ---------------- a confirm dialog that can carry a second answer ----------------
+   window.confirm has two buttons and this decision has three, because the
+   honest version of "remove my key" offers to go and cancel it at Google as
+   well. Built rather than declared in the markup so that every word in it goes
+   through H() at the moment it opens, which is what makes it correct in all
+   twelve languages without a repaint rule. */
+function ttConfirm(opts) {
+  return new Promise(function (resolve) {
+    var wrap = document.createElement('div');
+    wrap.className = 'tt-modal';
+    var box = document.createElement('div');
+    box.className = 'tt-modal-box';
+    box.setAttribute('dir', TT_LANG.dir(TT_UI_LANG));
+
+    var h = document.createElement('h3');
+    h.className = 'tt-about-h';
+    h.textContent = opts.title;
+    box.appendChild(h);
+
+    var p = document.createElement('p');
+    p.className = 'tt-about-sub';
+    p.textContent = opts.body;
+    box.appendChild(p);
+
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+    (opts.actions || []).forEach(function (a) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tt-btn ' + (a.kind === 'danger' ? 'tt-btn-danger' : a.kind === 'ghost' ? 'tt-btn-ghost' : 'tt-btn-primary');
+      b.textContent = a.label;
+      b.addEventListener('click', function () { close(a.value); });
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+
+    function close(v) {
+      document.removeEventListener('keydown', onKey);
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+      resolve(v);
+    }
+    function onKey(ev) { if (ev.key === 'Escape') close(null); }
+    document.addEventListener('keydown', onKey);
+    wrap.addEventListener('click', function (ev) { if (ev.target === wrap) close(null); });
+
+    wrap.appendChild(box);
+    document.body.appendChild(wrap);
+    var firstBtn = row.querySelector('button');
+    if (firstBtn && firstBtn.focus) firstBtn.focus();
+  });
+}
+
+/* The alarm, and the two things that end it. Both buttons are the real fix for
+   one of the two causes, so neither is a dead end: remove the key that no longer
+   works, or go and get one that does. */
+function renderKeyProblem() {
+  var el = $('keyProblem');
+  if (!el) return;
+  if (!APP.keyProblem) { el.innerHTML = ''; hide('keyProblem'); return; }
+
+  var body = APP.keyProblem.kind === 'denied'
+    ? H('Google דחתה את הבקשה עם המפתח הזה. בדרך כלל זה אומר שה־API אינו מופעל בפרויקט, שהמפתח הוגבל, או שהחשבון הושעה.')
+    : H('Google לא מקבלת יותר את המפתח הזה. יש לכך שתי סיבות אפשריות, ואי אפשר להבחין ביניהן מתוך הדפדפן: המפתח לא הועתק במלואו, או ש־Google השביתה אותו אחרי שהתגלה במקום ציבורי, למשל בתוך קוד במאגר פתוח.');
+
+  el.innerHTML = '<div class="tt-keyalarm" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
+    '<h4>' + escapeHtml(H('המפתח הפסיק לעבוד')) + '</h4>' +
+    '<p>' + escapeHtml(body) + '</p>' +
+    '<div class="tt-keyalarm-acts">' +
+      '<button type="button" id="btnKeyProblemNew" class="tt-btn tt-btn-sm tt-btn-ok">' +
+        escapeHtml(H('קבל מפתח חדש')) + '</button>' +
+      '<button type="button" id="btnKeyProblemRemove" class="tt-btn tt-btn-sm">' +
+        escapeHtml(H('הסר את המפתח מהדפדפן')) + '</button>' +
+    '</div></div>';
+  show('keyProblem');
+
+  var a = $('btnKeyProblemNew');
+  if (a) a.addEventListener('click', function () { window.open(AI_STUDIO_URL, '_blank', 'noopener'); });
+  var b = $('btnKeyProblemRemove');
+  if (b) b.addEventListener('click', function () { ttRemoveKeyFlow(); });
+}
+
+/* One flow, reached from the alarm and from the bin icon, so the same sentence
+   is read in both places. */
+async function ttRemoveKeyFlow() {
+  if (!getApiKey()) { setKeyStatus(H('אין מפתח שמור.'), ''); return; }
+  var choice = await ttConfirm({
+    title: H('להסיר את המפתח מהדפדפן הזה?'),
+    body: H('הפעולה מוחקת את העותק ששמור בדפדפן שלך בלבד. היא אינה מבטלת את המפתח אצל Google: אם הוא נחשף, הוא נשאר פעיל שם עד שתבטלו אותו ב־AI Studio.'),
+    actions: [
+      { label: H('הסר מהדפדפן'), value: 'local', kind: 'danger' },
+      { label: H('הסר, ופתח את Google לביטול'), value: 'both', kind: 'primary' },
+      { label: H('ביטול'), value: null, kind: 'ghost' }
+    ]
+  });
+  if (!choice) return;
+  clearApiKey();
+  refreshKeyUi();
+  renderKeyProblem();
+  setKeyStatus(H('המפתח הוסר מהדפדפן הזה.'), 'ok');
+  show('onboardBanner');
+  if (choice === 'both') window.open(AI_STUDIO_URL, '_blank', 'noopener');
+}
+
 function refreshKeyUi() {
   var key = getApiKey();
   var status = $('keyStatus');
+  var box = $('apiKeyInput');
   if (key) {
-    $('apiKeyInput').value = key;
+    /* The whole key used to be written back into the field on every repaint.
+       The field is a password field, so it showed dots, but the value was
+       genuinely there: revealed by any browser devtools, offered to any
+       password manager, and copied by anything that reads form values. There is
+       no reason for it to be there at all, because nothing reads that field
+       except a person typing a new key into it. The masked form goes in the
+       placeholder, where it says the same thing and is not a value. */
+    if (box) {
+      box.value = '';
+      box.placeholder = key.slice(0, 6) + '\u2022\u2022\u2022\u2022' + key.slice(-4) + '  \u00B7  ' + H('שמור בדפדפן');
+    }
+    show('btnRemoveKey');
     if (status) {
       status.textContent = H('מפתח שמור בדפדפן (') + key.slice(0, 6) + '...' + key.slice(-4) + H('). מומלץ ללחוץ "בדוק חיבור".');
       status.className = 'text-sm mt-2 text-slate-600';
     }
     hide('onboardBanner');
   } else {
+    if (box) {
+      box.value = '';
+      box.placeholder = H('הדבק כאן את המפתח');
+    }
+    hide('btnRemoveKey');
     if (status) {
       status.textContent = H('המפתח נשמר מקומית בדפדפן שלך (localStorage) ולא נשלח לשום מקום מלבד Google.');
       status.className = 'text-sm mt-2 text-slate-500';
     }
   }
+  try { renderKeyProblem(); } catch (e) {}
 }
 
 function setKeyStatus(msg, kind) {
@@ -12760,23 +13543,28 @@ function requireKeyOrOnboard() {
    document. This panel shows that decision line by line before anything is
    sent anywhere, and lets it be corrected in either direction. A CV written
    in a way no rule anticipated is still the user's CV. */
-var TT_STRUCT_LABELS = {
-  summary:    [H('תקציר'), 'Summary'],
-  experience: [H('ניסיון תעסוקתי'), 'Experience'],
-  skills:     [H('כישורים'), 'Skills'],
-  other:      [H('הסמכות, קורסים ופרויקטים'), 'Certifications, courses and projects']
-};
-var TT_STRUCT_KINDS = {
-  dates:  [H('תאריכים'), 'dates'],
-  org:    [H('שם חברה או תפקיד'), 'employer or title'],
-  header: [H('כותרת תפקיד'), 'job header'],
-  manual: [H('סומן ידנית'), 'set by you']
-};
+/* The second column of each pair was an English fallback, read by L() for every
+   interface language that was not Hebrew. Twelve languages later that means a
+   German or Japanese reader was shown English section names for no reason: the
+   first column goes through the translation table and covers all of them. The
+   pairs are kept so that no call site has to change. */
+var TT_STRUCT_LABELS = ttLive({
+  summary:    ['תקציר', 'Summary'],
+  experience: ['ניסיון תעסוקתי', 'Experience'],
+  skills:     ['כישורים', 'Skills'],
+  other:      ['הסמכות, קורסים ופרויקטים', 'Certifications, courses and projects']
+});
+var TT_STRUCT_KINDS = ttLive({
+  dates:  ['תאריכים', 'dates'],
+  org:    ['שם חברה או תפקיד', 'employer or title'],
+  header: ['כותרת תפקיד', 'job header'],
+  manual: ['סומן ידנית', 'set by you']
+});
 
 function structToggleLabel() {
   var list = $('structureList');
   var hidden = !list || list.classList.contains('tt-hidden');
-  return hidden ? L(H('הצג פירוט'), 'Show detail') : L(H('הסתר פירוט'), 'Hide detail');
+  return hidden ? H('הצג פירוט') : H('הסתר פירוט');
 }
 
 function renderStructurePanel() {
@@ -12881,22 +13669,22 @@ function renderStructurePanel() {
       var kind = TT_STRUCT_KINDS[l.structKind];
       var chip = isPoint
         ? '<span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">' +
-          L(H('סעיף'), 'point') + '</span>'
+          H('סעיף') + '</span>'
         : '<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 shrink-0">' +
-          L(H('מבנה'), 'structure') + (kind ? ' \u00b7 ' + L(kind[0], kind[1]) : '') + '</span>';
+          H('מבנה') + (kind ? ' \u00b7 ' + L(kind[0], kind[1]) : '') + '</span>';
       html += '<div class="flex items-start gap-2 py-1 border-b border-slate-100 last:border-0">' + chip +
         '<span class="text-sm flex-1 ' + (isPoint ? 'text-slate-800' : 'text-slate-500') + '" dir="' +
         dirForText(l.text, l.lang) + '">' + escapeHtml(l.text) + '</span>' +
         '<button class="tt-btn tt-btn-sm shrink-0" data-struct-flip="' + escapeHtml(structKey(l.text)) + '" data-struct-to="' +
         (isPoint ? 'structure' : 'content') + '">' +
-        (isPoint ? L(H('סמן כמבנה'), 'mark as structure') : L(H('סמן כסעיף'), 'mark as point')) + '</button>' +
-        (l.overridden ? '<span class="text-[11px] text-sky-600 shrink-0">' + L(H('ידני'), 'manual') + '</span>' : '') +
+        (isPoint ? H('סמן כמבנה') : H('סמן כסעיף')) + '</button>' +
+        (l.overridden ? '<span class="text-[11px] text-sky-600 shrink-0">' + H('ידני') + '</span>' : '') +
         '</div>';
     });
     html += '</div>';
   });
   lst.innerHTML = html || '<div class="text-sm text-slate-500">' +
-    L(H('לא זוהו מקטעים להתאמה.'), 'No tailorable sections were recognised.') + '</div>';
+    H('לא זוהו מקטעים להתאמה.') + '</div>';
 }
 
 function bindStructurePanel() {
@@ -12941,25 +13729,21 @@ function ttRenderLangBadge(el, axis, text) {
   var line = document.createElement('span');
 
   if (read.unsupported && !manual) {
-    line.textContent = L(H('האפליקציה לא תומכת ב') + (read.label || '') + '. ',
-                         'This app does not support ' + (read.label || '') + '. ');
+    line.textContent = H('האפליקציה לא תומכת ב') + (read.label || '') + '. ';
     line.style.color = '#b45309';
   } else if (manual) {
-    line.textContent = L(H('שפה שנקבעה ידנית: ') + ttLangLabel(code) + ' · ',
-                         'Language set by hand: ' + TT_LANG.name(code) + ' · ');
+    line.textContent = H('שפה שנקבעה ידנית: ') + ttLangLabel(code) + ' · ';
   } else if (sure) {
-    line.textContent = L(H('זוהתה שפה: ') + ttLangLabel(code) + ' · ',
-                         'Language detected: ' + TT_LANG.name(code) + ' · ');
+    line.textContent = H('זוהתה שפה: ') + ttLangLabel(code) + ' · ';
   } else {
-    line.textContent = L(H('לא הצלחתי לקבוע בוודאות. ') + ttLangLabel(code) + '?',
-                         'I could not tell for certain. ' + TT_LANG.name(code) + '?');
+    line.textContent = H('לא הצלחתי לקבוע בוודאות. ') + ttLangLabel(code) + '?';
     line.style.color = '#b45309';
   }
   el.appendChild(line);
 
   var sel = document.createElement('select');
   sel.className = 'tt-langbadge-sel';
-  sel.setAttribute('aria-label', L(H('שפת המסמך'), 'Document language'));
+  sel.setAttribute('aria-label', H('שפת המסמך'));
   TT_LANG.all().forEach(function (l) {
     var o = document.createElement('option');
     o.value = l.code; o.textContent = l.native;
@@ -12978,7 +13762,7 @@ function ttRenderLangBadge(el, axis, text) {
     var link = document.createElement('button');
     link.type = 'button';
     link.className = 'tt-langbadge-link';
-    link.textContent = L(H('שנה'), 'change');
+    link.textContent = H('שנה');
     link.addEventListener('click', function () {
       link.replaceWith(sel);
       sel.focus();
@@ -13020,11 +13804,28 @@ function bindUi() {
 
   $('btnSaveKey').addEventListener('click', function () {
     var v = $('apiKeyInput').value.trim();
-    if (!v) { setKeyStatus(H('לא הוזן מפתח.'), 'err'); return; }
+    if (!v) {
+      /* The field is empty by design once a key is held, so "no key entered" was
+         about to become the answer to pressing save on a perfectly working
+         setup. Say which of the two situations this is. */
+      setKeyStatus(getApiKey()
+        ? H('המפתח כבר שמור. הדבק מפתח חדש כדי להחליף אותו.')
+        : H('לא הוזן מפתח.'), getApiKey() ? '' : 'err');
+      return;
+    }
     saveApiKey(v);
-    setKeyStatus(keyPersists()
+    ttClearKeyProblem();
+    refreshKeyUi();
+    var note = keyPersists()
       ? H('✅ המפתח נשמר. עכשיו לחץ "בדוק חיבור".')
-      : H('✅ המפתח נשמר לסשן הזה בלבד. עכשיו לחץ "בדוק חיבור".'), 'ok');
+      : H('✅ המפתח נשמר לסשן הזה בלבד. עכשיו לחץ "בדוק חיבור".');
+    /* Every Google AI Studio key starts AIza. A warning and not a block: the
+       prefix is a convention rather than a promise, and refusing to save
+       something Google would have accepted is worse than saying it looks odd. */
+    if (!/^AIza[\w\-]{10,}$/.test(v)) {
+      note += ' ' + H('שים לב: מפתח של Google AI Studio מתחיל ב־AIza. אם בדיקת החיבור תיכשל, זו כנראה הסיבה.');
+    }
+    setKeyStatus(note, 'ok');
     hide('onboardBanner');
     discoverModels();     // background refresh, never blocks anything
 
@@ -13039,6 +13840,7 @@ function bindUi() {
       var reply = await testApiKey();
       var cascade = getModelCascade();
       var tail = H(' נמצאו ') + cascade.length + H(' מודלים זמינים למפתח הזה, ההתאמה תתחיל מ־') + cascade[0] + '.';
+      ttClearKeyProblem();
       if (/ok/i.test(reply)) setKeyStatus(H('✅ החיבור תקין. המודל ') + TT_LAST_MODEL + H(' ענה.') + tail, 'ok');
       else setKeyStatus(H('✅ התקבלה תשובה מהמודל ') + TT_LAST_MODEL + ': ' + reply.slice(0, 40) + tail, 'ok');
       hide('onboardBanner');
@@ -13050,6 +13852,7 @@ function bindUi() {
   function openAiStudio() { window.open(AI_STUDIO_URL, '_blank', 'noopener'); }
   $('btnGetKey').addEventListener('click', openAiStudio);
   $('btnModalGetKey').addEventListener('click', openAiStudio);
+  $('btnRemoveKey').addEventListener('click', function () { ttRemoveKeyFlow(); });
   $('btnHowKey').addEventListener('click', function () { show('howKeyModal'); });
   $('btnHowKeyClose').addEventListener('click', function () { hide('howKeyModal'); });
 
@@ -13092,7 +13895,7 @@ function bindUi() {
 
   var abContact = $('btnAboutContact');
   if (abContact) abContact.addEventListener('click', function () {
-    var subj = L(H('משוב על TrueTailor CV ') + TT_VERSION, 'Feedback on TrueTailor CV ' + TT_VERSION);
+    var subj = H('משוב על TrueTailor CV ') + TT_VERSION;
     window.open('mailto:' + TT_CONTACT + '?subject=' + encodeURIComponent(subj), '_blank');
   });
 
@@ -13177,7 +13980,7 @@ function resetPanel(which) {
   resetRun();                          // clears APP.signals, the coverage and every card
   updateLangBadges();
   showNotice('');
-  setStatus(isResume ? 'תיבת קורות החיים נוקתה.' : H('תיבת המשרה נוקתה.'));
+  setStatus(isResume ? H('תיבת קורות החיים נוקתה.') : H('תיבת המשרה נוקתה.'));
 }
 
 /* Back to an empty app without a page reload, and without losing the API key.
@@ -13230,6 +14033,13 @@ function startOverAll() {
 function resetRun() {
   clearError();
   APP.doc = null; APP.signals = null; APP.coverage = []; APP.gaps = []; APP.queue = [];
+  /* The two readings of the fit and the sentence written about them belong to
+     ONE pairing of one resume with one posting. They were never cleared here,
+     so a second run in the same session opened with the previous job's verdict
+     frozen on screen: the snapshot is taken only when it is missing, and it was
+     not missing any more. */
+  APP.verdictBefore = null; APP.verdictAfter = null; APP.fitDelta = null;
+  APP.narrative = {};
   /* The mode belongs to one run against one posting, never to the session. A
      mode that survived into the next run would silently answer a question the
      candidate was never asked about a job they had not seen yet. */
@@ -13261,7 +14071,7 @@ function resetRun() {
   /* Hiding a card is not the same as emptying it. A card that is hidden with
      last run's coverage still inside comes back on the next run showing the
      previous job for as long as it takes the first stage to answer. */
-  ['spellOut', 'answersOut', 'chatLog', 'queueOut', 'signalsOut', 'gapsOut',
+  ['spellOut', 'answersOut', 'chatLog', 'queueOut', 'signalsOut', 'gapsOut', 'matchVerdict', 'fitDelta',
    'reviewOut', 'diffOut', 'keywordsOut', 'progressOut', 'atsOut', 'previewPage', 'finalStruct',
    'noRelationOut', 'previewActionNote', 'domainOut', 'prepOut', 'prepNote'].forEach(function (id) {
     var e = $(id);
@@ -13306,19 +14116,19 @@ document.addEventListener('DOMContentLoaded', function () {
    and additions arrive rejected, because those change what the resume claims.
    ========================================================================= */
 
-var CHANGE_LABEL = {
-  line:         H('ניסוח מחדש'),
-  add:          H('שורה חדשה'),
-  line_order:   H('סדר הסעיפים'),
-  line_drop:    H('הסרת סעיף לא רלוונטי'),
-  role_drop:    H('הסרת תפקיד שלם'),
-  skill_rename: H('שינוי שם כישור'),
-  skill_drop:   H('מחיקת כישור'),
-  skill_add:    H('הוספת כישור'),
-  skill_order:  H('סדר הכישורים'),
-  summary_shape: H('שינוי מבנה התקציר'),
-  summary_new:   H('תקציר חדש שאינו קיים בקורות החיים')
-};
+var CHANGE_LABEL = ttLive({
+  line:         'ניסוח מחדש',
+  add:          'שורה חדשה',
+  line_order:   'סדר הסעיפים',
+  line_drop:    'הסרת סעיף לא רלוונטי',
+  role_drop:    'הסרת תפקיד שלם',
+  skill_rename: 'שינוי שם כישור',
+  skill_drop:   'מחיקת כישור',
+  skill_add:    'הוספת כישור',
+  skill_order:  'סדר הכישורים',
+  summary_shape: 'שינוי מבנה התקציר',
+  summary_new:   'תקציר חדש שאינו קיים בקורות החיים'
+});
 
 var CHANGE_TONE = {
   line:         'bg-slate-100 text-slate-700',
@@ -13347,12 +14157,12 @@ function isStructural(kind) { return kind === 'summary_shape' || kind === 'summa
    rather than "אשר" and "דחה". */
 function isRemoval(kind) { return kind === 'line_drop' || kind === 'role_drop'; }
 
-var REVIEW_GROUPS = [
-  { cat: 'summary',    title: H('תקציר') },
-  { cat: 'experience', title: H('ניסיון תעסוקתי') },
-  { cat: 'skills',     title: H('כישורים') },
-  { cat: 'other',      title: H('סעיפים נוספים') }
-];
+var REVIEW_GROUPS = ttLive([
+  { cat: 'summary',    title: 'תקציר' },
+  { cat: 'experience', title: 'ניסיון תעסוקתי' },
+  { cat: 'skills',     title: 'כישורים' },
+  { cat: 'other',      title: 'סעיפים נוספים' }
+]);
 
 function changeById(id) {
   for (var i = 0; i < APP.changes.length; i++) if (APP.changes[i].id === id) return APP.changes[i];
@@ -13514,7 +14324,7 @@ function renderChangeCard(ch) {
       H('<div><div class="text-xs text-slate-500 mb-1">התקציר שלך, כפי שכתבת אותו</div>') +
       '<div class="text-slate-500 whitespace-pre-line rounded p-2 bg-white border border-slate-200">' + escapeHtml(ch.before) + '</div></div>' +
       H('<div><div class="text-xs text-slate-500 mb-1">אותן עובדות, במבנה ') +
-        (ch.altFormat === 'bullets' ? 'בולטים' : H('פסקה')) + '</div>' +
+        (ch.altFormat === 'bullets' ? H('בולטים') : H('פסקה')) + '</div>' +
       '<div class="whitespace-pre-line rounded p-2 bg-amber-50 border border-amber-200">' + escapeHtml(ch.after) + '</div></div></div>' +
       '<div class="text-xs text-slate-500 mt-2">' +
         H('זו הצעה למבנה בלבד. אין בה אף טענה חדשה, והיא לא תיכנס לקורות החיים אלא אם תאשר. המבנה שכתבת בעצמך נשאר ברירת המחדל.') +
@@ -13681,6 +14491,9 @@ function renderFitDelta() {
   var d = APP.fitDelta;
   if (!d) { el.innerHTML = ''; return; }
 
+  /* Three shapes, and the second one is the reason this panel exists: the score
+     moved, the score did not move, or the recheck could not run. A number that
+     did not move is information, and hiding it would be the dishonest option. */
   if (d.skipped) {
     var why = d.skipped === 'no_answers'
       ? H('לא ענית על אף שאלה, ולכן אין עובדות חדשות למדוד. הציון נשאר כפי שהיה.')
@@ -13690,42 +14503,63 @@ function renderFitDelta() {
     return;
   }
 
+  var before = APP.verdictBefore;
+  var after  = APP.verdictAfter || before;
+  if (!after) { el.innerHTML = ''; return; }
+
   var up = d.after - d.before;
-  var arrow = up > 0 ? '↑' : '→';
-  var head = '<div class="tt-fitdelta-head">' +
-    '<span class="tt-fitdelta-num">' + d.before + '%</span>' +
-    '<span class="tt-fitdelta-arrow">' + arrow + '</span>' +
-    '<span class="tt-fitdelta-num' + (up > 0 ? ' is-up' : '') + '">' + d.after + '%</span>' +
+  var score = '<div class="tt-vd-score is-delta">' +
+    '<span class="tt-vd-was">' + d.before + '</span>' +
+    '<span class="tt-vd-arrow">' + (up > 0 ? '↑' : '→') + '</span>' +
+    '<b>' + d.after + '</b><span>/100</span></div>';
+
+  /* Both names, side by side, whether or not they differ. "Still medium" is an
+     answer to the question the candidate is asking, and a panel that only
+     speaks up when something improved is a panel that flatters. */
+  var pair = '<div class="tt-vd-pair">' +
+    '<span>' + escapeHtml(H('לפני')) + '</span>' +
+    '<span class="tt-vd-pill tt-vd-was-pill">' + escapeHtml(ttLevelName((before || after).level)) + '</span>' +
+    '<span>' + escapeHtml(H('אחרי')) + '</span>' +
+    '<span class="tt-vd-pill">' + escapeHtml(ttLevelName(after.level)) + '</span>' +
+    ttLevelMeter(after.level) +
     '</div>';
 
-  var body;
-  if (up > 0) {
-    body = '<p>' + H('התשובות שלך סגרו ') + d.closed.length + H(' פערים. ') +
-      H('הציון עלה כי נכנסו עובדות חדשות למסמך, ולא כי השורות נוסחו אחרת.') + '</p>' +
-      '<ul class="list-disc ms-5 mt-1 text-xs">' +
-      d.closed.slice(0, 6).map(function (c) {
-        return '<li>' + escapeHtml(c.text) + '</li>';
-      }).join('') + '</ul>';
-  } else {
-    /* Decision 33: say it, and leave the decision with the person. No button,
-       no redirection. Someone who wants to apply anyway is entitled to. */
-    body = '<p><b>' + H('הפערים לא נסגרו.') + '</b> ' +
-      H('ענית על ') + d.asked + H(' שאלות, ואף אחת מהן לא הוסיפה עובדה שסוגרת דרישה שהייתה חסרה. ') +
-      H('הציון נשאר כפי שהיה, וזה אומר שהפער הוא בניסיון עצמו ולא בניסוח. ') +
-      H('שווה לשקול מחדש אם להתמודד על המשרה הזו, או להשקיע את הזמן במשרה קרובה יותר.') + '</p>';
-    if (d.stillOpen.length) {
-      body += '<div class="text-xs mt-1">' + H('דרישות החובה שנשארו פתוחות:') + '</div>' +
-        '<ul class="list-disc ms-5 text-xs">' +
-        d.stillOpen.slice(0, 6).map(function (r) {
-          return '<li>' + escapeHtml(r.text) + '</li>';
-        }).join('') + '</ul>';
-    }
+  var txt = ttNarrativeFor('after', after);
+  if (!(APP.narrative && APP.narrative.after && APP.narrative.after.lang === TT_UI_LANG)) {
+    txt = {
+      headline: up > 0 ? H('התשובות שלך הוסיפו עובדות שהמסמך לא אמר קודם')
+                       : H('התשובות לא הוסיפו עובדה שסוגרת דרישה חסרה'),
+      explanation: up > 0
+        ? H('התשובות שלך סגרו ') + d.closed.length + H(' פערים. ') +
+          H('הציון עלה כי נכנסו עובדות חדשות למסמך, ולא כי השורות נוסחו אחרת.')
+        : H('ענית על ') + d.asked + H(' שאלות, ואף אחת מהן לא הוסיפה עובדה שסוגרת דרישה שהייתה חסרה. ') +
+          H('הציון נשאר כפי שהיה, וזה אומר שהפער הוא בניסיון עצמו ולא בניסוח.')
+    };
   }
 
-  el.innerHTML = '<div class="tt-fitdelta' + (up > 0 ? ' is-up' : ' is-flat') + '" dir="' +
-    TT_LANG.dir(TT_UI_LANG) + '">' +
-    '<div class="tt-fitdelta-title">' + H('ההתאמה לפני ואחרי') + '</div>' +
-    head + body + '</div>';
+  var head = ttVerdictHead(after, H('רמת ההתאמה, אחרי התשובות שלך'), txt, score, pair);
+
+  var body = '';
+  if (up > 0 && d.closed.length) {
+    body += '<div class="tt-vd-more"><b>' + escapeHtml(H('מה נסגר')) + '</b><ul>' +
+      d.closed.slice(0, 6).map(function (c) { return '<li>' + escapeHtml(c.text) + '</li>'; }).join('') +
+      '</ul></div>';
+  }
+  if (d.stillOpen.length) {
+    body += '<div class="tt-vd-more"><b>' + escapeHtml(H('דרישות החובה שנשארו פתוחות:')) + '</b><ul>' +
+      d.stillOpen.slice(0, 6).map(function (r) { return '<li>' + escapeHtml(r.text) + '</li>'; }).join('') +
+      '</ul></div>';
+  }
+
+  /* Decision 33: say it, and leave the decision with the person. No button, no
+     redirection. Someone who wants to apply anyway is entitled to. */
+  var note = '';
+  if (up <= 0 && after.level <= 2) {
+    note = '<div class="tt-vd-note"><p>' +
+      H('שווה לשקול מחדש אם להתמודד על המשרה הזו, או להשקיע את הזמן במשרה קרובה יותר.') + '</p></div>';
+  }
+
+  el.innerHTML = ttVerdictShell(after.level, head + body + note);
 }
 
 function ttTouchedReqIds() {
@@ -13820,8 +14654,14 @@ async function runFitRecheck() {
   } finally {
     setStatus('');
   }
+  /* This one IS awaited. The preview is already open and usable, nothing is
+     blocked behind it, and the panel it writes into has just appeared: showing
+     the local sentence and swapping it a few seconds later would read as the
+     app changing its mind about the answer. */
+  if (APP.fitDelta && !APP.fitDelta.skipped) {
+    try { await stepVerdictNarrative('after'); } catch (e) {}
+  }
   renderFitDelta();
-  try { renderMatchVerdict(); } catch (e) {}
 }
 
 /* =========================================================================
@@ -14454,6 +15294,31 @@ var TT_I18N = (function () {
   ]);
   put('btn.about', '#btnAbout',
     ['אודות', 'حول', 'About', 'À propos', 'Acerca de', 'Über', 'Informazioni', 'Sobre', 'O aplikaciji', 'О приложении', 'このアプリについて', 'परिचय']);
+  /* Attributes are read by screen readers and by anyone who hovers, and they
+     were never in the catalogue at all, so they stayed Hebrew in all eleven
+     other languages. */
+  put('title.start_over', '#btnStartOver',
+    ['מנקה הכל ומתחיל מחדש, המפתח נשמר',
+     'يمسح كل شيء ويبدأ من جديد، مع الاحتفاظ بالمفتاح',
+     'Clears everything and starts again, the key is kept',
+     'Efface tout et recommence, la clé est conservée',
+     'Borra todo y empieza de nuevo, la clave se conserva',
+     'Löscht alles und beginnt neu, der Schlüssel bleibt erhalten',
+     'Cancella tutto e ricomincia, la chiave resta salvata',
+     'Limpa tudo e recomeça, a chave é mantida',
+     'Briše sve i počinje ispočetka, ključ ostaje spremljen',
+     'Очищает всё и начинает заново, ключ сохраняется',
+     'すべて消去してやり直します。キーは保持されます',
+     'सब कुछ साफ़ कर के नए सिरे से शुरू करता है, कुंजी सहेजी रहती है'], 'title');
+  put('title.remove_key', '#btnRemoveKey',
+    ['הסר מפתח', 'إزالة المفتاح', 'Remove key', 'Retirer la clé', 'Quitar la clave',
+     'Schlüssel entfernen', 'Rimuovi chiave', 'Remover chave', 'Ukloni ključ',
+     'Удалить ключ', 'キーを削除', 'कुंजी हटाएँ'], 'title');
+  put('aria.rail', '#stageRail',
+    ['שלבי ההתאמה', 'مراحل الملاءمة', 'The tailoring stages', 'Les étapes de l\'adaptation',
+     'Las etapas de la adaptación', 'Die Schritte der Anpassung', 'Le fasi dell\'adattamento',
+     'As etapas da adaptação', 'Faze prilagodbe', 'Этапы адаптации', '調整のステップ',
+     'अनुकूलन के चरण'], 'aria-label');
   put('btn.start_over', '#btnStartOver',
     ['↺ התחל מחדש', '↺ ابدأ من جديد', '↺ Start over', '↺ Recommencer', '↺ Empezar de nuevo', '↺ Neu beginnen', '↺ Ricomincia', '↺ Começar de novo', '↺ Počni ispočetka', '↺ Начать заново', '↺ 最初からやり直す', '↺ फिर से शुरू करें']);
   put('btn.settings', '#btnSettings',
@@ -14574,6 +15439,24 @@ var TT_I18N = (function () {
     ['בדוק חיבור', 'اختبر الاتصال', 'Test connection', 'Tester la connexion', 'Probar la conexión', 'Verbindung testen', 'Prova la connessione', 'Testar a conexão', 'Testiraj vezu', 'Проверить соединение', '接続をテスト', 'कनेक्शन जाँचें']);
   put('btn.get_key', '#btnGetKey',
     ['🔑 קבל מפתח API בחינם', '🔑 احصل على مفتاح API مجاني', '🔑 Get a free API key', '🔑 Obtenir une clé API gratuite', '🔑 Consigue una clave API gratis', '🔑 Kostenlosen API-Schlüssel holen', '🔑 Ottieni una chiave API gratuita', '🔑 Obtenha uma chave de API gratuita', '🔑 Nabavi besplatan API ključ', '🔑 Получить бесплатный ключ API', '🔑 無料の API キーを取得', '🔑 मुफ़्त API कुंजी लें']);
+  put('btn.remove_key', '#btnRemoveKey',
+    ['🗑️ הסר מפתח', '🗑️ إزالة المفتاح', '🗑️ Remove key', '🗑️ Retirer la clé', '🗑️ Quitar la clave',
+     '🗑️ Schlüssel entfernen', '🗑️ Rimuovi chiave', '🗑️ Remover chave', '🗑️ Ukloni ključ',
+     '🗑️ Удалить ключ', '🗑️ キーを削除', '🗑️ कुंजी हटाएँ']);
+  put('howkey.exposure', '#howKeyExposure', [
+    'שמור את המפתח לעצמך. מפתח שנדחף למאגר קוד ציבורי מדווח ל־Google ומושבת אוטומטית, ואז יהיה צריך להנפיק אחד חדש.',
+    'احتفظ بالمفتاح لنفسك. المفتاح الذي يُرفع إلى مستودع شيفرة عام يُبلَّغ عنه إلى Google ويُعطَّل تلقائيًا، وعندها يلزم إصدار مفتاح جديد.',
+    'Keep the key to yourself. A key pushed to a public code repository is reported to Google and disabled automatically, and then a new one has to be issued.',
+    'Gardez la clé pour vous. Une clé poussée vers un dépôt de code public est signalée à Google et désactivée automatiquement, et il faut alors en créer une nouvelle.',
+    'Guarda la clave para ti. Una clave subida a un repositorio de código público se informa a Google y se desactiva automáticamente, y entonces hay que crear una nueva.',
+    'Behalten Sie den Schlüssel für sich. Ein Schlüssel, der in ein öffentliches Code-Repository gelangt, wird an Google gemeldet und automatisch deaktiviert; danach muss ein neuer erstellt werden.',
+    'Tieni la chiave per te. Una chiave caricata su un repository di codice pubblico viene segnalata a Google e disattivata automaticamente, e allora ne serve una nuova.',
+    'Guarde a chave só para você. Uma chave enviada a um repositório de código público é reportada ao Google e desativada automaticamente, e então é preciso criar uma nova.',
+    'Zadržite ključ za sebe. Ključ poslan u javni repozitorij koda prijavljuje se Googleu i automatski se onemogućuje, nakon čega treba izdati novi.',
+    'Держите ключ при себе. Ключ, попавший в публичный репозиторий кода, сообщается Google и отключается автоматически, после чего придётся создать новый.',
+    'キーは自分だけで管理してください。公開コードリポジトリにプッシュされたキーは Google に通報され自動的に無効化されるため、新しいキーを発行し直す必要があります。',
+    'कुंजी अपने पास रखें। सार्वजनिक कोड रिपॉज़िटरी में पुश की गई कुंजी की सूचना Google को जाती है और वह अपने आप बंद कर दी जाती है, फिर नई कुंजी बनानी पड़ती है।'
+  ]);
   put('btn.how_key', '#btnHowKey',
     ['איך עושים את זה?', 'كيف يتم ذلك؟', 'How is that done?', 'Comment faire ?', '¿Cómo se hace?', 'Wie geht das?', 'Come si fa?', 'Como se faz?', 'Kako se to radi?', 'Как это сделать?', 'やり方は？', 'यह कैसे करें?']);
   put('howkey.title', '#howKeyModal h3',
@@ -15075,7 +15958,12 @@ var TT_I18N = (function () {
     '<span class="tt-tag">ステップ 5</span>変更の承認',
     '<span class="tt-tag">चरण 5</span>बदलावों की स्वीकृति'
   ]);
-  put('card.result_title', '#resultCard > div:nth-of-type(1) > h2', [
+  /* Was '#resultCard > div:nth-of-type(1) > h2' and stopped matching the moment
+     v38.5 put the second fit reading at the top of this card: the first div is
+     now that panel, which has no h2, so the stage 6 heading silently stayed in
+     Hebrew in every other language. Positional selectors over markup that grows
+     are a trap; the class says what it means and cannot drift. */
+  put('card.result_title', '#resultCard .tt-card-title', [
     '<span class="tt-tag">שלב 6</span>בדיקות ותוצאה',
     '<span class="tt-tag">المرحلة 6</span>الفحوصات والنتيجة',
     '<span class="tt-tag">Stage 6</span>Checks and result',
@@ -15313,6 +16201,87 @@ function ttFlagSvg(code, size) {
 var TT_TX_ORDER = ['ar', 'en', 'fr', 'es', 'de', 'it', 'pt', 'hr', 'ru', 'ja', 'hi'];
 var TT_TX_IDX = {}; TT_TX_ORDER.forEach(function (c, i) { TT_TX_IDX[c] = i; });
 var TT_TX = {
+'אין תשובה בתיבה. כתוב תשובה, או לחץ "דלג על השאלה".':['لا توجد إجابة في الحقل. اكتب إجابة أو اضغط "تخطَّ السؤال".','There is no answer in the box. Write one, or press "Skip the question".','Le champ est vide. Écrivez une réponse ou appuyez sur « Passer la question ».','No hay respuesta en el campo. Escribe una, o pulsa «Omitir la pregunta».','Im Feld steht keine Antwort. Schreiben Sie eine, oder klicken Sie auf „Frage überspringen“.','Non c’è una risposta nel campo. Scrivine una, oppure premi "Salta la domanda".','Não há resposta no campo. Escreva uma, ou clique em "Pular a pergunta".','U polju nema odgovora. Napišite ga ili pritisnite "Preskoči pitanje".','В поле нет ответа. Напишите его или нажмите «Пропустить вопрос».','入力欄が空です。回答を書くか、「質問をスキップ」を押してください。','बॉक्स में कोई उत्तर नहीं है। उत्तर लिखें, या "सवाल छोड़ें" दबाएँ।'],
+'כתבת תשובה ולא שלחת אותה. אם תמשיך היא תימחק.\n\nלהמשיך בכל זאת?':['كتبت إجابة ولم ترسلها. إذا تابعت ستُحذف.\n\nهل تتابع على أي حال؟','You wrote an answer and did not send it. If you continue it will be lost.\n\nContinue anyway?','Vous avez écrit une réponse sans l’envoyer. Si vous continuez, elle sera perdue.\n\nContinuer quand même ?','Escribiste una respuesta y no la enviaste. Si continúas, se perderá.\n\n¿Continuar de todos modos?','Sie haben eine Antwort geschrieben und nicht gesendet. Wenn Sie fortfahren, geht sie verloren.\n\nTrotzdem fortfahren?','Hai scritto una risposta senza inviarla. Se continui andrà persa.\n\nContinuare comunque?','Você escreveu uma resposta e não a enviou. Se continuar, ela será perdida.\n\nContinuar mesmo assim?','Napisali ste odgovor i niste ga poslali. Nastavite li, bit će izgubljen.\n\nSvejedno nastaviti?','Вы написали ответ и не отправили его. Если продолжить, он пропадёт.\n\nВсё равно продолжить?','回答を書いたまま送信していません。このまま進むと失われます。\n\n続けますか？','आपने उत्तर लिखा है पर भेजा नहीं। आगे बढ़ने पर वह मिट जाएगा।\n\nफिर भी जारी रखें?'],
+'שלב 4: מנסה שוב ':['المرحلة 4: إعادة محاولة ','Stage 4: retrying ','Étape 4 : nouvelle tentative sur ','Etapa 4: reintentando ','Schritt 4: erneuter Versuch für ','Fase 4: nuovo tentativo su ','Etapa 4: nova tentativa em ','Faza 4: ponovni pokušaj za ','Этап 4: повтор для ','ステップ 4: 再試行 ','चरण 4: पुनः प्रयास '],
+' מקטעים שהתשובה עליהם לא נקראה...':[' مقاطع تعذّرت قراءة الرد عليها...',' sections whose reply could not be read...',' sections dont la réponse était illisible...',' secciones cuya respuesta no se pudo leer...',' Abschnitte, deren Antwort nicht lesbar war...',' sezioni la cui risposta non era leggibile...',' seções cuja resposta não pôde ser lida...',' odjeljaka čiji odgovor nije bio čitljiv...',' разделов, ответ по которым не удалось прочитать...',' 件の読み取れなかった応答を...',' अनुभाग जिनका उत्तर पढ़ा नहीं जा सका...'],
+'הסיכום':['الملخّص','the summary','le résumé','el resumen','die Zusammenfassung','il sommario','o resumo','sažetak','сводка','要約','सारांश'],
+'הניסיון':['الخبرة','the experience','l’expérience','la experiencia','die Erfahrung','l’esperienza','a experiência','iskustvo','опыт','職務経歴','अनुभव'],
+'הסעיפים הנוספים':['الأقسام الإضافية','the extra sections','les sections supplémentaires','las secciones adicionales','die weiteren Abschnitte','le sezioni aggiuntive','as seções adicionais','dodatni odjeljci','дополнительные разделы','その他の項目','अतिरिक्त अनुभाग'],
+'שלב הכתיבה':['مرحلة الكتابة','the writing stage','l’étape de rédaction','la etapa de redacción','die Schreibphase','la fase di scrittura','a etapa de escrita','faza pisanja','этап написания','執筆のステップ','लेखन चरण'],
+'להתחיל מחדש?\n\nקורות החיים, המשרה, השאלות והשינויים יימחקו.\nמפתח ה־API יישמר.':['هل تبدأ من جديد؟\n\nسيتم حذف السيرة الذاتية والوظيفة والأسئلة والتغييرات.\nسيبقى مفتاح API محفوظًا.','Start over?\n\nThe resume, the posting, the questions and the changes will be deleted.\nThe API key is kept.','Tout recommencer ?\n\nLe CV, l\'annonce, les questions et les modifications seront supprimés.\nLa clé API est conservée.','¿Empezar de nuevo?\n\nSe borrarán el currículum, la oferta, las preguntas y los cambios.\nLa clave API se conserva.','Neu beginnen?\n\nLebenslauf, Anzeige, Fragen und Änderungen werden gelöscht.\nDer API-Schlüssel bleibt erhalten.','Ricominciare?\n\nIl CV, l\'annuncio, le domande e le modifiche verranno eliminati.\nLa chiave API resta salvata.','Começar de novo?\n\nO currículo, a vaga, as perguntas e as alterações serão apagados.\nA chave de API é mantida.','Početi ispočetka?\n\nŽivotopis, oglas, pitanja i izmjene bit će obrisani.\nAPI ključ ostaje spremljen.','Начать заново?\n\nРезюме, вакансия, вопросы и изменения будут удалены.\nКлюч API сохранится.','最初からやり直しますか？\n\n履歴書、求人票、質問、変更はすべて削除されます。\nAPI キーは保持されます。','फिर से शुरू करें?\n\nबायोडाटा, नौकरी, सवाल और बदलाव मिट जाएँगे।\nAPI कुंजी सहेजी रहेगी।'],
+'שינוי הבחירה יתחיל את שלב 3 מחדש, כי השאלות נבחרו לפי הבחירה הקודמת.\n\n':['تغيير الاختيار سيعيد تشغيل المرحلة 3، لأن الأسئلة اختيرت وفق الاختيار السابق.\n\n','Changing this restarts stage 3, because the questions were chosen for the previous choice.\n\n','Modifier ce choix relance l\'étape 3, car les questions ont été choisies selon le choix précédent.\n\n','Cambiar esta opción reinicia la etapa 3, porque las preguntas se eligieron según la opción anterior.\n\n','Diese Änderung startet Schritt 3 neu, weil die Fragen nach der vorherigen Wahl ausgesucht wurden.\n\n','Cambiare la scelta riavvia la fase 3, perché le domande sono state scelte in base alla scelta precedente.\n\n','Mudar a escolha reinicia a etapa 3, porque as perguntas foram escolhidas para a escolha anterior.\n\n','Promjena izbora ponovno pokreće fazu 3, jer su pitanja odabrana prema prethodnom izboru.\n\n','Изменение выбора перезапустит этап 3, так как вопросы были подобраны под прежний выбор.\n\n','選択を変えるとステップ 3 をやり直します。質問は前の選択に合わせて選ばれていたためです。\n\n','चयन बदलने पर चरण 3 फिर से शुरू होगा, क्योंकि सवाल पिछले चयन के अनुसार चुने गए थे।\n\n'],
+' דברים לתקן, כולם מפורטים למטה עם השורות עצמן.':[' أمور بحاجة إلى إصلاح، وكلها مفصّلة أدناه مع الأسطر نفسها.',' things to fix, all of them listed below with the lines themselves.',' points à corriger, tous détaillés ci-dessous avec les lignes concernées.',' cosas por corregir, todas detalladas abajo con las líneas mismas.',' Dinge zu beheben, alle unten mit den Zeilen selbst aufgeführt.',' cose da correggere, tutte elencate sotto con le righe stesse.',' coisas a corrigir, todas listadas abaixo com as próprias linhas.',' stvari za popraviti, sve su navedene niže s pripadnim redcima.',' пунктов к исправлению, все перечислены ниже вместе со строками.',' 件の修正点があります。該当行とともに下に一覧しています。',' चीज़ें ठीक करनी हैं, सभी नीचे पंक्तियों सहित सूचीबद्ध हैं।'],
+' <span class="text-xs font-semibold">(חובה)</span>':[' <span class="text-xs font-semibold">(إلزامي)</span>',' <span class="text-xs font-semibold">(required)</span>',' <span class="text-xs font-semibold">(obligatoire)</span>',' <span class="text-xs font-semibold">(obligatorio)</span>',' <span class="text-xs font-semibold">(Pflicht)</span>',' <span class="text-xs font-semibold">(obbligatorio)</span>',' <span class="text-xs font-semibold">(obrigatório)</span>',' <span class="text-xs font-semibold">(obavezno)</span>',' <span class="text-xs font-semibold">(обязательно)</span>',' <span class="text-xs font-semibold">（必須）</span>',' <span class="text-xs font-semibold">(अनिवार्य)</span>'],
+' · חובה':[' · إلزامي',' · required',' · obligatoire',' · obligatorio',' · Pflicht',' · obbligatorio',' · obrigatório',' · obavezno',' · обязательно',' · 必須',' · अनिवार्य'],
+' נוסף טמפלט לפי העיצוב של הקובץ שהעלית.':[' أُضيف قالب حسب تصميم الملف الذي رفعته.',' A template was added from the design of the file you uploaded.',' Un modèle a été ajouté d’après la mise en forme du fichier importé.',' Se añadió una plantilla según el diseño del archivo que subiste.',' Eine Vorlage wurde aus dem Layout Ihrer hochgeladenen Datei ergänzt.',' È stato aggiunto un modello basato sull’impaginazione del file caricato.',' Foi adicionado um modelo com base no design do arquivo que você enviou.',' Dodan je predložak prema izgledu datoteke koju ste učitali.',' Добавлен шаблон по оформлению загруженного файла.',' アップロードしたファイルの体裁からテンプレートを追加しました。',' आपने जो फ़ाइल अपलोड की, उसके डिज़ाइन से एक टेम्पलेट जोड़ा गया।'],
+' פעמים':[' مرات',' times',' fois',' veces',' mal',' volte',' vezes',' puta',' раз',' 回',' बार'],
+' שורות מסומנות':[' أسطر معلَّمة',' lines marked',' lignes marquées',' líneas marcadas',' Zeilen markiert',' righe contrassegnate',' linhas marcadas',' redaka označeno',' строк отмечено',' 行が対象',' पंक्तियाँ चिह्नित'],
+' שורות, הן מופיעות כאן למטה':[' أسطر، وهي معروضة أدناه',' lines, they appear below',' lignes, elles figurent ci-dessous',' líneas, aparecen más abajo',' Zeilen, sie stehen unten',' righe, compaiono qui sotto',' linhas, elas aparecem abaixo',' redaka, prikazani su niže',' строк, они показаны ниже',' 行に反映され、下に表示されています',' पंक्तियाँ, वे नीचे दिख रही हैं'],
+' שינויים':[' تغييرات',' changes',' modifications',' cambios',' Änderungen',' modifiche',' alterações',' promjena',' изменений',' 件の変更',' बदलाव'],
+'אותו דבר, וריאנט אחר':['الشيء نفسه بصيغة مختلفة','the same thing, a different variant','la même chose, une variante différente','lo mismo, otra variante','dasselbe, eine andere Variante','la stessa cosa, una variante diversa','a mesma coisa, outra variante','ista stvar, druga varijanta','то же самое, другой вариант','同じもので別のバリエーション','वही चीज़, अलग रूप'],
+'אין התאמה':['لا يوجد تطابق','no match','aucune correspondance','sin coincidencia','keine Übereinstimmung','nessuna corrispondenza','sem correspondência','nema podudaranja','нет соответствия','一致なし','कोई मेल नहीं'],
+'בולטים':['نقاط','bullets','puces','viñetas','Aufzählung','elenco puntato','marcadores','natuknice','маркированный список','箇条書き','बुलेट'],
+'בורדו':['نبيذي','Burgundy','Bordeaux','Burdeos','Bordeaux','Bordeaux','Bordô','Bordo','Бордовый','ボルドー','बरगंडी'],
+'דילגת':['تخطّيت','skipped','ignorée','omitida','übersprungen','saltata','pulada','preskočeno','пропущено','スキップ','छोड़ा'],
+'המילה מופיעה פעמיים ברצף':['الكلمة مكرّرة مرتين متتاليتين','the word appears twice in a row','le mot apparaît deux fois de suite','la palabra aparece dos veces seguidas','das Wort steht zweimal hintereinander','la parola compare due volte di seguito','a palavra aparece duas vezes seguidas','riječ se pojavljuje dvaput zaredom','слово повторяется дважды подряд','同じ語が二回続いています','शब्द लगातार दो बार आया है'],
+'השיחה הסתיימה.':['انتهت المحادثة.','The conversation has ended.','La conversation est terminée.','La conversación ha terminado.','Das Gespräch ist beendet.','La conversazione è terminata.','A conversa terminou.','Razgovor je završen.','Разговор завершён.','対話は終了しました。','बातचीत समाप्त हो गई।'],
+'התבליטים הוחזרו לסעיפי הניסיון והכישורים.':['أُعيدت النقاط إلى قسمي الخبرة والمهارات.','Bullet markers were restored to the experience and skills sections.','Les puces ont été rétablies dans les sections expérience et compétences.','Se restauraron las viñetas en las secciones de experiencia y aptitudes.','Die Aufzählungszeichen wurden in den Abschnitten Erfahrung und Kenntnisse wiederhergestellt.','I punti elenco sono stati ripristinati nelle sezioni esperienza e competenze.','Os marcadores foram restaurados nas seções de experiência e competências.','Natuknice su vraćene u odjeljke iskustva i vještina.','Маркеры списка возвращены в разделы опыта и навыков.','職務経歴とスキルの各項目に箇条書き記号を戻しました。','अनुभव और कौशल अनुभागों में बुलेट चिह्न लौटा दिए गए।'],
+'זית':['زيتوني','Olive','Olive','Oliva','Oliv','Oliva','Oliva','Maslinasta','Оливковый','オリーブ','जैतूनी'],
+'טורקיז כהה':['فيروزي داكن','Deep teal','Bleu-vert foncé','Turquesa oscuro','Dunkles Petrol','Verde acqua scuro','Verde-azulado escuro','Tamna tirkizna','Тёмная бирюза','ダークティール','गहरा फ़िरोज़ी'],
+'כותרות מודגשות עם קו מפריד. הבחירה השמרנית.':['عناوين بارزة مع خط فاصل. الخيار المحافظ.','Bold headings with a dividing rule. The conservative choice.','Titres en gras avec un filet de séparation. Le choix classique.','Títulos en negrita con una línea divisoria. La opción conservadora.','Fette Überschriften mit Trennlinie. Die konservative Wahl.','Titoli in grassetto con una linea divisoria. La scelta conservativa.','Títulos em negrito com uma linha divisória. A escolha conservadora.','Podebljani naslovi s razdjelnom crtom. Konzervativan izbor.','Жирные заголовки с разделительной линией. Консервативный вариант.','太字の見出しと区切り線。手堅い選択です。','मोटे शीर्षक और एक विभाजक रेखा। परंपरागत विकल्प।'],
+'כותרות על רצועת רקע בהירה, טקסט שחור בתוכה.':['عناوين على شريط خلفية فاتح بنص أسود.','Headings on a light background band, with black text inside it.','Titres sur un bandeau clair, texte noir à l’intérieur.','Títulos sobre una banda de fondo clara, con texto negro dentro.','Überschriften auf einem hellen Farbband, mit schwarzem Text darin.','Titoli su una fascia di sfondo chiara, con testo nero all’interno.','Títulos sobre uma faixa de fundo clara, com texto preto dentro.','Naslovi na svijetloj pozadinskoj traci, s crnim tekstom unutra.','Заголовки на светлой фоновой полосе с чёрным текстом внутри.','明るい帯の上に黒文字で見出しを置きます。','हल्की पृष्ठभूमि पट्टी पर शीर्षक, उसमें काला पाठ।'],
+'כחול עמוק':['أزرق داكن','Deep navy','Bleu marine','Azul profundo','Tiefes Marineblau','Blu profondo','Azul-marinho','Tamnoplava','Тёмно-синий','ディープネイビー','गहरा नीला'],
+'ליטוש':['صقل','polish','peaufinage','pulido','Feinschliff','rifinitura','polimento','poliranje','полировка','仕上げ','निखार'],
+'מנסח את השאלה הבאה...':['يصوغ السؤال التالي...','Composing the next question...','Rédaction de la question suivante...','Redactando la siguiente pregunta...','Die nächste Frage wird formuliert...','Sto formulando la prossima domanda...','Formulando a próxima pergunta...','Sastavljam sljedeće pitanje...','Формулирую следующий вопрос...','次の質問を作成しています...','अगला सवाल तैयार किया जा रहा है...'],
+'מערכת אחרת מאותה משפחה':['نظام آخر من العائلة نفسها','a different system from the same family','un autre système de la même famille','otro sistema de la misma familia','ein anderes System derselben Familie','un altro sistema della stessa famiglia','outro sistema da mesma família','drugi sustav iz iste obitelji','другая система того же семейства','同じ系統の別システム','उसी परिवार की दूसरी प्रणाली'],
+'משפחה שכנה':['عائلة مجاورة','a neighbouring family','une famille voisine','una familia vecina','eine benachbarte Familie','una famiglia vicina','uma família vizinha','susjedna obitelj','соседнее семейство','隣接する系統','पड़ोसी परिवार'],
+'עולם אחר לגמרי':['عالم مختلف تمامًا','an entirely different world','un tout autre univers','un mundo completamente distinto','eine völlig andere Welt','un mondo del tutto diverso','um mundo completamente diferente','posve drugi svijet','совсем другой мир','まったく別の領域','बिलकुल अलग दुनिया'],
+'עסקי':['أعمال','Business','Affaires','Corporativa','Business','Business','Corporativo','Poslovni','Деловой','ビジネス','व्यावसायिक'],
+'פחם':['فحمي','Charcoal','Anthracite','Carbón','Anthrazit','Antracite','Carvão','Ugljena','Угольный','チャコール','कोयला'],
+'קלאסי':['كلاسيكي','Classic','Classique','Clásica','Klassisch','Classico','Clássico','Klasični','Классический','クラシック','क्लासिक'],
+'רצועה':['شريط','Band','Bandeau','Banda','Farbband','Fascia','Faixa','Traka','Полоса','バンド','पट्टी'],
+'שחור בלבד':['أسود فقط','Black only','Noir seulement','Solo negro','Nur Schwarz','Solo nero','Somente preto','Samo crna','Только чёрный','ブラックのみ','केवल काला'],
+'שיפוץ מלא':['إعادة صياغة شاملة','full rework','refonte complète','reelaboración completa','vollständige Überarbeitung','rielaborazione completa','reformulação completa','potpuna prerada','полная переработка','全面的な作り直し','पूर्ण पुनर्लेखन'],
+'שם וכותרות בצבע, קו דק מתחת. ברירת המחדל המקצועית.':['الاسم والعناوين بالألوان، مع خط رفيع تحتها. الخيار المهني الافتراضي.','Name and headings in colour, a thin rule beneath. The professional default.','Nom et titres en couleur, un filet fin en dessous. Le réglage professionnel par défaut.','Nombre y títulos en color, una línea fina debajo. La opción profesional por defecto.','Name und Überschriften farbig, darunter eine feine Linie. Die professionelle Voreinstellung.','Nome e titoli a colori, una linea sottile sotto. L’impostazione professionale predefinita.','Nome e títulos em cor, uma linha fina abaixo. O padrão profissional.','Ime i naslovi u boji, tanka crta ispod. Profesionalna zadana postavka.','Имя и заголовки в цвете, тонкая линия под ними. Профессиональный вариант по умолчанию.','氏名と見出しを色付きにし、その下に細い罫線を引きます。標準的な設定です。','नाम और शीर्षक रंग में, नीचे एक पतली रेखा। पेशेवर डिफ़ॉल्ट।'],
+'תיבת קורות החיים נוקתה.':['تم مسح حقل السيرة الذاتية.','The resume box was cleared.','Le champ du CV a été vidé.','Se vació el campo del currículum.','Das Lebenslauf-Feld wurde geleert.','Il campo del CV è stato svuotato.','O campo do currículo foi limpo.','Polje životopisa je očišćeno.','Поле резюме очищено.','履歴書の入力欄を消去しました。','बायोडाटा बॉक्स साफ़ कर दिया गया।'],
+'✓ הוחל':['✓ طُبِّق','✓ applied','✓ appliqué','✓ aplicado','✓ angewendet','✓ applicato','✓ aplicado','✓ primijenjeno','✓ применено','✓ 適用済み','✓ लागू'],
+'✓ לא נמצאו שגיאות כתיב בתשובה.':['✓ لم يُعثر على أخطاء إملائية في الإجابة.','✓ No spelling errors were found in the answer.','✓ Aucune faute d’orthographe trouvée dans la réponse.','✓ No se encontraron errores de ortografía en la respuesta.','✓ In der Antwort wurden keine Rechtschreibfehler gefunden.','✓ Nessun errore di ortografia trovato nella risposta.','✓ Nenhum erro de ortografia encontrado na resposta.','✓ U odgovoru nisu pronađene pravopisne pogreške.','✓ Орфографических ошибок в ответе не найдено.','✓ 回答に綴りの誤りは見つかりませんでした。','✓ उत्तर में कोई वर्तनी त्रुटि नहीं मिली।'],
+'המפתח הפסיק לעבוד':['المفتاح توقّف عن العمل','The key has stopped working','La clé ne fonctionne plus','La clave dejó de funcionar','Der Schlüssel funktioniert nicht mehr','La chiave ha smesso di funzionare','A chave parou de funcionar','Ključ je prestao raditi','Ключ перестал работать','キーが使えなくなりました','कुंजी ने काम करना बंद कर दिया'],
+'Google לא מקבלת יותר את המפתח הזה. יש לכך שתי סיבות אפשריות, ואי אפשר להבחין ביניהן מתוך הדפדפן: המפתח לא הועתק במלואו, או ש־Google השביתה אותו אחרי שהתגלה במקום ציבורי, למשל בתוך קוד במאגר פתוח.':['لم تعد Google تقبل هذا المفتاح. لذلك سببان محتملان لا يمكن التمييز بينهما من المتصفح: لم يُنسخ المفتاح كاملًا، أو أن Google عطّلته بعد ظهوره في مكان عام، مثل داخل شيفرة في مستودع مفتوح.','Google no longer accepts this key. There are two possible reasons, and the browser cannot tell them apart: the key was not copied in full, or Google disabled it after it appeared somewhere public, such as inside code in an open repository.','Google n’accepte plus cette clé. Deux raisons sont possibles, et le navigateur ne peut pas les distinguer : la clé n’a pas été copiée en entier, ou Google l’a désactivée après qu’elle est apparue dans un endroit public, par exemple dans du code sur un dépôt ouvert.','Google ya no acepta esta clave. Hay dos motivos posibles y el navegador no puede distinguirlos: la clave no se copió completa, o Google la desactivó tras aparecer en un lugar público, por ejemplo dentro de código en un repositorio abierto.','Google akzeptiert diesen Schlüssel nicht mehr. Dafür gibt es zwei mögliche Gründe, die der Browser nicht unterscheiden kann: Der Schlüssel wurde nicht vollständig kopiert, oder Google hat ihn deaktiviert, nachdem er öffentlich aufgetaucht ist, etwa in Code in einem offenen Repository.','Google non accetta più questa chiave. Le ragioni possibili sono due e il browser non può distinguerle: la chiave non è stata copiata per intero, oppure Google l’ha disattivata dopo che è comparsa in un luogo pubblico, per esempio dentro del codice in un repository aperto.','O Google não aceita mais esta chave. Há duas razões possíveis, e o navegador não consegue distingui-las: a chave não foi copiada por inteiro, ou o Google a desativou depois que ela apareceu em um lugar público, como dentro de código em um repositório aberto.','Google više ne prihvaća ovaj ključ. Postoje dva moguća razloga koje preglednik ne može razlikovati: ključ nije kopiran u cijelosti ili ga je Google onemogućio nakon što se pojavio na javnom mjestu, primjerice u kodu u otvorenom repozitoriju.','Google больше не принимает этот ключ. Возможных причин две, и из браузера их не различить: ключ скопирован не полностью, либо Google отключил его после того, как он оказался в открытом доступе, например в коде публичного репозитория.','Google はこのキーを受け付けなくなりました。理由は二つ考えられ、ブラウザからは区別できません。キーが完全にコピーされていないか、公開リポジトリのコードなど公の場に現れたため Google が無効化したかのいずれかです。','Google अब यह कुंजी स्वीकार नहीं करता। इसके दो संभावित कारण हैं, और ब्राउज़र उन्हें अलग नहीं कर सकता: कुंजी पूरी तरह कॉपी नहीं हुई, या सार्वजनिक जगह — जैसे किसी खुले रिपॉज़िटरी के कोड — में दिखने के बाद Google ने उसे बंद कर दिया।'],
+'Google דחתה את הבקשה עם המפתח הזה. בדרך כלל זה אומר שה־API אינו מופעל בפרויקט, שהמפתח הוגבל, או שהחשבון הושעה.':['رفضت Google الطلب بهذا المفتاح. غالبًا يعني ذلك أن واجهة البرمجة غير مفعّلة في المشروع، أو أن المفتاح مقيّد، أو أن الحساب موقوف.','Google refused the request with this key. Usually that means the API is not enabled on the project, the key is restricted, or the account is suspended.','Google a refusé la requête avec cette clé. Cela signifie généralement que l’API n’est pas activée sur le projet, que la clé est restreinte, ou que le compte est suspendu.','Google rechazó la solicitud con esta clave. Normalmente significa que la API no está habilitada en el proyecto, que la clave está restringida o que la cuenta está suspendida.','Google hat die Anfrage mit diesem Schlüssel abgelehnt. Meist bedeutet das, dass die API im Projekt nicht aktiviert ist, der Schlüssel eingeschränkt ist oder das Konto gesperrt wurde.','Google ha rifiutato la richiesta con questa chiave. Di solito significa che l’API non è abilitata sul progetto, che la chiave è limitata o che l’account è sospeso.','O Google recusou a solicitação com esta chave. Normalmente isso significa que a API não está ativada no projeto, que a chave está restrita ou que a conta está suspensa.','Google je odbio zahtjev s ovim ključem. Obično to znači da API nije omogućen na projektu, da je ključ ograničen ili da je račun suspendiran.','Google отклонил запрос с этим ключом. Обычно это значит, что API не включён в проекте, ключ ограничен или аккаунт заблокирован.','Google はこのキーでのリクエストを拒否しました。多くの場合、プロジェクトで API が有効になっていない、キーに制限がある、またはアカウントが停止されています。','Google ने इस कुंजी के साथ अनुरोध अस्वीकार कर दिया। आमतौर पर इसका अर्थ है कि प्रोजेक्ट में API चालू नहीं है, कुंजी प्रतिबंधित है, या खाता निलंबित है।'],
+'קבל מפתח חדש':['احصل على مفتاح جديد','Get a new key','Obtenir une nouvelle clé','Obtener una clave nueva','Neuen Schlüssel holen','Ottieni una nuova chiave','Obter uma chave nova','Nabavi novi ključ','Получить новый ключ','新しいキーを取得','नई कुंजी लें'],
+'הסר את המפתח מהדפדפן':['أزل المفتاح من المتصفح','Remove the key from this browser','Retirer la clé du navigateur','Quitar la clave del navegador','Schlüssel aus dem Browser entfernen','Rimuovi la chiave dal browser','Remover a chave do navegador','Ukloni ključ iz preglednika','Удалить ключ из браузера','ブラウザからキーを削除','ब्राउज़र से कुंजी हटाएँ'],
+'להסיר את המפתח מהדפדפן הזה?':['هل تريد إزالة المفتاح من هذا المتصفح؟','Remove the key from this browser?','Retirer la clé de ce navigateur ?','¿Quitar la clave de este navegador?','Schlüssel aus diesem Browser entfernen?','Rimuovere la chiave da questo browser?','Remover a chave deste navegador?','Ukloniti ključ iz ovog preglednika?','Удалить ключ из этого браузера?','このブラウザからキーを削除しますか？','क्या इस ब्राउज़र से कुंजी हटाएँ?'],
+'הפעולה מוחקת את העותק ששמור בדפדפן שלך בלבד. היא אינה מבטלת את המפתח אצל Google: אם הוא נחשף, הוא נשאר פעיל שם עד שתבטלו אותו ב־AI Studio.':['يحذف هذا الإجراء النسخة المحفوظة في متصفحك فقط. وهو لا يُلغي المفتاح لدى Google: إذا كان قد انكشف، يبقى فعّالًا هناك حتى تُلغيه من AI Studio.','This deletes only the copy stored in your browser. It does not cancel the key at Google: if it has been exposed, it stays active there until you cancel it in AI Studio.','Cela supprime uniquement la copie enregistrée dans votre navigateur. Cela n’annule pas la clé chez Google : si elle a été exposée, elle reste active là-bas jusqu’à ce que vous l’annuliez dans AI Studio.','Esto borra solo la copia guardada en tu navegador. No cancela la clave en Google: si quedó expuesta, sigue activa allí hasta que la canceles en AI Studio.','Damit wird nur die im Browser gespeicherte Kopie gelöscht. Der Schlüssel bei Google wird dadurch nicht widerrufen: Wenn er offengelegt wurde, bleibt er dort aktiv, bis Sie ihn in AI Studio löschen.','Questo elimina solo la copia salvata nel tuo browser. Non annulla la chiave presso Google: se è stata esposta, resta attiva lì finché non la annulli in AI Studio.','Isso apaga apenas a cópia guardada no seu navegador. Não cancela a chave no Google: se ela foi exposta, continua ativa lá até você cancelá-la no AI Studio.','Ovo briše samo kopiju spremljenu u vašem pregledniku. Ne poništava ključ kod Googlea: ako je bio izložen, ondje ostaje aktivan dok ga ne poništite u AI Studiju.','Это удаляет только копию, сохранённую в вашем браузере. Ключ у Google при этом не отзывается: если он был раскрыт, он останется активным там, пока вы не отзовёте его в AI Studio.','これはブラウザに保存されたコピーを削除するだけです。Google 側のキーは無効になりません。流出している場合、AI Studio で取り消すまで有効なままです。','यह केवल आपके ब्राउज़र में सहेजी गई प्रति मिटाता है। यह Google पर कुंजी रद्द नहीं करता: यदि वह उजागर हुई है, तो AI Studio में रद्द करने तक वहाँ सक्रिय रहेगी।'],
+'הסר מהדפדפן':['أزل من المتصفح','Remove from browser','Retirer du navigateur','Quitar del navegador','Aus dem Browser entfernen','Rimuovi dal browser','Remover do navegador','Ukloni iz preglednika','Удалить из браузера','ブラウザから削除','ब्राउज़र से हटाएँ'],
+'הסר, ופתח את Google לביטול':['أزل، وافتح Google للإلغاء','Remove, and open Google to cancel it','Retirer et ouvrir Google pour l’annuler','Quitar y abrir Google para cancelarla','Entfernen und Google zum Widerrufen öffnen','Rimuovi e apri Google per annullarla','Remover e abrir o Google para cancelá-la','Ukloni i otvori Google za poništenje','Удалить и открыть Google, чтобы отозвать','削除して Google を開き取り消す','हटाएँ, और रद्द करने के लिए Google खोलें'],
+'המפתח הוסר מהדפדפן הזה.':['أُزيل المفتاح من هذا المتصفح.','The key was removed from this browser.','La clé a été retirée de ce navigateur.','La clave se quitó de este navegador.','Der Schlüssel wurde aus diesem Browser entfernt.','La chiave è stata rimossa da questo browser.','A chave foi removida deste navegador.','Ključ je uklonjen iz ovog preglednika.','Ключ удалён из этого браузера.','このブラウザからキーを削除しました。','कुंजी इस ब्राउज़र से हटा दी गई।'],
+'אין מפתח שמור.':['لا يوجد مفتاح محفوظ.','No key is stored.','Aucune clé enregistrée.','No hay ninguna clave guardada.','Es ist kein Schlüssel gespeichert.','Nessuna chiave salvata.','Nenhuma chave guardada.','Nema spremljenog ključa.','Сохранённого ключа нет.','保存されたキーはありません。','कोई कुंजी सहेजी नहीं है।'],
+'המפתח כבר שמור. הדבק מפתח חדש כדי להחליף אותו.':['المفتاح محفوظ بالفعل. الصق مفتاحًا جديدًا لاستبداله.','The key is already saved. Paste a new one to replace it.','La clé est déjà enregistrée. Collez-en une nouvelle pour la remplacer.','La clave ya está guardada. Pega una nueva para reemplazarla.','Der Schlüssel ist bereits gespeichert. Fügen Sie einen neuen ein, um ihn zu ersetzen.','La chiave è già salvata. Incollane una nuova per sostituirla.','A chave já está guardada. Cole uma nova para substituí-la.','Ključ je već spremljen. Zalijepite novi da biste ga zamijenili.','Ключ уже сохранён. Вставьте новый, чтобы заменить его.','キーはすでに保存されています。置き換えるには新しいキーを貼り付けてください。','कुंजी पहले से सहेजी है। बदलने के लिए नई कुंजी चिपकाएँ।'],
+'שים לב: מפתח של Google AI Studio מתחיל ב־AIza. אם בדיקת החיבור תיכשל, זו כנראה הסיבה.':['ملاحظة: مفتاح Google AI Studio يبدأ بـ AIza. إذا فشل اختبار الاتصال، فهذا هو السبب على الأرجح.','Note: a Google AI Studio key starts with AIza. If the connection test fails, that is probably why.','Remarque : une clé Google AI Studio commence par AIza. Si le test de connexion échoue, c’est probablement la raison.','Nota: una clave de Google AI Studio empieza por AIza. Si falla la prueba de conexión, probablemente sea por eso.','Hinweis: Ein Google-AI-Studio-Schlüssel beginnt mit AIza. Wenn der Verbindungstest fehlschlägt, liegt es wahrscheinlich daran.','Nota: una chiave di Google AI Studio inizia con AIza. Se il test di connessione fallisce, è probabilmente il motivo.','Observação: uma chave do Google AI Studio começa com AIza. Se o teste de conexão falhar, provavelmente é por isso.','Napomena: ključ Google AI Studija počinje s AIza. Ako provjera veze ne uspije, vjerojatno je to razlog.','Примечание: ключ Google AI Studio начинается с AIza. Если проверка соединения не пройдёт, скорее всего дело в этом.','補足：Google AI Studio のキーは AIza で始まります。接続テストが失敗する場合、原因はこれの可能性が高いです。','ध्यान दें: Google AI Studio की कुंजी AIza से शुरू होती है। यदि कनेक्शन जाँच विफल हो, तो कारण संभवतः यही है।'],
+'שמור בדפדפן':['محفوظ في المتصفح','saved in this browser','enregistrée dans le navigateur','guardada en el navegador','im Browser gespeichert','salvata nel browser','guardada no navegador','spremljen u pregledniku','сохранён в браузере','ブラウザに保存済み','ब्राउज़र में सहेजी गई'],
+'הדבק כאן את המפתח':['الصق المفتاح هنا','Paste the key here','Collez la clé ici','Pega aquí la clave','Schlüssel hier einfügen','Incolla qui la chiave','Cole a chave aqui','Ovdje zalijepite ključ','Вставьте ключ сюда','ここにキーを貼り付けてください','कुंजी यहाँ चिपकाएँ'],
+' ועוד':[' وأكثر',' and more',' et plus',' y más',' und mehr',' e altro',' e mais',' i još',' и другое','ほか',' और भी'],
+'<div class="text-xs text-slate-500 mb-1">כיסוי הדרישות</div>':['<div class="text-xs text-slate-500 mb-1">تغطية المتطلبات</div>','<div class="text-xs text-slate-500 mb-1">Requirement coverage</div>','<div class="text-xs text-slate-500 mb-1">Couverture des exigences</div>','<div class="text-xs text-slate-500 mb-1">Cobertura de requisitos</div>','<div class="text-xs text-slate-500 mb-1">Abdeckung der Anforderungen</div>','<div class="text-xs text-slate-500 mb-1">Copertura dei requisiti</div>','<div class="text-xs text-slate-500 mb-1">Cobertura dos requisitos</div>','<div class="text-xs text-slate-500 mb-1">Pokrivenost zahtjeva</div>','<div class="text-xs text-slate-500 mb-1">Покрытие требований</div>','<div class="text-xs text-slate-500 mb-1">要件のカバー率</div>','<div class="text-xs text-slate-500 mb-1">आवश्यकताओं की कवरेज</div>'],
+'לפני':['قبل','Before','Avant','Antes','Vorher','Prima','Antes','Prije','До','変更前','पहले'],
+'אחרי':['بعد','After','Après','Después','Nachher','Dopo','Depois','Poslije','После','変更後','बाद'],
+'התאמה נמוכה':['تطابق منخفض','Low match','Correspondance faible','Coincidencia baja','Geringe Passung','Corrispondenza bassa','Correspondência baixa','Slabo podudaranje','Низкое соответствие','適合度：低','कम मेल'],
+'התאמה נמוכה־בינונית':['تطابق منخفض إلى متوسط','Low to medium match','Correspondance faible à moyenne','Coincidencia baja-media','Gering bis mittel','Corrispondenza medio-bassa','Correspondência baixa a média','Slabo do srednje podudaranje','Соответствие ниже среднего','適合度：やや低','कम-मध्यम मेल'],
+'התאמה בינונית':['تطابق متوسط','Medium match','Correspondance moyenne','Coincidencia media','Mittlere Passung','Corrispondenza media','Correspondência média','Srednje podudaranje','Среднее соответствие','適合度：中','मध्यम मेल'],
+'התאמה בינונית־גבוהה':['تطابق متوسط إلى مرتفع','Medium to high match','Correspondance moyenne à élevée','Coincidencia media-alta','Mittel bis hoch','Corrispondenza medio-alta','Correspondência média a alta','Srednje do visoko podudaranje','Соответствие выше среднего','適合度：やや高','मध्यम-उच्च मेल'],
+'התאמה גבוהה':['تطابق مرتفع','High match','Correspondance élevée','Coincidencia alta','Hohe Passung','Corrispondenza alta','Correspondência alta','Visoko podudaranje','Высокое соответствие','適合度：高','उच्च मेल'],
+'הפער כאן הוא בניסיון עצמו, לא בניסוח':['الفجوة هنا في الخبرة نفسها، لا في الصياغة','The gap here is in the experience itself, not in the wording','L’écart est ici dans l’expérience elle-même, pas dans la formulation','La brecha está en la experiencia misma, no en la redacción','Die Lücke liegt in der Erfahrung selbst, nicht in der Formulierung','Il divario sta nell’esperienza stessa, non nella formulazione','A lacuna está na experiência em si, não na redação','Razlika je u samom iskustvu, a ne u formulaciji','Разрыв здесь в самом опыте, а не в формулировках','差は書き方ではなく経験そのものにあります','अंतर शब्दों में नहीं, अनुभव में ही है'],
+'יש נקודות השקה, אבל ליבת המשרה עדיין לא מכוסה':['هناك نقاط تلامس، لكن جوهر الوظيفة غير مغطى بعد','There are points of contact, but the core of the role is not covered','Il y a des points de contact, mais le cœur du poste n’est pas couvert','Hay puntos de contacto, pero el núcleo del puesto no está cubierto','Es gibt Berührungspunkte, aber der Kern der Stelle ist nicht abgedeckt','Ci sono punti di contatto, ma il cuore del ruolo non è coperto','Há pontos de contato, mas o núcleo da vaga não está coberto','Postoje dodirne točke, ali srž posla još nije pokrivena','Точки соприкосновения есть, но ядро роли не покрыто','接点はありますが、職務の中核はまだ満たされていません','कुछ समानताएँ हैं, पर भूमिका का मुख्य भाग अब भी अछूता है'],
+'בסיס אמיתי קיים, וחלק מהדרישות עדיין לא מוכחות':['هناك أساس حقيقي، وبعض المتطلبات ما زالت غير مثبتة','There is a real base here, and some requirements are still unproven','Une vraie base existe, et certaines exigences restent non prouvées','Hay una base real, y algunos requisitos siguen sin probarse','Eine echte Grundlage ist da, einige Anforderungen sind noch unbelegt','C’è una base reale, e alcuni requisiti restano non provati','Há uma base real, e alguns requisitos seguem sem comprovação','Postoji stvarna osnova, a neki zahtjevi još nisu dokazani','Реальная база есть, часть требований пока не доказана','確かな土台はありますが、一部の要件は未証明です','ठोस आधार मौजूद है, पर कुछ आवश्यकताएँ अब भी असिद्ध हैं'],
+'התאמה טובה, עם כמה פערים שאפשר לסגור':['ملاءمة جيدة، مع بعض الفجوات التي يمكن سدّها','A good fit, with a few gaps that can be closed','Une bonne adéquation, avec quelques écarts à combler','Buen encaje, con algunas brechas que se pueden cerrar','Eine gute Passung, mit einigen schließbaren Lücken','Buona corrispondenza, con qualche divario colmabile','Bom encaixe, com algumas lacunas que dá para fechar','Dobro podudaranje, uz nekoliko praznina koje se mogu zatvoriti','Хорошее соответствие, с несколькими закрываемыми пробелами','適合は良好で、埋められる差がいくつかあります','मेल अच्छा है, कुछ अंतर हैं जिन्हें पाटा जा सकता है'],
+'קורות החיים מכסים את מה שהמשרה מבקשת':['السيرة الذاتية تغطي ما تطلبه الوظيفة','The resume covers what the posting asks for','Le CV couvre ce que l’annonce demande','El currículum cubre lo que pide la oferta','Der Lebenslauf deckt ab, was die Anzeige verlangt','Il CV copre ciò che l’annuncio chiede','O currículo cobre o que o anúncio pede','Životopis pokriva ono što oglas traži','Резюме покрывает то, что просит вакансия','履歴書は求人票の求める内容を満たしています','बायोडाटा वह सब कवर करता है जो विज्ञापन माँगता है'],
+'רמת ההתאמה, לפני שאלות ההתאמה':['مستوى الملاءمة، قبل أسئلة الملاءمة','The level of fit, before the questions','Le niveau d’adéquation, avant les questions','El nivel de encaje, antes de las preguntas','Der Grad der Passung, vor den Fragen','Il livello di corrispondenza, prima delle domande','O nível de encaixe, antes das perguntas','Razina podudaranja, prije pitanja','Уровень соответствия, до вопросов','適合度（質問の前）','मेल का स्तर, सवालों से पहले'],
+'רמת ההתאמה, אחרי התשובות שלך':['مستوى الملاءمة، بعد إجاباتك','The level of fit, after your answers','Le niveau d’adéquation, après vos réponses','El nivel de encaje, después de tus respuestas','Der Grad der Passung, nach Ihren Antworten','Il livello di corrispondenza, dopo le tue risposte','O nível de encaixe, depois das suas respostas','Razina podudaranja, nakon vaših odgovora','Уровень соответствия, после ваших ответов','適合度（回答の後）','मेल का स्तर, आपके उत्तरों के बाद'],
+'מה נסגר':['ما الذي أُغلق','What closed','Ce qui a été comblé','Qué se cerró','Was geschlossen wurde','Che cosa si è colmato','O que foi fechado','Što je zatvoreno','Что закрылось','埋まった点','क्या पूरा हुआ'],
+'התשובות שלך הוסיפו עובדות שהמסמך לא אמר קודם':['إجاباتك أضافت وقائع لم يذكرها المستند من قبل','Your answers added facts the document did not state before','Vos réponses ont ajouté des faits que le document ne disait pas','Tus respuestas añadieron hechos que el documento no decía antes','Ihre Antworten haben Fakten ergänzt, die das Dokument vorher nicht nannte','Le tue risposte hanno aggiunto fatti che il documento non diceva','Suas respostas acrescentaram fatos que o documento não dizia antes','Vaši odgovori dodali su činjenice koje dokument prije nije naveo','Ваши ответы добавили факты, которых в документе не было','回答により、文書になかった事実が加わりました','आपके उत्तरों ने वे तथ्य जोड़े जो दस्तावेज़ में पहले नहीं थे'],
+'התשובות לא הוסיפו עובדה שסוגרת דרישה חסרה':['الإجابات لم تضف واقعة تسدّ متطلبًا ناقصًا','The answers did not add a fact that closes a missing requirement','Les réponses n’ont ajouté aucun fait comblant une exigence manquante','Las respuestas no añadieron un hecho que cierre un requisito faltante','Die Antworten haben keinen Fakt ergänzt, der eine fehlende Anforderung schließt','Le risposte non hanno aggiunto un fatto che colma un requisito mancante','As respostas não acrescentaram um fato que feche um requisito ausente','Odgovori nisu dodali činjenicu koja zatvara zahtjev koji nedostaje','Ответы не добавили факта, закрывающего недостающее требование','不足している要件を満たす事実は、回答から加わりませんでした','उत्तरों से ऐसा कोई तथ्य नहीं जुड़ा जो छूटी आवश्यकता पूरी करे'],
+'הציון נשאר כפי שהיה, וזה אומר שהפער הוא בניסיון עצמו ולא בניסוח.':['بقي الرقم كما كان، وهذا يعني أن الفجوة في الخبرة نفسها لا في الصياغة.','The score stayed as it was, which means the gap is in the experience itself and not in the wording.','Le score n’a pas bougé, ce qui signifie que l’écart est dans l’expérience elle-même et non dans la formulation.','La puntuación quedó igual, lo que significa que la brecha está en la experiencia misma y no en la redacción.','Der Wert blieb unverändert, das heißt, die Lücke liegt in der Erfahrung selbst und nicht in der Formulierung.','Il punteggio è rimasto uguale, il che significa che il divario è nell’esperienza stessa e non nella formulazione.','A pontuação ficou igual, o que significa que a lacuna está na experiência em si e não na redação.','Rezultat je ostao isti, što znači da je razlika u samom iskustvu, a ne u formulaciji.','Оценка осталась прежней, а значит, разрыв в самом опыте, а не в формулировках.','スコアは変わりませんでした。差は書き方ではなく経験そのものにあります。','अंक वही रहा, यानी अंतर शब्दों में नहीं बल्कि अनुभव में ही है।'],
 '     משרת: ':['     وظيفة: ','     Job: ','     Poste : ','     Puesto: ','     Stelle: ','     Posizione: ','     Vaga: ','     Posao: ','     Вакансия: ','     求人：','     नौकरी: '],
 '   (יש לך במקום: ':['   (لديك بدلًا منه: ','   (you have instead: ','   (vous avez à la place : ','   (tienes en su lugar: ','   (Sie haben stattdessen: ','   (hai invece: ','   (você tem em vez disso: ','   (umjesto toga imate: ','   (у вас вместо этого: ','   （代わりにあるもの：','   (आपके पास इसके बजाय: '],
 '   (מוכח: ':['   (مثبت: ','   (proved: ','   (prouvé : ','   (probado: ','   (belegt: ','   (provato: ','   (comprovado: ','   (dokazano: ','   (доказано: ','   （証明済み：','   (सिद्ध: '],
@@ -16056,7 +17025,7 @@ var TT_PAINTERS = ['aboutNote','applyUiLang','bindStructurePanel','buildUiLangMe
   'renderFitBiasPicker','renderGrammarPanel','renderInterviewSheet','renderKeywords',
   'renderMatchVerdict','renderNoRelation','renderPreview','renderProgress','renderQueue',
   'renderReview','renderSignals','renderSpellNotice','renderStructurePanel',
-  'renderTemplatePicker','renderFitDelta','setChatBusy','setConsole','setFinalView','setKeyStatus',
+  'renderTemplatePicker','renderFitDelta','renderKeyProblem','setChatBusy','setConsole','setFinalView','setKeyStatus',
   'setStage','setStatus','showNotice','syncBulletToggle','ttRenderLangBadge',
   'ttShareNote','updateLangButtons'];
 
@@ -16920,7 +17889,7 @@ function renderInterviewSheet() {
   if (!el) return;
   if (!APP.finalText) {
     el.innerHTML = '<div class="tt-prep-empty">' +
-      L(H('הגיליון נבנה אחרי שהתוצאה מוכנה.'), 'The sheet is built once the result is ready.') + '</div>';
+      H('הגיליון נבנה אחרי שהתוצאה מוכנה.') + '</div>';
     return;
   }
   var s = interviewSheet();
@@ -16928,7 +17897,7 @@ function renderInterviewSheet() {
   var html = '';
 
   html += '<div class="tt-prep-sec"><div class="tt-prep-h">' +
-          L(H('1. מה עלה לראש, ולמה'), '1. What moved to the top, and why') + '</div>';
+          H('1. מה עלה לראש, ולמה') + '</div>';
   html += '<div class="tt-prep-lead">' + L(
     H('הסעיפים שטיפסו למעלה בכל תפקיד, והדרישה שהם משרתים. אלה השורות שמגייס יקרא ראשונות, ולכן אלה השורות שהוא ישאל עליהן.'),
     'The points that climbed in each job, and the requirement they answer. A recruiter reads these first, so these are the ones you get asked about.') + '</div>';
@@ -16941,24 +17910,22 @@ function renderInterviewSheet() {
       if (sh.role) html += '<div class="tt-prep-role" dir="' + d(sh.role) + '">' + escapeHtml(sh.role) + '</div>';
       sh.lines.forEach(function (l) {
         html += '<div class="tt-prep-line" dir="' + d(l.text) + '">' + escapeHtml(l.text) +
-                '<div class="tt-prep-meta">' + L(H('ממקום ') + l.from + H(' למקום ') + l.to,
-                    'from position ' + l.from + ' to position ' + l.to) + '</div></div>';
+                '<div class="tt-prep-meta">' + H('ממקום ') + l.from + H(' למקום ') + l.to + '</div></div>';
       });
       if (sh.why) html += '<div class="tt-prep-meta" dir="' + d(sh.why) + '">' + escapeHtml(sh.why) + '</div>';
-      if (sh.reqs.length) html += '<div class="tt-prep-meta">' + L(H('משרת: '), 'answers: ') +
+      if (sh.reqs.length) html += '<div class="tt-prep-meta">' + H('משרת: ') +
         escapeHtml(sh.reqs.join(' | ')) + '</div>';
     });
   }
   html += '</div>';
 
   html += '<div class="tt-prep-sec"><div class="tt-prep-h">' +
-          L(H('2. מה לספר כששואלים מה אתה עושה ביום יום'),
-            '2. What to say when they ask what you do day to day') + '</div>';
+          H('2. מה לספר כששואלים מה אתה עושה ביום יום') + '</div>';
   html += '<div class="tt-prep-lead">' + L(
     H('מה שכתוב בראש התפקיד הראשון בסעיף הניסיון. השיחה בראיון צריכה להישמע כמו הדף, אחרת הפער בולט.'),
     'What now sits at the top of the first job in the experience section. The interview has to sound like the page, or the gap shows.') + '</div>';
   if (!s.talk.length) html += '<div class="tt-prep-empty">' +
-    L(H('אין סעיפי ניסיון לקרוא מהם.'), 'There are no experience lines to read from.') + '</div>';
+    H('אין סעיפי ניסיון לקרוא מהם.') + '</div>';
   else s.talk.forEach(function (t) {
     html += '<div class="tt-prep-line" dir="' + d(t) + '">' + escapeHtml(t) + '</div>';
   });
@@ -16968,26 +17935,25 @@ function renderInterviewSheet() {
       'And what you added yourself in the conversation. It went into the resume, so it goes into the interview.') + '</div>';
     s.stated.forEach(function (p) {
       html += '<div class="tt-prep-line" dir="' + d(p.a) + '">' + escapeHtml(p.a) +
-              (p.req ? '<div class="tt-prep-meta">' + L(H('נאמר על: '), 'said about: ') +
+              (p.req ? '<div class="tt-prep-meta">' + H('נאמר על: ') +
                        escapeHtml(p.req) + '</div>' : '') + '</div>';
     });
   }
   html += '</div>';
 
   html += '<div class="tt-prep-sec"><div class="tt-prep-h">' +
-          L(H('3. מה המשרה מבקשת ואין לזה כיסוי'),
-            '3. What the posting asks for and nothing covers') + '</div>';
+          H('3. מה המשרה מבקשת ואין לזה כיסוי') + '</div>';
   html += '<div class="tt-prep-lead">' + L(
     H('הרשימה הזו לא נכנסת לקובץ ואין לה ניסוח מוצע. היא כאן כדי שלא תופתע כששואלים.'),
     'This list never reaches the file and it suggests no wording. It is here so the question does not catch you cold.') + '</div>';
   if (!s.missing.length && !s.nameGaps.length) {
     html += '<div class="tt-prep-empty">' +
-      L(H('אין דרישה שנשארה בלי כיסוי.'), 'No requirement was left uncovered.') + '</div>';
+      H('אין דרישה שנשארה בלי כיסוי.') + '</div>';
   }
   s.missing.forEach(function (g) {
     html += '<div class="tt-prep-gap' + (g.must ? ' is-must' : '') + '" dir="' + d(g.text) + '">' +
             escapeHtml(g.text) +
-            (g.must ? '<span class="tt-prep-tag">' + L(H('חובה'), 'must have') + '</span>' : '') + '</div>';
+            (g.must ? '<span class="tt-prep-tag">' + H('חובה') + '</span>' : '') + '</div>';
   });
   if (s.nameGaps.length) {
     html += '<div class="tt-prep-lead" style="margin-top:10px">' + L(
@@ -16995,9 +17961,9 @@ function renderInterviewSheet() {
       'And these are must have requirements whose substance you prove but whose name you do not. The resume states the shared properties and not the term itself, because you did not do exactly that thing. If the term comes up by name, this is the answer to have ready.') + '</div>';
     s.nameGaps.forEach(function (g) {
       html += '<div class="tt-prep-gap" dir="' + d(g.text) + '">' + escapeHtml(g.text) +
-              (g.instead ? '<div class="tt-prep-meta">' + L(H('מה כן יש לך: '), 'what you do have: ') +
+              (g.instead ? '<div class="tt-prep-meta">' + H('מה כן יש לך: ') +
                  escapeHtml(g.instead) + ' — ' + escapeHtml(g.distance || '') + '</div>' : '') +
-              (g.shared && g.shared.length ? '<div class="tt-prep-meta">' + L(H('מה כן מוכח: '), 'what is proved: ') +
+              (g.shared && g.shared.length ? '<div class="tt-prep-meta">' + H('מה כן מוכח: ') +
                  escapeHtml(g.shared.join('; ')) + '</div>' : '') +
               '</div>';
     });
@@ -17082,14 +18048,14 @@ function syncBulletToggle(doc) {
   box.checked = st.on;
   box.disabled = !st.total;
   var note = $('bulletToggleNote');
-  if (note) note.textContent = st.total ? st.marked + H(' מתוך ') + st.total + ' שורות מסומנות' : H('אין שורות מתאימות');
+  if (note) note.textContent = st.total ? st.marked + H(' מתוך ') + st.total + H(' שורות מסומנות') : H('אין שורות מתאימות');
 }
 
 function toggleBullets(on) {
   if (!APP.finalText) return;
   APP.finalText = applyBulletMarkers(APP.finalText, !!on);
   renderPreview();
-  var msg = on ? 'התבליטים הוחזרו לסעיפי הניסיון והכישורים.' : H('התבליטים הוסרו.');
+  var msg = on ? H('התבליטים הוחזרו לסעיפי הניסיון והכישורים.') : H('התבליטים הוסרו.');
   setStatus(msg);
   previewNote(msg, 'ok');
 }
@@ -17496,7 +18462,7 @@ function foldRelevancePanel(doc) {
   }
 
   if (!rows.length) return '';
-  return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm space-y-1" dir="rtl">' +
+  return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm space-y-1" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
     H('<div class="text-xs uppercase tracking-wide text-slate-500 mb-1">מה יושב מעל קו הקריאה</div>') +
     rows.join('') +
     H('<div class="text-xs text-slate-500 pt-1">נמדד בדפדפן ממפת הכיסוי, בלי קריאה למודל. המדד הזה לא משנה את ציון ההתאמה.</div>') +
@@ -17568,7 +18534,7 @@ function buriedMetricPanel(doc) {
   var buried = buriedMetricLines(doc);
   if (!buried.length) return '';
   var first = buried[0];
-  return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm" dir="rtl">' +
+  return '<div class="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
     H('<div class="text-xs uppercase tracking-wide text-slate-500 mb-1">מספרים שקבורים בסוף השורה</div>') +
     '<div class="text-slate-700">' + buried.length +
     (buried.length === 1 ? ' שורה מכילה נתון מדיד' : H(' שורות מכילות נתון מדיד')) +
@@ -17702,14 +18668,14 @@ function renderGrammarPanel() {
     return;
   }
   if (g.state === 'failed') {
-    el.innerHTML = '<div class="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900" dir="rtl">' +
+    el.innerHTML = '<div class="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
       H('בדיקת הדקדוק לא רצה: ') + escapeHtml(g.error) + H(' הטקסט לא שונה.</div>');
     return;
   }
   var pending = g.fixes.filter(function (f) { return f.status === 'pending'; });
   var applied = g.fixes.filter(function (f) { return f.status === 'applied'; });
   if (!g.fixes.length) {
-    el.innerHTML = '<div class="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900" dir="rtl">' +
+    el.innerHTML = '<div class="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900" dir="' + TT_LANG.dir(TT_UI_LANG) + '">' +
       H('בדיקת הדקדוק עברה נקייה. לא נמצאו שגיאות הטיה, התאמה או זמן.</div>');
     return;
   }
@@ -17724,7 +18690,7 @@ function renderGrammarPanel() {
       '<div class="text-slate-900">' + escapeHtml(f.after) + '</div>' +
       (f.why ? '<div class="text-xs text-slate-500 mt-1">' + escapeHtml(f.why) + '</div>' : '') +
       (done
-        ? '<div class="text-xs text-emerald-700 mt-1">' + (f.status === 'applied' ? '✓ הוחל' : H('השורה כבר לא קיימת בטקסט')) + '</div>'
+        ? '<div class="text-xs text-emerald-700 mt-1">' + (f.status === 'applied' ? H('✓ הוחל') : H('השורה כבר לא קיימת בטקסט')) + '</div>'
         : '<button class="tt-gfix mt-1 rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" data-gfix="' + f.id + H('">החל תיקון</button>')) +
       '</div>';
   });
@@ -18034,7 +19000,7 @@ function renderAnswerSpell() {
   }
   if (!marks.length) {
     out.innerHTML = ANSWER_SPELL.state === 'done'
-      ? '<span class="text-emerald-700">✓ לא נמצאו שגיאות כתיב בתשובה.</span>' : '';
+      ? '<span class="text-emerald-700">' + escapeHtml(H('✓ לא נמצאו שגיאות כתיב בתשובה.')) + '</span>' : '';
     return;
   }
   var html = '<div class="flex flex-wrap items-center gap-1">' +
@@ -18042,7 +19008,7 @@ function renderAnswerSpell() {
   marks.forEach(function (m, i) {
     html += '<span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 overflow-hidden">' +
       '<button class="tt-spellfix px-2 py-0.5 hover:bg-amber-100" data-i="' + i + '" ' +
-      'title="' + escapeHtml(m.kind === 'repeat' ? 'המילה מופיעה פעמיים ברצף' : H('תיקון מוצע')) + '">' +
+      'title="' + escapeHtml(m.kind === 'repeat' ? H('המילה מופיעה פעמיים ברצף') : H('תיקון מוצע')) + '">' +
       '<span class="tt-del">' + escapeHtml(m.before) + '</span> ← <b>' + escapeHtml(m.after) + '</b></button>' +
       '<button class="tt-spellignore px-1.5 py-0.5 text-slate-400 hover:text-slate-700 border-s border-amber-200" ' +
       'data-i="' + i + H('" title="זו מילה תקינה, אל תסמן אותה">✕</button></span>');
